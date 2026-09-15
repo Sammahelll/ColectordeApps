@@ -24,6 +24,17 @@
   const CFG_KEY = 'mantec_sat_hub_cfg';
   let client = null;
 
+  // Config por defecto: así cualquier dispositivo (celu, tablet, otra PC)
+  // arranca conectado sin pasar por "Configurar Supabase" primero.
+  // La anon key es pública por diseño (la seguridad la da RLS en Supabase,
+  // no el secreto de esta key), así que no hay problema en dejarla acá.
+  // El botón "Configurar" sigue funcionando como override manual si algún
+  // día cambia de proyecto Supabase.
+  const CFG_DEFAULT = {
+    url: 'https://wngzljsfqeocumrbgyoy.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InduZ3psanNmcWVvY3VtcmJneW95Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk0NDU2NjksImV4cCI6MjEwNTAyMTY2OX0.ArrBbd95DYDio7ttZGAYBoYwXy3D58gORfIxxjpwpxg'
+  };
+
   function leerConfig() {
     try {
       return JSON.parse(localStorage.getItem(CFG_KEY) || 'null');
@@ -37,7 +48,7 @@
   }
 
   function init(url, anonKey) {
-    const cfg = (url && anonKey) ? { url, anonKey } : leerConfig();
+    const cfg = (url && anonKey) ? { url, anonKey } : (leerConfig() || CFG_DEFAULT);
     if (!cfg || !cfg.url || !cfg.anonKey) {
       console.warn('[SatSync] Sin configuración de Supabase. Llamá a SatSync.init(url, anonKey) o configurá desde el hub.');
       return false;
