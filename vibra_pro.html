@@ -1186,9 +1186,11 @@ header{
       <button class="btn-accent" onclick="offPrint()">🖨️ Imprimir / PDF</button>
       <button class="btn-small" onclick="offExportCSV()">⬇ Exportar CSV</button>
       <button class="btn-small" onclick="offCopyReport()">📋 Copiar texto</button>
+      <button class="btn-small" id="btnGuardarNubeOff" onclick="guardarEnLaNubeOffline()">☁️ Guardar en la nube</button>
       <span style="flex:1;"></span>
       <span id="offReportMeta" style="font-size:.78rem;color:var(--muted);"></span>
     </div>
+    <div id="nubeStatusOff" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
 
     <!-- Report header -->
     <div class="off-report-header">
@@ -5043,6 +5045,69 @@ async function guardarEnLaNube(){
     : `☁️ ${ok} equipo(s) guardados en la nube correctamente.`;
 }
 
+// ── Guardar el informe OFFLINE (el que realmente se usa) en la nube ──
+function mapNivelASeveridad(nivel){
+  if(nivel === 'critical') return 'critico';
+  if(nivel === 'warning' || nivel === 'elevated') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNubeOffline(){
+  if(!lastOfflineReport){ alert('Generá el informe offline primero.'); return; }
+  const statusEl = document.getElementById('nubeStatusOff');
+  const btn = document.getElementById('btnGuardarNubeOff');
+
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    statusEl.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero — la config se comparte entre este módulo y el hub.';
+    statusEl.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+
+  const equipos = lastOfflineReport.equipList || [];
+  if(!equipos.length){
+    statusEl.textContent = '⚠️ El informe no trae equipos para guardar.';
+    return;
+  }
+
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  for(const eq of equipos){
+    const tag = eq.name || eq.eid;
+    if(!tag) { fail++; continue; }
+    const peorPunto = eq.points && eq.points[0];
+    const resumen = (peorPunto && peorPunto.diagnosis)
+      ? peorPunto.diagnosis
+      : `Estado ${eq.worstLevel} — salud ${eq.worstHealth}%`;
+    try{
+      await SatSync.guardarAnalisis({
+        modulo: 'vibra_pro',
+        equipo_tag: tag,
+        severidad: mapNivelASeveridad(eq.worstLevel),
+        resumen,
+        datos: {
+          eid: eq.eid, name: eq.name, type: eq.type,
+          powerKW: eq.powerKW, rpmBase: eq.rpmBase,
+          worstLevel: eq.worstLevel, worstHealth: eq.worstHealth,
+          puntos: (eq.points||[]).map(p => ({
+            pt: p.pt, desc: p.desc, health: p.health, level: p.level,
+            diagnosis: p.diagnosis, faults: p.faults, lastReading: p.lastReading,
+            nRecords: p.nRecords
+          }))
+        }
+      });
+      ok++;
+    }catch(err){
+      console.error('[SatSync] error guardando', tag, err);
+      fail++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.style.color = fail ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  statusEl.textContent = fail
+    ? `☁️ Guardados ${ok} de ${equipos.length} equipos (${fail} con error — ver consola).`
+    : `☁️ ${ok} equipo(s) guardados en la nube correctamente.`;
+}
+
 // ═══════════════════════════════════════════════════════════
 //  18. EQUIPMENT ANALYSIS TAB  (v6 — offline, per-equip)
 // ═══════════════════════════════════════════════════════════
@@ -6283,6 +6348,7 @@ function offBuildReportData(keys){
 }
 
 // ── Main generate function ───────────────────────────────────
+let lastOfflineReport = null;
 function generateOfflineReport(){
   if(!machinesData.size){ alert('Primero cargá datos de equipos.'); return; }
 
@@ -6303,6 +6369,7 @@ function generateOfflineReport(){
   if(!keys.length){ alert('No hay datos en el rango seleccionado.'); return; }
 
   const data = offBuildReportData(keys);
+  lastOfflineReport = data;
   offRenderReport(data, repType, scope);
 }
 
