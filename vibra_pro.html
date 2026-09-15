@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MANTEC – Vibra Pro V1.4 · Análisis Predictivo de Vibración</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -1114,8 +1116,10 @@ header{
           <button class="btn-small" onclick="toggleJsonView()">Mostrar/Ocultar</button>
           <button class="btn-small" onclick="downloadJSON()">⬇ Descargar</button>
           <button class="btn-small" onclick="copyJSON()">📋 Copiar</button>
+          <button class="btn-small" id="btnGuardarNube" onclick="guardarEnLaNube()">☁️ Guardar en la nube</button>
         </div>
       </div>
+      <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin-top:6px;"></div>
       <pre id="aiJsonViewer" class="ai-json-pre" style="display:none;"></pre>
     </div>
   </div>
@@ -4927,6 +4931,60 @@ function copyJSON(){
   navigator.clipboard.writeText(JSON.stringify(lastAIReport, null, 2))
     .then(()=>alert('JSON copiado al portapapeles ✅'))
     .catch(()=>alert('No se pudo copiar.'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Sincronización con el hub (SatSync) — Etapa 2
+// ═══════════════════════════════════════════════════════════
+
+function mapEstadoASeveridad(estado){
+  const e = (estado || '').toLowerCase();
+  if(e.includes('crít')) return 'critico';
+  if(e.includes('alerta') || e.includes('elev')) return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(){
+  if(!lastAIReport){ alert('Generá un informe primero.'); return; }
+  const statusEl = document.getElementById('nubeStatus');
+  const btn = document.getElementById('btnGuardarNube');
+
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    statusEl.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero — la config se comparte entre este módulo y el hub.';
+    statusEl.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+
+  const equipos = lastAIReport.equipos || [];
+  if(!equipos.length){
+    statusEl.textContent = '⚠️ El informe no trae equipos individuales para guardar.';
+    return;
+  }
+
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  for(const eq of equipos){
+    const tag = eq.equipo || eq.punto;
+    if(!tag) { fail++; continue; }
+    try{
+      await SatSync.guardarAnalisis({
+        modulo: 'vibra_pro',
+        equipo_tag: tag,
+        severidad: mapEstadoASeveridad(eq.estado),
+        resumen: eq.causa_probable || (eq.hallazgos && eq.hallazgos[0]) || eq.estado || '',
+        datos: eq
+      });
+      ok++;
+    }catch(err){
+      console.error('[SatSync] error guardando', tag, err);
+      fail++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.style.color = fail ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  statusEl.textContent = fail
+    ? `☁️ Guardados ${ok} de ${equipos.length} equipos (${fail} con error — ver consola).`
+    : `☁️ ${ok} equipo(s) guardados en la nube correctamente.`;
 }
 
 // ═══════════════════════════════════════════════════════════
