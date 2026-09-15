@@ -7,6 +7,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Lubricación en Campo — Satélite MANTEC</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -115,6 +117,26 @@ select:focus, input:focus, textarea:focus { border-color:var(--accent); box-shad
 .field-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 @media (max-width:560px) { .field-grid { grid-template-columns:1fr; } }
 
+/* ── MOBILE ── */
+@media (max-width:520px) {
+  header { flex-wrap:wrap; padding:12px 14px; gap:8px; }
+  .header-badge { order:3; }
+  header .tab-btn { order:2; margin-left:0 !important; }
+  main { padding:12px; }
+  .card { padding:14px; }
+
+  .select-row { flex-direction:column; align-items:stretch; }
+  .select-row > div { min-width:0; }
+  .select-row > div[style*="flex:0 0 auto"] { flex:1 1 auto !important; }
+  .select-row input[style*="width:110px"] { width:100% !important; }
+
+  .hist-row, .alert-row { flex-direction:column; align-items:stretch; gap:8px; }
+  .alert-row .btn { align-self:flex-end; }
+
+  .punto-head { flex-wrap:wrap; }
+  .punto-status { order:-1; }
+}
+
 button.btn {
   font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:1px;
   border-radius:7px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2);
@@ -215,6 +237,7 @@ textarea { resize:vertical; min-height:60px; }
     </div>
   </div>
   <div class="header-badge" id="headerBadge">— sin datos MANTEC —</div>
+  <button class="tab-btn" style="margin-left:8px;" onclick="sincronizarEquiposHub()">🔄 Sincronizar equipos</button>
 </header>
 
 <div class="tabs">
@@ -332,7 +355,8 @@ const SAT = {
   setObj: (k,v) => localStorage.setItem(SAT_PREFIX+k, JSON.stringify(v)),
 };
 
-var equipos = DB.get('equipos');                 // leído de MANTEC
+var equipos = SAT.get('equipos_hub');            // catálogo cacheado del hub (Supabase)
+if (!equipos.length) equipos = DB.get('equipos'); // compat: si corre junto al MANTEC clásico en el mismo navegador
 var horometros = SAT.getObj('horometros_campo'); // { eqId: valor }  (independiente del de MANTEC para no pisar datos)
 var aplicaciones = SAT.get('aplicaciones');       // histórico de aplicaciones de lubricación en campo
 
@@ -407,9 +431,9 @@ function init() {
 function actualizarHeaderBadge() {
   const badge = document.getElementById('headerBadge');
   if (equipos.length) {
-    badge.textContent = `✓ ${equipos.length} equipo(s) desde MANTEC`;
+    badge.textContent = `✓ ${equipos.length} equipo(s) del hub`;
   } else {
-    badge.textContent = '— sin equipos de MANTEC —';
+    badge.textContent = '— sin equipos del hub —';
   }
 }
 
@@ -641,6 +665,7 @@ function registrarAplicacion(pid) {
 
   aplicaciones.push(registro);
   SAT.set('aplicaciones', aplicaciones);
+  guardarEnLaNube(registro); // asíncrono, no bloquea el registro local
 
   if (agua === 'Sí') {
     toast(`⚠ Registrado con presencia de agua en "${item.punto.substring(0,30)}"`, 'warn');
@@ -787,7 +812,56 @@ function toast(msg, type='info') {
   setTimeout(() => el.remove(), 3200);
 }
 
+/* ══════════════════════════════════════════════════════════════
+   SINCRONIZACIÓN CON EL HUB (SatSync)
+   ══════════════════════════════════════════════════════════════ */
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) toast('Conectá Supabase primero (configuralo desde el hub — index.html).', 'error');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equipos = rows.map(r => ({id:r.id, tag:r.tag, nombre:r.nombre, tipo:r.tipo}));
+    SAT.set('equipos_hub', equipos);
+    poblarSelectEquipos();
+    actualizarHeaderBadge();
+    renderAlertas();
+    renderEquiposLista();
+    if(!silencioso) toast(`✓ ${equipos.length} equipo(s) sincronizado(s) del hub`, 'success');
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) toast('No se pudo leer el catálogo del hub: ' + err.message, 'error');
+    return false;
+  }
+}
+
+function mapCondicionASeveridad(registro){
+  if(registro.agua === 'Sí') return 'atencion';
+  if(registro.color === 'Negro (oxidado)') return 'atencion';
+  if(registro.turbidez === 'Con sedimento') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(registro){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return; // sin conexión configurada, sigue funcionando local
+  try{
+    await SatSync.guardarAnalisis({
+      modulo: 'lubricacion',
+      equipo_tag: registro.eqTag,
+      severidad: mapCondicionASeveridad(registro),
+      resumen: `${registro.punto} — ${registro.producto} (${registro.cantidad}, ${registro.metodo})`,
+      datos: registro
+    });
+  }catch(err){
+    console.warn('[SatSync] no se pudo guardar la aplicación en la nube', err);
+    toast('⚠ No se pudo sincronizar con la nube (quedó guardado local)', 'warn');
+  }
+}
+
 init();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
 </script>
 </body>
 </html>

@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MANTEC – Motor Pro V1.0 · Análisis Predictivo de Motores Eléctricos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -259,6 +261,50 @@ header{
 ::-webkit-scrollbar{width:9px;height:9px;}
 ::-webkit-scrollbar-track{background:var(--surface);}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;}
+
+/* ── MOBILE ── */
+@media (max-width:680px){
+  header{flex-direction:column;align-items:stretch;gap:12px;padding:14px 16px;}
+  .header-right{width:100%;justify-content:space-between;gap:10px;}
+  .hstat-val{font-size:1.1rem;}
+  .upload-bar{padding:12px 16px;}
+  .tabs{padding:0 10px;}
+  .tab-btn{padding:11px 14px;font-size:.92rem;}
+  .tab-content{padding:16px;}
+
+  .summary-bar{grid-template-columns:repeat(2,1fr);}
+
+  .toolbar{flex-direction:column;align-items:stretch;}
+  .toolbar .search-box{width:100%;min-width:0;}
+  .toolbar .sort-sel{width:100%;}
+  .sep{display:none;}
+
+  .grid{grid-template-columns:1fr;}
+
+  .modal-overlay{padding:0;align-items:stretch;}
+  .modal-box{max-width:100%;width:100%;min-height:100vh;border-radius:0;}
+  .modal-body{padding:16px 16px 32px;}
+
+  .form-grid,.th-grid{grid-template-columns:1fr;}
+  .mgrid{grid-template-columns:repeat(2,1fr);}
+
+  /* Tablas -> tarjetas */
+  table.rtable,table.plan-table{width:100%;}
+  table.rtable thead,table.plan-table thead{display:none;}
+  table.rtable tbody tr,table.plan-table tbody tr{
+    display:block;margin-bottom:10px;border:1px solid var(--border);
+    border-radius:10px;padding:8px 12px;background:var(--card);
+  }
+  table.rtable tbody td,table.plan-table tbody td{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:6px 0;border-bottom:1px solid var(--border);text-align:right;
+  }
+  table.rtable tbody td:last-child,table.plan-table tbody td:last-child{border-bottom:none;}
+  table.rtable tbody td::before,table.plan-table tbody td::before{
+    content:attr(data-label);font-size:.68rem;color:var(--muted);
+    text-transform:uppercase;letter-spacing:.5px;text-align:left;font-family:'Rajdhani',sans-serif;
+  }
+}
 </style>
 </head>
 <body>
@@ -320,8 +366,13 @@ header{
 <div class="tab-content" id="tab-motores">
   <div class="panel-box">
     <div class="panel-box-title">➕ Registrar motor</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <button class="btn-small" onclick="sincronizarEquiposHub().then(()=>{renderMotorsList();alert('Catálogo del hub actualizado ('+equiposHub.size+' equipos).');})">🔄 Sincronizar equipos del hub</button>
+      <span style="font-size:.8rem;color:var(--muted);">trae el catálogo compartido para reusar el mismo TAG entre módulos</span>
+    </div>
+    <datalist id="hubTagsDatalist"></datalist>
     <div class="form-grid">
-      <div class="fld"><label>TAG / Nombre del motor</label><input id="newMotorName" placeholder="Ej: MOT-BOMBA-01"></div>
+      <div class="fld"><label>TAG / Nombre del motor</label><input id="newMotorName" list="hubTagsDatalist" placeholder="Ej: MOT-BOMBA-01"></div>
       <div class="fld"><label>Tipo</label>
         <select id="newMotorType"></select>
       </div>
@@ -363,7 +414,9 @@ header{
   <div class="action-bar">
     <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="generateOfflineReport()">🔄 Generar informe</button>
     <button class="btn-small" onclick="copyReport()">📋 Copiar como texto</button>
+    <button class="btn-small" id="btnGuardarNube" onclick="guardarEnLaNube()">☁️ Guardar en la nube</button>
   </div>
+  <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
   <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de motores.</div></div>
 </div>
 
@@ -538,6 +591,7 @@ const THRESHOLD_META = {
 // ═══════════════════════════════════════════════════════════
 let motorsRegistry = new Map();   // motorId -> {name, type, sistema, location, kw, vNom, iNom, rpm}
 let readingsData   = new Map();   // motorId -> {dates:[], params:{...}, obs:[]}
+let equiposHub      = new Map();  // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
 let thresholds     = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
 let statusFilter   = 'all';
 let currentKey     = null;
@@ -783,6 +837,7 @@ function importRows(rows){
       motorsRegistry.set(motorId, {name:motorName, type:motorType, sistema, hilos, location:'',
         kw: isNaN(kw)?0:kw, vNom: isNaN(vNom)?0:vNom, iNom: isNaN(iNom)?0:iNom, rpm: isNaN(rpm)?0:rpm});
       motorsCreated++;
+      publicarEquipoEnHub(motorName, motorType); // asíncrono, no bloquea el import
     } else {
       // Motor ya existente creado antes de tener el campo "hilos" (o sin valor):
       // completar con lo que traiga la fila en vez de dejarlo forzado a 3 hilos.
@@ -1243,7 +1298,7 @@ function openDetail(k){
       <thead><tr><th>Fecha</th><th>R1 (MΩ)</th><th>R1 @40°C</th><th>R10 (MΩ)</th><th>IP</th><th>Desb.Bob (%)</th><th>Desb.I (%)</th></tr></thead>
       <tbody>${d.dates.map((dt,i)=>{
         const ev = evalReading(d.params, i);
-        return `<tr><td>${fmtDate(dt)}</td><td>${!isNaN(ev.r1)?fmt(ev.r1,0):'—'}</td><td>${ev.rAislCorregida?fmt(ev.rAislCorr,0):'—'}</td><td>${!isNaN(ev.r10)?fmt(ev.r10,0):'—'}</td><td>${!isNaN(ev.ip)?fmt(ev.ip,2):'—'}</td><td>${!isNaN(ev.desbR)?fmt(ev.desbR,1):'—'}</td><td>${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td></tr>`;
+        return `<tr><td data-label="Fecha">${fmtDate(dt)}</td><td data-label="R1 (MΩ)">${!isNaN(ev.r1)?fmt(ev.r1,0):'—'}</td><td data-label="R1 @40°C">${ev.rAislCorregida?fmt(ev.rAislCorr,0):'—'}</td><td data-label="R10 (MΩ)">${!isNaN(ev.r10)?fmt(ev.r10,0):'—'}</td><td data-label="IP">${!isNaN(ev.ip)?fmt(ev.ip,2):'—'}</td><td data-label="Desb.Bob (%)">${!isNaN(ev.desbR)?fmt(ev.desbR,1):'—'}</td><td data-label="Desb.I (%)">${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td></tr>`;
       }).reverse().slice(0,15).join('')}</tbody>
     </table>
   </div>`;
@@ -1315,6 +1370,7 @@ function createMotor(){
   const rpm  = parseFloat(document.getElementById('newMotorRPM').value) || 0;
   const id = genId();
   motorsRegistry.set(id, {name, type, sistema, hilos, location:loc, kw, vNom, iNom, rpm});
+  publicarEquipoEnHub(name, type);
   ['newMotorName','newMotorLoc','newMotorKW','newMotorVnom','newMotorInom','newMotorRPM'].forEach(i=>document.getElementById(i).value='');
   saveState();
   renderAll();
@@ -1452,11 +1508,11 @@ function generateOfflineReport(){
       <thead><tr><th>Prioridad</th><th>Motor</th><th>Hallazgo</th><th>Plazo</th><th>Salud</th></tr></thead>
       <tbody>${actionItems.map(a=>`
         <tr>
-          <td><span class="prio-badge prio-${a.prio}">${a.prio.toUpperCase()}</span></td>
-          <td style="font-weight:700;">${escHtml(a.motor)}</td>
-          <td style="font-size:.82rem;">${escHtml(a.accion)}</td>
-          <td style="font-weight:700;color:${STATUS_COLORS[STATUS.indexOf(a.nivel)]};">${a.plazo}</td>
-          <td style="font-family:'Share Tech Mono';">${a.health}%</td>
+          <td data-label="Prioridad"><span class="prio-badge prio-${a.prio}">${a.prio.toUpperCase()}</span></td>
+          <td data-label="Motor" style="font-weight:700;">${escHtml(a.motor)}</td>
+          <td data-label="Hallazgo" style="font-size:.82rem;">${escHtml(a.accion)}</td>
+          <td data-label="Plazo" style="font-weight:700;color:${STATUS_COLORS[STATUS.indexOf(a.nivel)]};">${a.plazo}</td>
+          <td data-label="Salud" style="font-family:'Share Tech Mono';">${a.health}%</td>
         </tr>`).join('')}</tbody>
     </table></div>`;
   }
@@ -1532,11 +1588,97 @@ function clearAllData(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Sincronización con el hub (SatSync)
+// ═══════════════════════════════════════════════════════════
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equiposHub = new Map(rows.map(e => [e.tag, e]));
+    const dl = document.getElementById('hubTagsDatalist');
+    if(dl) dl.innerHTML = rows.map(e => `<option value="${escHtml(e.tag)}">${escHtml(e.nombre||'')}</option>`).join('');
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) alert('No se pudo leer el catálogo de equipos del hub: ' + err.message);
+    return false;
+  }
+}
+
+async function publicarEquipoEnHub(name, tipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return;
+  try{
+    await SatSync.buscarOCrearEquipo(name, {tipo});
+    equiposHub.set(name, {tag:name, nombre:name, tipo});
+  }catch(err){
+    console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
+  }
+}
+
+function mapNivelASeveridad(nivel){
+  if(nivel === 'critical') return 'critico';
+  if(nivel === 'warning' || nivel === 'elevated') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(){
+  if(!readingsData.size){ alert('Generá el informe primero.'); return; }
+  const statusEl = document.getElementById('nubeStatus');
+  const btn = document.getElementById('btnGuardarNube');
+
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    statusEl.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero — la config se comparte entre este módulo y el hub.';
+    statusEl.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseMotor(k);
+    if(!diag || diag.overall < 0) continue;
+    const tag = getMotorName(k);
+    if(!tag){ fail++; continue; }
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const nivel  = STATUS[diag.overall];
+    const msgs   = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const resumen = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Sin hallazgos relevantes';
+    const m = motorsRegistry.get(k) || {};
+    try{
+      await SatSync.guardarAnalisis({
+        modulo: 'motor_pro',
+        equipo_tag: tag,
+        severidad: mapNivelASeveridad(nivel),
+        resumen,
+        datos: {
+          motor: tag, tipo: m.type, sistema: m.sistema, kw: m.kw, vNom: m.vNom, iNom: m.iNom, rpm: m.rpm,
+          health, nivel, ip: diag.ip, rAisl: diag.rAisl, rAislCorr: diag.rAislCorr,
+          desbR: diag.desbR, desbI: diag.desbI, fecha: diag.date, hallazgos: msgs
+        }
+      });
+      ok++;
+    }catch(err){
+      console.error('[SatSync] error guardando', tag, err);
+      fail++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.style.color = fail ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  statusEl.textContent = fail
+    ? `☁️ Guardados ${ok} motor(es) (${fail} con error — ver consola).`
+    : `☁️ ${ok} motor(es) guardados en la nube correctamente.`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  13. INIT
 // ═══════════════════════════════════════════════════════════
 loadState();
 populateMotorTypeSelect();
 renderAll();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
 
 </script>
 </body>

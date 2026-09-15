@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Seguimiento de Alineación Láser — TKSA 41</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
 <style>
   :root{
     --bg:#07090f;
@@ -169,6 +171,38 @@
     main{padding:0; max-width:none;}
     .panel{border:none; padding:0;}
   }
+
+  /* ── MOBILE ── */
+  @media (max-width:680px){
+    header{padding:14px 16px 0;}
+    nav{overflow-x:auto;}
+    main{padding:16px 16px 60px;}
+    .panel{padding:14px;}
+    .grid2, .grid4{grid-template-columns:1fr;}
+    .compare{grid-template-columns:1fr;}
+    .kv{grid-template-columns:1fr; gap:0 12px;}
+    .kv .k{margin-top:6px;}
+
+    .modal-overlay{padding:0; align-items:stretch;}
+    .modal{max-width:100%; width:100%; max-height:100vh; height:100%; border-radius:0;}
+
+    /* Tablas -> tarjetas */
+    table{width:100%;}
+    table thead{display:none;}
+    table tbody tr{
+      display:block; margin-bottom:10px; border:1px solid var(--border);
+      border-radius:8px; padding:6px 12px; background:var(--card);
+    }
+    table tbody td{
+      display:flex; justify-content:space-between; align-items:center; gap:10px;
+      padding:7px 0; border-bottom:1px solid var(--border); text-align:right !important;
+    }
+    table tbody td:last-child{border-bottom:none;}
+    table tbody td::before{
+      content:attr(data-label); font-size:12px; color:var(--muted); font-weight:600;
+      text-align:left;
+    }
+  }
 </style>
 </head>
 <body>
@@ -194,6 +228,7 @@ const STORAGE_KEY = 'alineacion_laser_data_v1';
 
 let equiposRegistry = new Map();   // id -> {tag, planta, tipoAcople, rpm, tempTrabajo}
 let alineaciones = new Map();      // equipoId -> [ {id, fecha, tecnico, motivo, asFound, asLeft, semaforo, pataBlanda, observaciones, proximaRevision} ]
+let equiposHub = new Map();        // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
 
 function genId(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
@@ -337,19 +372,22 @@ function renderEquiposTab(){
       const hist = sortedHistorial(id);
       const ultimo = hist[hist.length-1];
       return `<tr class="clickable" data-open-equipo="${id}">
-        <td class="mono">${escapeHtml(eq.tag)}</td>
-        <td>${escapeHtml(eq.planta||'—')}</td>
-        <td class="mono">${eq.rpm||'—'}</td>
-        <td>${escapeHtml(eq.tipoAcople||'—')}</td>
-        <td class="mono">${hist.length}</td>
-        <td>${ultimo ? semaforoBadge(ultimo.semaforo) + ' <span class="mono" style="color:var(--muted); font-size:12px;">' + fmtDate(ultimo.fecha) + '</span>' : '—'}</td>
+        <td class="mono" data-label="TAG">${escapeHtml(eq.tag)}</td>
+        <td data-label="Planta">${escapeHtml(eq.planta||'—')}</td>
+        <td class="mono" data-label="RPM">${eq.rpm||'—'}</td>
+        <td data-label="Acoplamiento">${escapeHtml(eq.tipoAcople||'—')}</td>
+        <td class="mono" data-label="Alineaciones">${hist.length}</td>
+        <td data-label="Último resultado">${ultimo ? semaforoBadge(ultimo.semaforo) + ' <span class="mono" style="color:var(--muted); font-size:12px;">' + fmtDate(ultimo.fecha) + '</span>' : '—'}</td>
       </tr>`;
     }).join('') + `</tbody></table>`;
   }
   return `<div class="panel">
     <div class="row" style="justify-content:space-between; margin-bottom:14px;">
       <h2 style="margin:0;">Equipos</h2>
-      <button class="btn secondary" id="btnNuevoEquipo">+ Nuevo equipo</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn secondary" onclick="sincronizarEquiposHub().then(()=>render())">🔄 Sincronizar equipos del hub</button>
+        <button class="btn secondary" id="btnNuevoEquipo">+ Nuevo equipo</button>
+      </div>
     </div>
     ${body}
   </div>`;
@@ -357,8 +395,12 @@ function renderEquiposTab(){
 
 // ---- Tab: Registrar alineación ----
 function renderNuevaAlineacionTab(){
+  const nombresLocales = new Set(Array.from(equiposRegistry.values()).map(eq => (eq.tag||'').toUpperCase()));
   const opciones = Array.from(equiposRegistry.entries())
-    .map(([id, eq]) => `<option value="${id}">${escapeHtml(eq.tag)} — ${escapeHtml(eq.planta||'')}</option>`).join('');
+    .map(([id, eq]) => `<option value="${id}">${escapeHtml(eq.tag)} — ${escapeHtml(eq.planta||'')}</option>`).join('')
+    + Array.from(equiposHub.entries())
+      .filter(([tag]) => !nombresLocales.has(tag.toUpperCase()))
+      .map(([tag, eq]) => `<option value="__hub:${escapeHtml(tag)}">☁ ${escapeHtml(tag)} — ${escapeHtml(eq.nombre||'')} (del hub)</option>`).join('');
   return `<div class="panel">
     <h2>Registrar alineación</h2>
     <form id="formAlineacion">
@@ -454,11 +496,11 @@ function renderDetalleEquipo(equipoId){
   const histRows = hist.length === 0 ? `<div class="empty">Sin intervenciones registradas todavía.</div>` :
     `<table><thead><tr><th>Fecha</th><th>Técnico</th><th>Motivo</th><th>Offset as-left (V/H)</th><th>Resultado</th><th></th></tr></thead><tbody>` +
     [...hist].reverse().map(a => `<tr class="clickable" data-open-informe="${a.id}">
-      <td class="mono">${fmtDate(a.fecha)}</td>
-      <td>${escapeHtml(a.tecnico||'—')}</td>
-      <td>${escapeHtml(a.motivo||'—')}</td>
-      <td class="mono">${fmtNum(a.asLeft?.offV)} / ${fmtNum(a.asLeft?.offH)}</td>
-      <td>${semaforoBadge(a.semaforo)}</td>
+      <td class="mono" data-label="Fecha">${fmtDate(a.fecha)}</td>
+      <td data-label="Técnico">${escapeHtml(a.tecnico||'—')}</td>
+      <td data-label="Motivo">${escapeHtml(a.motivo||'—')}</td>
+      <td class="mono" data-label="Offset as-left (V/H)">${fmtNum(a.asLeft?.offV)} / ${fmtNum(a.asLeft?.offH)}</td>
+      <td data-label="Resultado">${semaforoBadge(a.semaforo)}</td>
       <td style="text-align:right; color:var(--accent-dark); font-size:12.5px;">Ver informe →</td>
     </tr>`).join('') + `</tbody></table>`;
 
@@ -583,6 +625,7 @@ function openNuevoEquipoModal(onCreated){
       tipoAcople: document.getElementById('mAcople').value,
       tempTrabajo: document.getElementById('mTemp').value
     });
+    publicarEquipoEnHub(tag, document.getElementById('mAcople').value);
     saveData();
     closeModal();
     if(onCreated) onCreated(id);
@@ -666,6 +709,19 @@ function wireEvents(){
     e.preventDefault();
     let equipoId = document.getElementById('fEquipo').value;
     if(!equipoId || equipoId === '__nuevo__'){ document.getElementById('fEquipo').focus(); return; }
+    if(equipoId.startsWith('__hub:')){
+      // Equipo elegido del catálogo compartido: se crea el registro local
+      // usando el TAG del hub, para mantener la misma identidad.
+      const hubTag = equipoId.slice('__hub:'.length);
+      const hubEq  = equiposHub.get(hubTag) || {};
+      const yaExiste = Array.from(equiposRegistry.entries()).find(([,eq]) => (eq.tag||'').toUpperCase() === hubTag.toUpperCase());
+      if(yaExiste){
+        equipoId = yaExiste[0];
+      }else{
+        equipoId = genId();
+        equiposRegistry.set(equipoId, { tag:hubTag, planta:hubEq.ubicacion||'', rpm:'', tipoAcople:'', tempTrabajo:'' });
+      }
+    }
 
     const registro = {
       id: genId(),
@@ -696,6 +752,7 @@ function wireEvents(){
     if(!alineaciones.has(equipoId)) alineaciones.set(equipoId, []);
     alineaciones.get(equipoId).push(registro);
     saveData();
+    guardarEnLaNube(registro, equiposRegistry.get(equipoId)); // asíncrono, no bloquea el registro local
 
     window._detalleEquipoId = equipoId;
     currentTab = 'detalle';
@@ -710,10 +767,63 @@ document.getElementById('tabNav').addEventListener('click', (e) => {
 });
 
 // ═══════════════════════════════════════════════════════════
+//  SINCRONIZACIÓN CON EL HUB (SatSync)
+// ═══════════════════════════════════════════════════════════
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equiposHub = new Map(rows.map(e => [e.tag, e]));
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) alert('No se pudo leer el catálogo de equipos del hub: ' + err.message);
+    return false;
+  }
+}
+
+async function publicarEquipoEnHub(name, tipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return;
+  try{
+    await SatSync.buscarOCrearEquipo(name, {tipo});
+    equiposHub.set(name, {tag:name, nombre:name, tipo});
+  }catch(err){
+    console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
+  }
+}
+
+function mapSemaforoASeveridad(semaforo){
+  if(semaforo === 'rojo') return 'critico';
+  if(semaforo === 'amarillo') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(registro, equipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return; // sin conexión configurada, sigue funcionando local
+  const tag = equipo?.tag;
+  if(!tag) return;
+  try{
+    await SatSync.guardarAnalisis({
+      modulo: 'alineacion',
+      equipo_tag: tag,
+      severidad: mapSemaforoASeveridad(registro.semaforo),
+      resumen: `Alineación (${registro.motivo}) — resultado ${registro.semaforo}` + (registro.pataBlanda?.detectada==='si' ? ' · pata blanda detectada' : ''),
+      datos: registro
+    });
+  }catch(err){
+    console.warn('[SatSync] no se pudo guardar la alineación en la nube', err);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
 //  7. INIT
 // ═══════════════════════════════════════════════════════════
 loadData();
 render();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
 </script>
 </body>
 </html>
