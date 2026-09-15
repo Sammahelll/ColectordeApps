@@ -1297,9 +1297,14 @@ header{
 
   <div class="config-section">
     <h3>Registro de equipos</h3>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <button class="btn-small" onclick="sincronizarEquiposHub().then(()=>{renderEquipmentRegistry();alert('Catálogo del hub actualizado ('+equiposHub.size+' equipos).');})">🔄 Sincronizar equipos del hub</button>
+      <span style="font-size:.78rem;color:var(--muted);">trae el catálogo compartido para poder asignarle mediciones sin crearlo de nuevo acá</span>
+    </div>
     <div id="equipmentRegistryUI"></div>
+    <datalist id="hubTagsDatalist"></datalist>
     <div id="addEquipForm" class="add-equip-form" style="display:none;">
-      <input type="text" id="newEquipName" placeholder="Nombre del equipo (ej: P014A – Bomba Centrífuga)">
+      <input type="text" id="newEquipName" list="hubTagsDatalist" placeholder="Nombre del equipo (ej: P014A – Bomba Centrífuga)">
       <select id="newEquipType">
         <option value="Bomba centrífuga">Bomba centrífuga</option>
         <option value="Motor eléctrico">Motor eléctrico</option>
@@ -1535,6 +1540,7 @@ const DEFAULT_PREFIX_MAP = {
 // ═══════════════════════════════════════════════════════════
 // NUEVO DeepSeek: machinesData ahora incluye rpms[] por medición
 let machinesData     = new Map(); // fullKey → {dates, params, rpms?}
+let equiposHub        = new Map(); // tag → {nombre, tipo, ubicacion, id} — catálogo compartido leído del hub
 let equipmentRegistry= new Map(); // equipId → {name, type, powerKW, rpmBase}
 let machineMetadata  = new Map(); // fullKey → {displayName, powerKW, rpmBase}
 let prefixMap        = {...DEFAULT_PREFIX_MAP};
@@ -2428,6 +2434,7 @@ function extractEquipTag(rawName){
 function buildEquipOptions(suggestName) {
   const tag = extractEquipTag(suggestName);
   let html = '';
+  const nombresLocales = new Set([...equipmentRegistry.values()].map(eq => normalizeEquipStr(eq.name)));
   for (const [id, eq] of equipmentRegistry.entries()) {
     // Solo se auto-selecciona si ambos nombres comparten la misma etiqueta
     // alfanumérica identificadora. Un nombre puramente genérico ("Bomba",
@@ -2436,7 +2443,46 @@ function buildEquipOptions(suggestName) {
     const match = !!(tag && eqTag && eqTag === tag);
     html += `<option value="${id}" ${match?'selected':''}>${eq.name} (${eq.type||'—'})</option>`;
   }
+  // Equipos del hub que todavía no tienen un registro local acá — se
+  // muestran aparte para que se puedan asignar mediciones directamente
+  // al catálogo compartido sin tener que crearlos de nuevo a mano.
+  for (const [hubTag, hubEq] of equiposHub.entries()) {
+    if (nombresLocales.has(normalizeEquipStr(hubTag))) continue;
+    const match = !!(tag && hubTag.toUpperCase() === tag);
+    html += `<option value="__hub:${escHtml(hubTag)}" ${match?'selected':''}>☁ ${escHtml(hubTag)} — ${escHtml(hubEq.nombre||'')} (del hub)</option>`;
+  }
   return html;
+}
+
+// ── Catálogo de equipos compartido (hub) ────────────────────
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equiposHub = new Map(rows.map(e => [e.tag, e]));
+    const dl = document.getElementById('hubTagsDatalist');
+    if(dl) dl.innerHTML = rows.map(e => `<option value="${escHtml(e.tag)}">${escHtml(e.nombre||'')}</option>`).join('');
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) alert('No se pudo leer el catálogo de equipos del hub: ' + err.message);
+    return false;
+  }
+}
+
+// Empuja un equipo recién creado localmente al catálogo compartido, para
+// que aparezca de inmediato en el hub y en los otros módulos.
+async function publicarEquipoEnHub(name, tipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return;
+  try{
+    await SatSync.buscarOCrearEquipo(name, {tipo});
+    equiposHub.set(name, {tag:name, nombre:name, tipo});
+  }catch(err){
+    console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
+  }
 }
 
 function checkHasMerge(rawMachine, stdPoint) {
@@ -2533,6 +2579,15 @@ function confirmPairing() {
       if (!name) continue;
       equipId = genEquipId();
       equipmentRegistry.set(equipId, { name, type:type||'Otro', powerKW:0, rpmBase:0, machineTypeISO:mti });
+      publicarEquipoEnHub(name, type||'Otro'); // asíncrono, no bloquea el import
+    } else if (equipId.startsWith('__hub:')) {
+      // Equipo elegido del catálogo compartido: se crea el registro local
+      // usando el TAG del hub como nombre, para que quede la misma
+      // identidad en ambos lados.
+      const hubTag = equipId.slice('__hub:'.length);
+      const hubEq  = equiposHub.get(hubTag) || {};
+      equipId = genEquipId();
+      equipmentRegistry.set(equipId, { name:hubTag, type:hubEq.tipo||'Otro', powerKW:0, rpmBase:0, machineTypeISO:'Rotativa General / Bomba' });
     }
     const fullKey  = `${equipId}/${stdPt}`;
     const existing = machinesData.get(fullKey);
@@ -2687,6 +2742,7 @@ function addEquipment() {
   const machineTypeISO = document.getElementById('newEquipMachineTypeISO')?.value || 'Rotativa General / Bomba';
   const id     = genEquipId();
   equipmentRegistry.set(id, {name, type, powerKW, rpmBase, machineTypeISO});
+  publicarEquipoEnHub(name, type);
   saveConfig();
   renderEquipmentRegistry();
   document.getElementById('newEquipName').value = '';
@@ -6672,6 +6728,7 @@ function offCopyReport(){
 // ═══════════════════════════════════════════════════════════
 loadConfig();
 renderConfig();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
 if(machinesData.size>0){
   renderDashboard();
   renderMachineList();
