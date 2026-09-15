@@ -220,6 +220,8 @@ header{
 
 /* ── FORMS / CONFIG ── */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
+.form-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px;}
+.form-grid-5 .span2{grid-column:span 2;}
 .fld{display:flex;flex-direction:column;gap:4px;}
 .fld label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
 .fld input,.fld select{
@@ -285,7 +287,8 @@ header{
   .modal-box{max-width:100%;width:100%;min-height:100vh;border-radius:0;}
   .modal-body{padding:16px 16px 32px;}
 
-  .form-grid,.th-grid{grid-template-columns:1fr;}
+  .form-grid,.th-grid,.form-grid-5{grid-template-columns:1fr;}
+  .form-grid-5 .span2{grid-column:auto;}
   .mgrid{grid-template-columns:repeat(2,1fr);}
 
   /* Tablas -> tarjetas */
@@ -485,33 +488,33 @@ header{
       </div>
       <div id="me_aislacionExtendida" class="hidden">
         <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">Motor de 6 hilos: cada devanado se mide aislado del resto (los otros dos a tierra). Con estrella accesible, también se puede medir devanado contra devanado.</div>
-        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);">
+        <div class="form-grid-5">
           <div class="fld"><label>Devanado</label></div>
-          <div class="fld" style="grid-column:span 2;"><label>R1 (1 min, MΩ)</label></div>
-          <div class="fld" style="grid-column:span 2;"><label>R10 (10 min, MΩ)</label></div>
+          <div class="fld span2"><label>R1 (1 min, MΩ)</label></div>
+          <div class="fld span2"><label>R10 (10 min, MΩ)</label></div>
         </div>
-        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
+        <div class="form-grid-5" style="align-items:center;">
           <div class="fld"><label style="margin:0;">U — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_u" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_u" oninput="updateIPPreviewExt()" class="span2">
           <div class="fld"><label style="margin:0;">V — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_v" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_v" oninput="updateIPPreviewExt()" class="span2">
           <div class="fld"><label style="margin:0;">W — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_w" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_w" oninput="updateIPPreviewExt()" class="span2">
         </div>
         <div style="font-size:.8rem;color:var(--muted);margin:10px 0 4px;">Devanado contra devanado (opcional, con estrella abierta):</div>
-        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
+        <div class="form-grid-5" style="align-items:center;">
           <div class="fld"><label style="margin:0;">U — V</label></div>
-          <input type="number" step="0.01" id="me_r1_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_uv" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_uv" oninput="updateIPPreviewExt()" class="span2">
           <div class="fld"><label style="margin:0;">V — W</label></div>
-          <input type="number" step="0.01" id="me_r1_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_vw" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_vw" oninput="updateIPPreviewExt()" class="span2">
           <div class="fld"><label style="margin:0;">W — U</label></div>
-          <input type="number" step="0.01" id="me_r1_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
-          <input type="number" step="0.01" id="me_r10_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r1_wu" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" id="me_r10_wu" oninput="updateIPPreviewExt()" class="span2">
         </div>
         <div class="form-grid" style="margin-top:8px;">
           <div class="fld"><label>Devanado más débil (gobierna el diagnóstico)</label><input type="text" id="me_governingPreview" disabled placeholder="—"></div>
