@@ -56,8 +56,13 @@
     font-family:'Inter',sans-serif; font-size:13px; padding:7px 14px; border-radius:6px; cursor:pointer;
   }
   button.ghost:hover{border-color:var(--accent); color:var(--accent);}
+  button.ghost:disabled{opacity:.4; cursor:not-allowed;}
+  button.ghost.small{padding:4px 9px; font-size:12px;}
+  button.ghost.danger:hover{border-color:var(--crit); color:var(--crit);}
 
   /* stat tiles */
+  .stats-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
+  .stats-head h2{font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:600; margin:0;}
   .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:32px;}
   .stat{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px 18px;}
   .stat .n{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:30px; line-height:1;}
@@ -65,7 +70,7 @@
   .stat.ok .n{color:var(--ok);} .stat.warn .n{color:var(--warn);} .stat.crit .n{color:var(--crit);}
 
   section{margin-bottom:36px;}
-  .sec-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .sec-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; flex-wrap:wrap; gap:10px;}
   .sec-head h2{font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:600; margin:0; color:var(--text);}
   .sec-head .hint{font-size:12px; color:var(--muted);}
 
@@ -85,22 +90,34 @@
   .mod-card .desc{font-size:12.5px; color:var(--muted); line-height:1.45;}
   .mod-card .last{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-top:auto; padding-top:8px; border-top:1px dashed var(--line);}
 
-  /* equipos */
-  .equipo-form{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
-  .equipo-form input{
+  /* toolbars (search/filter rows) */
+  .toolbar{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; align-items:center;}
+  .toolbar input[type="text"], .toolbar input[type="search"]{
     background:var(--panel-2); border:1px solid var(--line); color:var(--text);
-    padding:8px 10px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13px;
+    padding:8px 10px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13px; min-width:180px;
   }
-  .equipo-form input:focus{outline:none; border-color:var(--accent);}
+  .toolbar input:focus, select:focus{outline:none; border-color:var(--accent);}
+  .toolbar select{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:8px 10px; border-radius:6px; font-size:12.5px; font-family:'Inter',sans-serif;
+  }
+  .toolbar label.chk{display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--muted); cursor:pointer; user-select:none;}
+  .toolbar .spacer{flex:1;}
+
   button.primary{
     background:var(--accent); border:none; color:#fff; font-size:13px; font-weight:500;
     padding:8px 16px; border-radius:6px; cursor:pointer;
   }
   button.primary:hover{background:#2563eb;}
+  button.primary:disabled{opacity:.5; cursor:not-allowed;}
+
+  .table-scroll{overflow-x:auto; border-radius:8px;}
   table{width:100%; border-collapse:collapse; font-size:13px;}
-  th{text-align:left; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid var(--line);}
-  td{padding:9px 10px; border-bottom:1px solid var(--line);}
+  th{text-align:left; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  td{padding:9px 10px; border-bottom:1px solid var(--line); white-space:nowrap;}
+  td.wrap-cell{white-space:normal;}
   tr:hover td{background:rgba(59,130,246,.05);}
+  tr.archivada td{opacity:.5;}
   .badge{display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 8px; border-radius:4px;}
   .badge.ok{background:rgba(16,201,138,.12); color:var(--ok);}
   .badge.atencion{background:rgba(240,180,41,.14); color:var(--warn);}
@@ -108,24 +125,59 @@
   .badge.na{background:rgba(124,139,163,.12); color:var(--muted);}
   .tag-mono{font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:12.5px;}
 
-  .filters{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
-  .filters select{
-    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
-    padding:6px 10px; border-radius:6px; font-size:12.5px; font-family:'Inter',sans-serif;
+  /* mini badges for the health matrix */
+  .mini-badge{
+    display:inline-block; width:14px; height:14px; border-radius:4px; cursor:default;
+    background:rgba(124,139,163,.15); border:1px solid var(--line);
   }
+  .mini-badge.ok{background:var(--ok); border-color:var(--ok);}
+  .mini-badge.atencion{background:var(--warn); border-color:var(--warn);}
+  .mini-badge.critico{background:var(--crit); border-color:var(--crit); box-shadow:0 0 6px rgba(239,68,68,.5);}
+  .health-cell{text-align:center;}
+  .global-pill{font-family:'JetBrains Mono',monospace; font-size:10.5px; padding:3px 8px; border-radius:20px; display:inline-block;}
+  .global-pill.ok{background:rgba(16,201,138,.14); color:var(--ok);}
+  .global-pill.atencion{background:rgba(240,180,41,.16); color:var(--warn);}
+  .global-pill.critico{background:rgba(239,68,68,.16); color:var(--crit);}
+  .global-pill.na{background:rgba(124,139,163,.14); color:var(--muted);}
+
+  .actions-cell{display:flex; gap:6px;}
 
   .empty{border:1px dashed var(--line); border-radius:8px; padding:28px; text-align:center; color:var(--muted); font-size:13px;}
   .empty b{color:var(--text);}
 
+  .pager{display:flex; align-items:center; justify-content:center; gap:14px; margin-top:12px; font-size:12.5px; color:var(--muted); font-family:'JetBrains Mono',monospace;}
+
   /* modal */
-  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
   .modal-bg.show{display:flex;}
-  .modal{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px; width:min(520px,90vw); max-height:80vh; overflow:auto;}
+  .modal-bg.top{z-index:60;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px; width:min(520px,90vw); max-height:85vh; overflow:auto;}
+  .modal.wide{width:min(760px,92vw);}
   .modal h3{font-family:'Rajdhani',sans-serif; margin-top:0;}
   .modal label{display:block; font-size:12px; color:var(--muted); margin:14px 0 5px;}
   .modal input{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:9px 10px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:12.5px;}
+  .modal input:disabled{opacity:.55;}
   .modal .row{display:flex; gap:10px; justify-content:flex-end; margin-top:20px;}
+  .modal .note{font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.4;}
+  .modal .danger-text{color:var(--crit);}
   pre.payload{background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:pre-wrap; word-break:break-word;}
+
+  .timeline-item{border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:10px; background:var(--panel-2);}
+  .timeline-item .tl-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;}
+  .timeline-item .tl-mod{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:14px;}
+  .timeline-item .tl-fecha{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);}
+  .timeline-item .tl-resumen{font-size:12.5px; color:var(--text);}
+
+  /* toasts */
+  .toast-wrap{position:fixed; bottom:20px; right:20px; z-index:100; display:flex; flex-direction:column; gap:8px; max-width:320px;}
+  .toast{
+    background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--accent);
+    border-radius:8px; padding:11px 14px; font-size:12.5px; box-shadow:0 6px 20px rgba(0,0,0,.35);
+    animation:toastIn .15s ease-out;
+  }
+  .toast.success{border-left-color:var(--ok);}
+  .toast.error{border-left-color:var(--crit);}
+  @keyframes toastIn{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
 
   @media (max-width:640px){
     .stats{grid-template-columns:repeat(2,1fr);}
@@ -148,11 +200,20 @@
     </div>
   </header>
 
+  <div class="stats-head">
+    <h2>Resumen</h2>
+    <select id="fRango">
+      <option value="7">Últimos 7 días</option>
+      <option value="30" selected>Últimos 30 días</option>
+      <option value="90">Últimos 90 días</option>
+      <option value="all">Todo el historial</option>
+    </select>
+  </div>
   <div class="stats">
-    <div class="stat"><div class="n" id="stEquipos">–</div><div class="l">Equipos registrados</div></div>
-    <div class="stat ok"><div class="n" id="stOk">–</div><div class="l">Análisis OK (30 días)</div></div>
-    <div class="stat warn"><div class="n" id="stWarn">–</div><div class="l">En atención (30 días)</div></div>
-    <div class="stat crit"><div class="n" id="stCrit">–</div><div class="l">Críticos (30 días)</div></div>
+    <div class="stat"><div class="n" id="stEquipos">–</div><div class="l">Equipos activos</div></div>
+    <div class="stat ok"><div class="n" id="stOk">–</div><div class="l" id="lblOk">Análisis OK</div></div>
+    <div class="stat warn"><div class="n" id="stWarn">–</div><div class="l" id="lblWarn">En atención</div></div>
+    <div class="stat crit"><div class="n" id="stCrit">–</div><div class="l" id="lblCrit">Críticos</div></div>
   </div>
 
   <section>
@@ -165,25 +226,32 @@
 
   <section>
     <div class="sec-head">
-      <h2>Equipos</h2>
-      <span class="hint" id="eqHint"></span>
+      <h2>Equipos — salud consolidada</h2>
+      <span class="hint">último estado de cada módulo por equipo · click en un equipo para ver el historial completo</span>
     </div>
-    <div class="equipo-form">
-      <input id="eqTag" placeholder="TAG (ej: MOT-204)">
-      <input id="eqNombre" placeholder="Nombre">
-      <input id="eqTipo" placeholder="Tipo (motor, tablero...)">
-      <input id="eqUbic" placeholder="Ubicación">
+    <div class="equipo-form toolbar">
+      <input id="eqTag" type="text" placeholder="TAG (ej: MOT-204)">
+      <input id="eqNombre" type="text" placeholder="Nombre">
+      <input id="eqTipo" type="text" placeholder="Tipo (motor, tablero...)">
+      <input id="eqUbic" type="text" placeholder="Ubicación">
       <button class="primary" id="btnAddEquipo">Agregar equipo</button>
     </div>
-    <div id="equiposTableWrap"></div>
+    <div class="toolbar">
+      <input id="eqBusqueda" type="search" placeholder="Buscar por TAG o nombre…">
+      <label class="chk"><input type="checkbox" id="eqMostrarArchivados"> mostrar archivados</label>
+      <div class="spacer"></div>
+      <button class="ghost" id="btnExportSalud">Exportar CSV</button>
+      <button class="ghost" id="btnRefreshEquipos">Actualizar</button>
+    </div>
+    <div class="table-scroll" id="equiposTableWrap"></div>
   </section>
 
   <section>
     <div class="sec-head">
-      <h2>Análisis — vista de escritorio</h2>
-      <span class="hint">últimos registros cargados desde cualquier módulo, cruzados por equipo</span>
+      <h2>Análisis — registro detallado</h2>
+      <span class="hint">todos los registros cargados desde los módulos, con filtro y búsqueda</span>
     </div>
-    <div class="filters">
+    <div class="toolbar">
       <select id="fEquipo"><option value="">Todos los equipos</option></select>
       <select id="fModulo">
         <option value="">Todos los módulos</option>
@@ -194,9 +262,20 @@
         <option value="lubricacion">Lubricación</option>
         <option value="alineacion">Alineación</option>
       </select>
+      <input id="anBusqueda" type="search" placeholder="Buscar en resumen o TAG…">
+      <div class="spacer"></div>
+      <button class="ghost" id="btnExportAnalisis">Exportar CSV</button>
       <button class="ghost" id="btnRefreshAnalisis">Actualizar</button>
     </div>
-    <div id="analisisTableWrap"></div>
+    <div class="table-scroll" id="analisisTableWrap"></div>
+    <div class="pager" id="analisisPager" style="display:none;">
+      <button class="ghost small" id="btnPagPrev">‹ anterior</button>
+      <span id="pagInfo">página 1</span>
+      <button class="ghost small" id="btnPagNext">siguiente ›</button>
+    </div>
+    <div style="text-align:center; margin-top:10px;">
+      <button class="ghost small" id="btnCargarMasHistorial" style="display:none;">cargar más historial</button>
+    </div>
   </section>
 
 </div>
@@ -225,19 +304,70 @@
   </div>
 </div>
 
+<!-- modal editar equipo -->
+<div class="modal-bg" id="equipoModal">
+  <div class="modal">
+    <h3>Editar equipo</h3>
+    <label>TAG</label>
+    <input id="editTag" disabled>
+    <div class="note">El TAG no se puede modificar: los módulos lo usan para sincronizar sus lecturas. Si necesitás cambiarlo, archivá este equipo y creá uno nuevo.</div>
+    <label>Nombre</label>
+    <input id="editNombre">
+    <label>Tipo</label>
+    <input id="editTipo">
+    <label>Ubicación</label>
+    <input id="editUbic">
+    <div class="row">
+      <button class="ghost" id="btnEditCancel">Cancelar</button>
+      <button class="primary" id="btnEditSave">Guardar cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal confirmación genérica -->
+<div class="modal-bg" id="confirmModal">
+  <div class="modal">
+    <h3 id="confirmTitle">Confirmar</h3>
+    <p id="confirmMsg" style="font-size:13px; color:var(--muted);"></p>
+    <div class="row">
+      <button class="ghost" id="btnConfirmCancel">Cancelar</button>
+      <button class="primary" id="btnConfirmOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal detalle equipo (timeline) -->
+<div class="modal-bg" id="detalleModal">
+  <div class="modal wide">
+    <h3 id="detalleTitle">Historial del equipo</h3>
+    <div id="detalleBody"></div>
+    <div class="row"><button class="ghost" id="btnDetalleClose">Cerrar</button></div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
 <script>
 const MODULOS = [
-  {key:'motor_pro',    icon:'⚙️', name:'Motor Pro',      desc:'Análisis predictivo de motores eléctricos.', color:'#3b82f6', href:'./motor_pro.html'},
-  {key:'tablero_pro',  icon:'🧯', name:'Tablero Pro',     desc:'Análisis predictivo de tableros eléctricos.', color:'#f0b429', href:'./tablero_pro.html'},
-  {key:'vibra_pro',    icon:'📈', name:'Vibra Pro',       desc:'Análisis de vibración con IA.', color:'#10c98a', href:'./vibra_pro.html'},
-  {key:'thermovision', icon:'🌡️', name:'ThermoVision',    desc:'Termografía con IA.', color:'#ef4444', href:'./thermovision.html'},
-  {key:'lubricacion',  icon:'🛢️', name:'Lubricación en Campo', desc:'Seguimiento de lubricación en terreno.', color:'#f97316', href:'./lubricacion_campo.html'},
-  {key:'alineacion',   icon:'🎯', name:'Alineación Láser', desc:'Seguimiento de alineación láser (TKSA 41).', color:'#7c8ba3', href:'./alineacion_laser.html'},
+  {key:'motor_pro',    icon:'⚙️', name:'Motor Pro',      short:'MOT', desc:'Análisis predictivo de motores eléctricos.', color:'#3b82f6', href:'./motor_pro.html'},
+  {key:'tablero_pro',  icon:'🧯', name:'Tablero Pro',     short:'TAB', desc:'Análisis predictivo de tableros eléctricos.', color:'#f0b429', href:'./tablero_pro.html'},
+  {key:'vibra_pro',    icon:'📈', name:'Vibra Pro',       short:'VIB', desc:'Análisis de vibración con IA.', color:'#10c98a', href:'./vibra_pro.html'},
+  {key:'thermovision', icon:'🌡️', name:'ThermoVision',    short:'TER', desc:'Termografía con IA.', color:'#ef4444', href:'./thermovision.html'},
+  {key:'lubricacion',  icon:'🛢️', name:'Lubricación en Campo', short:'LUB', desc:'Seguimiento de lubricación en terreno.', color:'#f97316', href:'./lubricacion_campo.html'},
+  {key:'alineacion',   icon:'🎯', name:'Alineación Láser', short:'ALI', desc:'Seguimiento de alineación láser (TKSA 41).', color:'#7c8ba3', href:'./alineacion_laser.html'},
 ];
+const SEV_ORDEN = {critico:3, atencion:2, ok:1};
 
 let equiposCache = [];
+let analisisCache = [];      // resultado crudo de la última carga (bulk)
+let analisisFetchLimit = 500;
+let analisisPage = 1;
+const ANALISIS_PAGE_SIZE = 15;
+let editandoEquipoId = null;
 
+// ---------------- utilidades ----------------
 function fmtFecha(iso){
+  if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + d.toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'});
 }
@@ -248,6 +378,48 @@ function badgeSeveridad(sev){
   return `<span class="badge ${cls}">${label}</span>`;
 }
 
+function nombreModulo(key){
+  return (MODULOS.find(m=>m.key===key)||{}).name || key;
+}
+
+function rangoADias(rango){
+  return rango === 'all' ? null : parseInt(rango, 10);
+}
+
+function filtrarPorRango(rows, rango){
+  const dias = rangoADias(rango);
+  if (dias === null) return rows;
+  const corte = Date.now() - dias*24*60*60*1000;
+  return rows.filter(r => new Date(r.fecha).getTime() >= corte);
+}
+
+function showToast(msg, type='info'){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function csvEscape(v){
+  const s = (v === null || v === undefined) ? '' : String(v);
+  if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+function descargarCSV(filename, headers, rows){
+  const lineas = [headers.map(csvEscape).join(',')]
+    .concat(rows.map(r => r.map(csvEscape).join(',')));
+  const blob = new Blob(['\uFEFF' + lineas.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// ---------------- módulos ----------------
 function renderModulos(){
   const grid = document.getElementById('modGrid');
   grid.innerHTML = MODULOS.map(m => `
@@ -259,91 +431,274 @@ function renderModulos(){
     </a>`).join('');
 }
 
-async function actualizarUltimos(){
-  if (!SatSync.estaConfigurado()) return;
+function actualizarUltimosDesdeCache(){
   for (const m of MODULOS){
-    try{
-      const rows = await SatSync.listarAnalisis({modulo:m.key, limite:1});
-      const el = document.getElementById('last-'+m.key);
-      if (el) el.textContent = rows.length ? `último registro: ${fmtFecha(rows[0].fecha)} · ${rows[0].equipos?.tag || ''}` : 'último registro: sin datos aún';
-    }catch(e){ /* silencioso por módulo */ }
+    const rows = analisisCache.filter(r => r.modulo === m.key);
+    const el = document.getElementById('last-'+m.key);
+    if (!el) continue;
+    el.textContent = rows.length ? `último registro: ${fmtFecha(rows[0].fecha)} · ${rows[0].equipos?.tag || ''}` : 'último registro: sin datos aún';
   }
 }
 
-async function cargarEquipos(){
+// ---------------- carga de datos ----------------
+async function cargarEquiposCache(){
+  const incluirArchivados = document.getElementById('eqMostrarArchivados').checked;
+  equiposCache = await SatSync.listarEquipos({incluirArchivados});
+  const activos = equiposCache.filter(e => e.activo);
+  document.getElementById('stEquipos').textContent = activos.length;
+
+  const fEquipo = document.getElementById('fEquipo');
+  const seleccionPrevia = fEquipo.value;
+  fEquipo.innerHTML = '<option value="">Todos los equipos</option>' +
+    equiposCache.map(e => `<option value="${e.id}">${e.tag} — ${e.nombre}</option>`).join('');
+  fEquipo.value = seleccionPrevia;
+}
+
+async function cargarAnalisisCache(){
+  analisisCache = await SatSync.listarAnalisis({limite: analisisFetchLimit});
+  document.getElementById('btnCargarMasHistorial').style.display =
+    analisisCache.length >= analisisFetchLimit ? 'inline-block' : 'none';
+}
+
+// ---------------- salud por equipo ----------------
+function construirMatrizSalud(){
+  // analisisCache ya viene ordenado por fecha desc -> el primer match por (equipo,modulo) es el más reciente
+  const matriz = {}; // equipo_id -> { modulo_key: row }
+  for (const r of analisisCache){
+    if (!r.equipo_id) continue;
+    if (!matriz[r.equipo_id]) matriz[r.equipo_id] = {};
+    if (!matriz[r.equipo_id][r.modulo]) matriz[r.equipo_id][r.modulo] = r;
+  }
+  return matriz;
+}
+
+function estadoGlobalEquipo(fila){
+  let peor = null;
+  for (const m of MODULOS){
+    const r = fila[m.key];
+    if (!r || !r.severidad) continue;
+    if (!peor || SEV_ORDEN[r.severidad] > SEV_ORDEN[peor]) peor = r.severidad;
+  }
+  return peor; // null si no hay ningún dato todavía
+}
+
+function renderEquiposTable(){
   const wrap = document.getElementById('equiposTableWrap');
   if (!SatSync.estaConfigurado()){
     wrap.innerHTML = `<div class="empty">Conectá Supabase para ver y cargar equipos. Usá <b>Configurar Supabase</b> arriba a la derecha.</div>`;
     return;
   }
-  try{
-    equiposCache = await SatSync.listarEquipos();
-  }catch(e){
-    wrap.innerHTML = `<div class="empty">No se pudo leer la tabla <b>equipos</b>. Revisá que el schema.sql se haya ejecutado en este proyecto Supabase.</div>`;
-    return;
-  }
-  document.getElementById('stEquipos').textContent = equiposCache.length;
-
-  const fEquipo = document.getElementById('fEquipo');
-  fEquipo.innerHTML = '<option value="">Todos los equipos</option>' +
-    equiposCache.map(e => `<option value="${e.id}">${e.tag} — ${e.nombre}</option>`).join('');
+  const busqueda = document.getElementById('eqBusqueda').value.trim().toLowerCase();
+  const lista = equiposCache.filter(e => {
+    if (!busqueda) return true;
+    return e.tag.toLowerCase().includes(busqueda) || (e.nombre||'').toLowerCase().includes(busqueda);
+  });
 
   if (!equiposCache.length){
     wrap.innerHTML = `<div class="empty">Todavía no hay equipos cargados. Agregá el primero arriba — <b>TAG</b> es el único campo obligatorio.</div>`;
     return;
   }
+  if (!lista.length){
+    wrap.innerHTML = `<div class="empty">Ningún equipo coincide con "<b>${busqueda}</b>".</div>`;
+    return;
+  }
+
+  const matriz = construirMatrizSalud();
+
   wrap.innerHTML = `<table>
-    <thead><tr><th>TAG</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th>Alta</th></tr></thead>
-    <tbody>${equiposCache.map(e => `
-      <tr>
+    <thead><tr>
+      <th>TAG</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th>
+      ${MODULOS.map(m => `<th title="${m.name}">${m.short}</th>`).join('')}
+      <th>Estado</th><th>Acciones</th>
+    </tr></thead>
+    <tbody>${lista.map(e => {
+      const fila = matriz[e.id] || {};
+      const global = estadoGlobalEquipo(fila);
+      const globalHtml = global
+        ? `<span class="global-pill ${global}">${({ok:'OK',atencion:'ATENCIÓN',critico:'CRÍTICO'})[global]}</span>`
+        : `<span class="global-pill na">sin datos</span>`;
+      return `
+      <tr class="${e.activo ? '' : 'archivada'}">
         <td class="tag-mono">${e.tag}</td>
         <td>${e.nombre || ''}</td>
         <td>${e.tipo || '—'}</td>
         <td>${e.ubicacion || '—'}</td>
-        <td>${fmtFecha(e.created_at)}</td>
-      </tr>`).join('')}
+        ${MODULOS.map(m => {
+          const r = fila[m.key];
+          const cls = r && r.severidad ? r.severidad : '';
+          const tip = r ? `${m.name}: ${({ok:'OK',atencion:'ATENCIÓN',critico:'CRÍTICO'})[r.severidad]||'s/d'} · ${fmtFecha(r.fecha)}${r.resumen ? ' · ' + r.resumen : ''}` : `${m.name}: sin datos`;
+          return `<td class="health-cell"><span class="mini-badge ${cls}" title="${tip.replace(/"/g,'&quot;')}"></span></td>`;
+        }).join('')}
+        <td>${globalHtml}</td>
+        <td class="actions-cell">
+          <button class="ghost small" onclick="abrirDetalleEquipo('${e.id}')">Ver</button>
+          <button class="ghost small" onclick="abrirEditarEquipo('${e.id}')">Editar</button>
+          <button class="ghost small ${e.activo ? 'danger' : ''}" onclick="confirmarArchivar('${e.id}', ${e.activo})">${e.activo ? 'Archivar' : 'Reactivar'}</button>
+        </td>
+      </tr>`;
+    }).join('')}
     </tbody></table>`;
 }
 
-async function cargarAnalisis(){
+function abrirDetalleEquipo(id){
+  const eq = equiposCache.find(e => e.id === id);
+  if (!eq) return;
+  document.getElementById('detalleTitle').textContent = `${eq.tag} — ${eq.nombre || ''}`;
+  const rows = analisisCache.filter(r => r.equipo_id === id);
+  const body = document.getElementById('detalleBody');
+  if (!rows.length){
+    body.innerHTML = `<div class="empty">Sin análisis cargados todavía para este equipo.</div>`;
+  } else {
+    body.innerHTML = rows.map((r, i) => `
+      <div class="timeline-item">
+        <div class="tl-head">
+          <span class="tl-mod">${nombreModulo(r.modulo)}</span>
+          ${badgeSeveridad(r.severidad)}
+        </div>
+        <div class="tl-fecha">${fmtFecha(r.fecha)}</div>
+        <div class="tl-resumen">${r.resumen || '—'}</div>
+        <div style="margin-top:8px;"><button class="ghost small" onclick="verPayloadDetalle(${i})">ver datos</button></div>
+      </div>`).join('');
+    window._detalleRows = rows;
+  }
+  document.getElementById('detalleModal').classList.add('show');
+}
+function verPayloadDetalle(i){
+  const r = window._detalleRows[i];
+  document.getElementById('payloadTitle').textContent = `${r.equipos?.tag || 'equipo'} · ${r.modulo}`;
+  document.getElementById('payloadBody').textContent = JSON.stringify(r.datos, null, 2);
+  document.getElementById('payloadModal').classList.add('show');
+}
+
+function abrirEditarEquipo(id){
+  const eq = equiposCache.find(e => e.id === id);
+  if (!eq) return;
+  editandoEquipoId = id;
+  document.getElementById('editTag').value = eq.tag;
+  document.getElementById('editNombre').value = eq.nombre || '';
+  document.getElementById('editTipo').value = eq.tipo || '';
+  document.getElementById('editUbic').value = eq.ubicacion || '';
+  document.getElementById('equipoModal').classList.add('show');
+}
+
+let confirmCallback = null;
+function abrirConfirm(titulo, mensaje, onOk){
+  document.getElementById('confirmTitle').textContent = titulo;
+  document.getElementById('confirmMsg').innerHTML = mensaje;
+  confirmCallback = onOk;
+  document.getElementById('confirmModal').classList.add('show');
+}
+function confirmarArchivar(id, activo){
+  const eq = equiposCache.find(e => e.id === id);
+  const accion = activo ? 'archivar' : 'reactivar';
+  const detalle = activo
+    ? 'El equipo dejará de aparecer en la vista de salud, pero su historial de análisis se conserva.'
+    : 'El equipo volverá a aparecer como activo en la vista de salud.';
+  abrirConfirm(`¿${accion.charAt(0).toUpperCase()+accion.slice(1)} ${eq.tag}?`, detalle, async () => {
+    try{
+      await SatSync.archivarEquipo(id, activo);
+      showToast(`${eq.tag} ${activo ? 'archivado' : 'reactivado'}.`, 'success');
+      await cargarEquiposCache();
+      renderEquiposTable();
+    }catch(e){
+      showToast('No se pudo actualizar el equipo: ' + e.message, 'error');
+    }
+  });
+}
+
+function exportarSaludCSV(){
+  const matriz = construirMatrizSalud();
+  const headers = ['TAG','Nombre','Tipo','Ubicación', ...MODULOS.map(m=>m.name), 'Estado global', 'Archivado'];
+  const rows = equiposCache.map(e => {
+    const fila = matriz[e.id] || {};
+    const global = estadoGlobalEquipo(fila);
+    return [
+      e.tag, e.nombre || '', e.tipo || '', e.ubicacion || '',
+      ...MODULOS.map(m => {
+        const r = fila[m.key];
+        return r ? `${({ok:'OK',atencion:'ATENCION',critico:'CRITICO'})[r.severidad]||''} (${fmtFecha(r.fecha)})` : '';
+      }),
+      global ? ({ok:'OK',atencion:'ATENCION',critico:'CRITICO'})[global] : 'sin datos',
+      e.activo ? 'no' : 'si'
+    ];
+  });
+  descargarCSV(`mantec_salud_equipos_${Date.now()}.csv`, headers, rows);
+}
+
+// ---------------- análisis (registro detallado) ----------------
+function analisisFiltrados(){
+  const rango = document.getElementById('fRango').value;
+  const equipo_id = document.getElementById('fEquipo').value;
+  const modulo = document.getElementById('fModulo').value;
+  const busqueda = document.getElementById('anBusqueda').value.trim().toLowerCase();
+
+  let rows = filtrarPorRango(analisisCache, rango);
+  if (equipo_id) rows = rows.filter(r => r.equipo_id === equipo_id);
+  if (modulo) rows = rows.filter(r => r.modulo === modulo);
+  if (busqueda){
+    rows = rows.filter(r =>
+      (r.resumen||'').toLowerCase().includes(busqueda) ||
+      (r.equipos?.tag||'').toLowerCase().includes(busqueda));
+  }
+  return rows;
+}
+
+function renderStats(){
+  if (!SatSync.estaConfigurado()) return;
+  const rango = document.getElementById('fRango').value;
+  const rows = filtrarPorRango(analisisCache, rango);
+  document.getElementById('stOk').textContent   = rows.filter(r=>r.severidad==='ok').length;
+  document.getElementById('stWarn').textContent = rows.filter(r=>r.severidad==='atencion').length;
+  document.getElementById('stCrit').textContent = rows.filter(r=>r.severidad==='critico').length;
+  const label = rango === 'all' ? '(todo el historial)' : `(${rango} días)`;
+  document.getElementById('lblOk').textContent = `Análisis OK ${label}`;
+  document.getElementById('lblWarn').textContent = `En atención ${label}`;
+  document.getElementById('lblCrit').textContent = `Críticos ${label}`;
+}
+
+function renderAnalisisTable(){
   const wrap = document.getElementById('analisisTableWrap');
+  const pager = document.getElementById('analisisPager');
   if (!SatSync.estaConfigurado()){
     wrap.innerHTML = `<div class="empty">Conectá Supabase para ver los análisis cargados desde los módulos.</div>`;
+    pager.style.display = 'none';
     return;
   }
-  const equipo_id = document.getElementById('fEquipo').value || undefined;
-  const modulo = document.getElementById('fModulo').value || undefined;
-  let rows;
-  try{
-    rows = await SatSync.listarAnalisis({equipo_id, modulo, limite:100});
-  }catch(e){
-    wrap.innerHTML = `<div class="empty">No se pudo leer la tabla <b>analisis</b>. Revisá el schema.sql.</div>`;
+  const rows = analisisFiltrados();
+  if (!analisisCache.length){
+    wrap.innerHTML = `<div class="empty">Sin análisis todavía. Los módulos empiezan a aparecer acá apenas alguno cargue un registro con <b>SatSync.guardarAnalisis()</b>.</div>`;
+    pager.style.display = 'none';
     return;
   }
-
-  const hace30 = Date.now() - 30*24*60*60*1000;
-  const recientes = rows.filter(r => new Date(r.fecha).getTime() >= hace30);
-  document.getElementById('stOk').textContent   = recientes.filter(r=>r.severidad==='ok').length;
-  document.getElementById('stWarn').textContent = recientes.filter(r=>r.severidad==='atencion').length;
-  document.getElementById('stCrit').textContent = recientes.filter(r=>r.severidad==='critico').length;
-
   if (!rows.length){
-    wrap.innerHTML = `<div class="empty">Sin análisis todavía para este filtro. Los módulos empiezan a aparecer acá apenas alguno cargue un registro con <b>SatSync.guardarAnalisis()</b>.</div>`;
+    wrap.innerHTML = `<div class="empty">Ningún análisis coincide con estos filtros.</div>`;
+    pager.style.display = 'none';
     return;
   }
+
+  const totalPaginas = Math.max(1, Math.ceil(rows.length / ANALISIS_PAGE_SIZE));
+  if (analisisPage > totalPaginas) analisisPage = totalPaginas;
+  const inicio = (analisisPage - 1) * ANALISIS_PAGE_SIZE;
+  const pagina = rows.slice(inicio, inicio + ANALISIS_PAGE_SIZE);
+
   wrap.innerHTML = `<table>
     <thead><tr><th>Fecha</th><th>Equipo</th><th>Módulo</th><th>Estado</th><th>Resumen</th><th></th></tr></thead>
-    <tbody>${rows.map((r,i) => `
+    <tbody>${pagina.map((r,i) => `
       <tr>
         <td>${fmtFecha(r.fecha)}</td>
         <td class="tag-mono">${r.equipos?.tag || '—'}</td>
-        <td>${(MODULOS.find(m=>m.key===r.modulo)||{}).name || r.modulo}</td>
+        <td>${nombreModulo(r.modulo)}</td>
         <td>${badgeSeveridad(r.severidad)}</td>
-        <td>${r.resumen || '—'}</td>
-        <td><button class="ghost" onclick="verPayload(${i})">ver datos</button></td>
+        <td class="wrap-cell">${r.resumen || '—'}</td>
+        <td><button class="ghost small" onclick="verPayload(${i})">ver datos</button></td>
       </tr>`).join('')}
     </tbody></table>`;
-  window._analisisRows = rows;
+  window._analisisRows = pagina;
+
+  pager.style.display = totalPaginas > 1 ? 'flex' : 'none';
+  document.getElementById('pagInfo').textContent = `página ${analisisPage} de ${totalPaginas} · ${rows.length} registros`;
+  document.getElementById('btnPagPrev').disabled = analisisPage <= 1;
+  document.getElementById('btnPagNext').disabled = analisisPage >= totalPaginas;
 }
 
 function verPayload(i){
@@ -353,18 +708,50 @@ function verPayload(i){
   document.getElementById('payloadModal').classList.add('show');
 }
 
+function exportarAnalisisCSV(){
+  const rows = analisisFiltrados();
+  const headers = ['Fecha','Equipo','Módulo','Estado','Resumen'];
+  const data = rows.map(r => [
+    fmtFecha(r.fecha), r.equipos?.tag || '', nombreModulo(r.modulo),
+    ({ok:'OK',atencion:'ATENCION',critico:'CRITICO'})[r.severidad] || '', r.resumen || ''
+  ]);
+  descargarCSV(`mantec_analisis_${Date.now()}.csv`, headers, data);
+}
+
+// ---------------- orquestación ----------------
 function actualizarEstadoConexion(){
   const on = SatSync.estaConfigurado();
   document.getElementById('connDot').className = 'dot ' + (on ? 'on' : 'off');
   document.getElementById('connLabel').textContent = on ? 'conectado' : 'sin conectar';
 }
 
-async function refrescarTodo(){
-  actualizarEstadoConexion();
-  await Promise.all([cargarEquipos(), cargarAnalisis(), actualizarUltimos()]);
+function renderTodoDesdeCache(){
+  renderStats();
+  renderEquiposTable();
+  renderAnalisisTable();
+  actualizarUltimosDesdeCache();
 }
 
-// ---- eventos ----
+async function refrescarTodo(){
+  actualizarEstadoConexion();
+  if (!SatSync.estaConfigurado()){
+    renderEquiposTable();
+    renderAnalisisTable();
+    return;
+  }
+  try{
+    await Promise.all([cargarEquiposCache(), cargarAnalisisCache()]);
+  }catch(e){
+    showToast('Error cargando datos de Supabase: ' + e.message, 'error');
+    document.getElementById('equiposTableWrap').innerHTML = `<div class="empty">No se pudo leer la base. Revisá que el schema.sql se haya ejecutado en este proyecto Supabase.</div>`;
+    document.getElementById('analisisTableWrap').innerHTML = `<div class="empty">No se pudo leer la tabla <b>analisis</b>.</div>`;
+    return;
+  }
+  analisisPage = 1;
+  renderTodoDesdeCache();
+}
+
+// ---- eventos: configuración ----
 document.getElementById('btnCfg').onclick = () => {
   const cfg = SatSync.leerConfig() || {};
   document.getElementById('inUrl').value = cfg.url || '';
@@ -375,20 +762,46 @@ document.getElementById('btnCfgCancel').onclick = () => document.getElementById(
 document.getElementById('btnCfgSave').onclick = () => {
   const url = document.getElementById('inUrl').value.trim();
   const key = document.getElementById('inKey').value.trim();
-  if (!url || !key){ alert('Completá URL y anon key.'); return; }
+  if (!url || !key){ showToast('Completá URL y anon key.', 'error'); return; }
   SatSync.init(url, key);
   document.getElementById('cfgModal').classList.remove('show');
   refrescarTodo();
 };
-document.getElementById('btnPayloadClose').onclick = () => document.getElementById('payloadModal').classList.remove('show');
-document.getElementById('btnRefreshAnalisis').onclick = cargarAnalisis;
-document.getElementById('fEquipo').onchange = cargarAnalisis;
-document.getElementById('fModulo').onchange = cargarAnalisis;
 
+// ---- eventos: payload / detalle / confirm ----
+document.getElementById('btnPayloadClose').onclick = () => document.getElementById('payloadModal').classList.remove('show');
+document.getElementById('btnDetalleClose').onclick = () => document.getElementById('detalleModal').classList.remove('show');
+document.getElementById('btnConfirmCancel').onclick = () => document.getElementById('confirmModal').classList.remove('show');
+document.getElementById('btnConfirmOk').onclick = () => {
+  document.getElementById('confirmModal').classList.remove('show');
+  if (confirmCallback) confirmCallback();
+  confirmCallback = null;
+};
+
+// ---- eventos: editar equipo ----
+document.getElementById('btnEditCancel').onclick = () => document.getElementById('equipoModal').classList.remove('show');
+document.getElementById('btnEditSave').onclick = async () => {
+  if (!editandoEquipoId) return;
+  try{
+    await SatSync.actualizarEquipo(editandoEquipoId, {
+      nombre: document.getElementById('editNombre').value.trim(),
+      tipo: document.getElementById('editTipo').value.trim(),
+      ubicacion: document.getElementById('editUbic').value.trim(),
+    });
+    document.getElementById('equipoModal').classList.remove('show');
+    showToast('Equipo actualizado.', 'success');
+    await cargarEquiposCache();
+    renderEquiposTable();
+  }catch(e){
+    showToast('No se pudo guardar: ' + e.message, 'error');
+  }
+};
+
+// ---- eventos: equipos (alta + toolbar) ----
 document.getElementById('btnAddEquipo').onclick = async () => {
   const tag = document.getElementById('eqTag').value.trim();
-  if (!tag){ alert('El TAG es obligatorio.'); return; }
-  if (!SatSync.estaConfigurado()){ alert('Conectá Supabase primero.'); return; }
+  if (!tag){ showToast('El TAG es obligatorio.', 'error'); return; }
+  if (!SatSync.estaConfigurado()){ showToast('Conectá Supabase primero.', 'error'); return; }
   try{
     await SatSync.buscarOCrearEquipo(tag, {
       nombre: document.getElementById('eqNombre').value.trim(),
@@ -396,10 +809,32 @@ document.getElementById('btnAddEquipo').onclick = async () => {
       ubicacion: document.getElementById('eqUbic').value.trim(),
     });
     ['eqTag','eqNombre','eqTipo','eqUbic'].forEach(id => document.getElementById(id).value = '');
-    cargarEquipos();
+    showToast('Equipo agregado.', 'success');
+    await cargarEquiposCache();
+    renderEquiposTable();
   }catch(e){
-    alert('No se pudo crear el equipo: ' + e.message);
+    showToast('No se pudo crear el equipo: ' + e.message, 'error');
   }
+};
+document.getElementById('eqBusqueda').oninput = renderEquiposTable;
+document.getElementById('eqMostrarArchivados').onchange = async () => { await cargarEquiposCache(); renderEquiposTable(); };
+document.getElementById('btnRefreshEquipos').onclick = async () => { await cargarEquiposCache(); renderEquiposTable(); };
+document.getElementById('btnExportSalud').onclick = exportarSaludCSV;
+
+// ---- eventos: análisis (toolbar + paginación) ----
+document.getElementById('fRango').onchange = () => { renderStats(); analisisPage = 1; renderAnalisisTable(); };
+document.getElementById('fEquipo').onchange = () => { analisisPage = 1; renderAnalisisTable(); };
+document.getElementById('fModulo').onchange = () => { analisisPage = 1; renderAnalisisTable(); };
+document.getElementById('anBusqueda').oninput = () => { analisisPage = 1; renderAnalisisTable(); };
+document.getElementById('btnRefreshAnalisis').onclick = async () => { await cargarAnalisisCache(); renderTodoDesdeCache(); };
+document.getElementById('btnExportAnalisis').onclick = exportarAnalisisCSV;
+document.getElementById('btnPagPrev').onclick = () => { analisisPage--; renderAnalisisTable(); };
+document.getElementById('btnPagNext').onclick = () => { analisisPage++; renderAnalisisTable(); };
+document.getElementById('btnCargarMasHistorial').onclick = async () => {
+  analisisFetchLimit += 500;
+  await cargarAnalisisCache();
+  renderTodoDesdeCache();
+  showToast(`Historial ampliado a ${analisisFetchLimit} registros.`, 'success');
 };
 
 // ---- init ----
@@ -408,8 +843,8 @@ if (SatSync.init()) {
   refrescarTodo();
 } else {
   actualizarEstadoConexion();
-  cargarEquipos();
-  cargarAnalisis();
+  renderEquiposTable();
+  renderAnalisisTable();
 }
 </script>
 </body>

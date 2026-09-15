@@ -55,9 +55,35 @@
     return !!client;
   }
 
-  async function listarEquipos() {
+  async function listarEquipos({ incluirArchivados = false } = {}) {
     if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
-    const { data, error } = await client.from('equipos').select('*').eq('activo', true).order('tag');
+    let q = client.from('equipos').select('*').order('tag');
+    if (!incluirArchivados) q = q.eq('activo', true);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  }
+
+  async function actualizarEquipo(id, { nombre, tipo, ubicacion } = {}) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    const cambios = {};
+    if (nombre !== undefined) cambios.nombre = nombre;
+    if (tipo !== undefined) cambios.tipo = tipo;
+    if (ubicacion !== undefined) cambios.ubicacion = ubicacion;
+    const { data, error } = await client.from('equipos')
+      .update(cambios)
+      .eq('id', id)
+      .select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function archivarEquipo(id, estabaActivo) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    const { data, error } = await client.from('equipos')
+      .update({ activo: !estabaActivo })
+      .eq('id', id)
+      .select().single();
     if (error) throw error;
     return data;
   }
@@ -91,6 +117,8 @@
 
   async function listarAnalisis({ equipo_id, modulo, limite = 50 } = {}) {
     if (!client) throw new Error('[SatSync] no inicializado');
+    // equipo_id/modulo se aceptan por compatibilidad, pero el hub filtra en
+    // el cliente sobre la caché completa — acá solo se aplica `limite`.
     let q = client.from('analisis').select('*, equipos(tag, nombre)').order('fecha', { ascending: false }).limit(limite);
     if (equipo_id) q = q.eq('equipo_id', equipo_id);
     if (modulo) q = q.eq('modulo', modulo);
@@ -110,7 +138,7 @@
 
   global.SatSync = {
     init, estaConfigurado, guardarConfig, leerConfig,
-    listarEquipos, buscarOCrearEquipo,
+    listarEquipos, buscarOCrearEquipo, actualizarEquipo, archivarEquipo,
     guardarAnalisis, listarAnalisis, subirImagen
   };
 })(window);
