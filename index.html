@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANTEC · Satélites</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#131b2c;
+    --panel-2:#1e2d45;
+    --line:#26374f;
+    --text:#e2e8f0;
+    --muted:#7c8ba3;
+    --accent:#3b82f6;
+    --ok:#10c98a;
+    --warn:#f0b429;
+    --crit:#ef4444;
+    --amber:#f97316;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',sans-serif;
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size:48px 48px;
+    background-attachment:fixed;
+    background-color:var(--bg);
+    min-height:100vh;
+  }
+  body::before{
+    content:'';
+    position:fixed; inset:0;
+    background:radial-gradient(ellipse at top, rgba(13,17,23,0) 0%, var(--bg) 75%);
+    pointer-events:none; z-index:0;
+  }
+  .wrap{position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:28px 24px 80px;}
+
+  header.top{display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:16px;}
+  .brand{display:flex; align-items:baseline; gap:12px;}
+  .brand .tag{font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted); letter-spacing:.04em;}
+  h1{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:34px; margin:0; letter-spacing:.01em;}
+  h1 span{color:var(--accent);}
+  .status-row{display:flex; align-items:center; gap:10px; font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--muted);}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--muted); display:inline-block;}
+  .dot.on{background:var(--ok); box-shadow:0 0 8px var(--ok);}
+  .dot.off{background:var(--crit); box-shadow:0 0 8px var(--crit);}
+  button.ghost{
+    background:transparent; border:1px solid var(--line); color:var(--text);
+    font-family:'Inter',sans-serif; font-size:13px; padding:7px 14px; border-radius:6px; cursor:pointer;
+  }
+  button.ghost:hover{border-color:var(--accent); color:var(--accent);}
+
+  /* stat tiles */
+  .stats{display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:32px;}
+  .stat{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:16px 18px;}
+  .stat .n{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:30px; line-height:1;}
+  .stat .l{font-size:12px; color:var(--muted); margin-top:6px;}
+  .stat.ok .n{color:var(--ok);} .stat.warn .n{color:var(--warn);} .stat.crit .n{color:var(--crit);}
+
+  section{margin-bottom:36px;}
+  .sec-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .sec-head h2{font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:600; margin:0; color:var(--text);}
+  .sec-head .hint{font-size:12px; color:var(--muted);}
+
+  /* module grid */
+  .modules{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px;}
+  .mod-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:10px;
+    padding:18px; position:relative; overflow:hidden; text-decoration:none; color:var(--text);
+    display:flex; flex-direction:column; gap:10px; transition:border-color .15s, transform .1s;
+  }
+  .mod-card:hover{border-color:var(--mc,var(--accent)); transform:translateY(-2px);}
+  .mod-card::before{
+    content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--mc,var(--accent));
+  }
+  .mod-card .icon{font-size:22px;}
+  .mod-card .name{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:18px;}
+  .mod-card .desc{font-size:12.5px; color:var(--muted); line-height:1.45;}
+  .mod-card .last{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-top:auto; padding-top:8px; border-top:1px dashed var(--line);}
+
+  /* equipos */
+  .equipo-form{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  .equipo-form input{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:8px 10px; border-radius:6px; font-family:'Inter',sans-serif; font-size:13px;
+  }
+  .equipo-form input:focus{outline:none; border-color:var(--accent);}
+  button.primary{
+    background:var(--accent); border:none; color:#fff; font-size:13px; font-weight:500;
+    padding:8px 16px; border-radius:6px; cursor:pointer;
+  }
+  button.primary:hover{background:#2563eb;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; color:var(--muted); font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:.04em; padding:8px 10px; border-bottom:1px solid var(--line);}
+  td{padding:9px 10px; border-bottom:1px solid var(--line);}
+  tr:hover td{background:rgba(59,130,246,.05);}
+  .badge{display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:11px; padding:2px 8px; border-radius:4px;}
+  .badge.ok{background:rgba(16,201,138,.12); color:var(--ok);}
+  .badge.atencion{background:rgba(240,180,41,.14); color:var(--warn);}
+  .badge.critico{background:rgba(239,68,68,.14); color:var(--crit);}
+  .badge.na{background:rgba(124,139,163,.12); color:var(--muted);}
+  .tag-mono{font-family:'JetBrains Mono',monospace; color:var(--accent); font-size:12.5px;}
+
+  .filters{display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+  .filters select{
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text);
+    padding:6px 10px; border-radius:6px; font-size:12.5px; font-family:'Inter',sans-serif;
+  }
+
+  .empty{border:1px dashed var(--line); border-radius:8px; padding:28px; text-align:center; color:var(--muted); font-size:13px;}
+  .empty b{color:var(--text);}
+
+  /* modal */
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-bg.show{display:flex;}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:24px; width:min(520px,90vw); max-height:80vh; overflow:auto;}
+  .modal h3{font-family:'Rajdhani',sans-serif; margin-top:0;}
+  .modal label{display:block; font-size:12px; color:var(--muted); margin:14px 0 5px;}
+  .modal input{width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:9px 10px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:12.5px;}
+  .modal .row{display:flex; gap:10px; justify-content:flex-end; margin-top:20px;}
+  pre.payload{background:var(--panel-2); border:1px solid var(--line); border-radius:6px; padding:12px; font-family:'JetBrains Mono',monospace; font-size:11.5px; white-space:pre-wrap; word-break:break-word;}
+
+  @media (max-width:640px){
+    .stats{grid-template-columns:repeat(2,1fr);}
+    h1{font-size:26px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <h1>MANTEC · <span>Satélites</span></h1>
+      <span class="tag">HUB DE ESCRITORIO</span>
+    </div>
+    <div class="status-row">
+      <span class="dot off" id="connDot"></span>
+      <span id="connLabel">sin conectar</span>
+      <button class="ghost" id="btnCfg">Configurar Supabase</button>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="n" id="stEquipos">–</div><div class="l">Equipos registrados</div></div>
+    <div class="stat ok"><div class="n" id="stOk">–</div><div class="l">Análisis OK (30 días)</div></div>
+    <div class="stat warn"><div class="n" id="stWarn">–</div><div class="l">En atención (30 días)</div></div>
+    <div class="stat crit"><div class="n" id="stCrit">–</div><div class="l">Críticos (30 días)</div></div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Módulos</h2>
+      <span class="hint">cada módulo abre en su propia pestaña y sincroniza a esta base</span>
+    </div>
+    <div class="modules" id="modGrid"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Equipos</h2>
+      <span class="hint" id="eqHint"></span>
+    </div>
+    <div class="equipo-form">
+      <input id="eqTag" placeholder="TAG (ej: MOT-204)">
+      <input id="eqNombre" placeholder="Nombre">
+      <input id="eqTipo" placeholder="Tipo (motor, tablero...)">
+      <input id="eqUbic" placeholder="Ubicación">
+      <button class="primary" id="btnAddEquipo">Agregar equipo</button>
+    </div>
+    <div id="equiposTableWrap"></div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <h2>Análisis — vista de escritorio</h2>
+      <span class="hint">últimos registros cargados desde cualquier módulo, cruzados por equipo</span>
+    </div>
+    <div class="filters">
+      <select id="fEquipo"><option value="">Todos los equipos</option></select>
+      <select id="fModulo">
+        <option value="">Todos los módulos</option>
+        <option value="motor_pro">Motor Pro</option>
+        <option value="tablero_pro">Tablero Pro</option>
+        <option value="vibra_pro">Vibra Pro</option>
+        <option value="thermovision">ThermoVision</option>
+        <option value="lubricacion">Lubricación</option>
+        <option value="alineacion">Alineación</option>
+      </select>
+      <button class="ghost" id="btnRefreshAnalisis">Actualizar</button>
+    </div>
+    <div id="analisisTableWrap"></div>
+  </section>
+
+</div>
+
+<!-- modal config -->
+<div class="modal-bg" id="cfgModal">
+  <div class="modal">
+    <h3>Conexión Supabase</h3>
+    <label>Project URL</label>
+    <input id="inUrl" placeholder="https://xxxx.supabase.co">
+    <label>Anon public key</label>
+    <input id="inKey" placeholder="eyJhbGciOi...">
+    <div class="row">
+      <button class="ghost" id="btnCfgCancel">Cancelar</button>
+      <button class="primary" id="btnCfgSave">Guardar y conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal payload -->
+<div class="modal-bg" id="payloadModal">
+  <div class="modal">
+    <h3 id="payloadTitle">Datos</h3>
+    <pre class="payload" id="payloadBody"></pre>
+    <div class="row"><button class="ghost" id="btnPayloadClose">Cerrar</button></div>
+  </div>
+</div>
+
+<script>
+const MODULOS = [
+  {key:'motor_pro',    icon:'⚙️', name:'Motor Pro',      desc:'Análisis predictivo de motores eléctricos.', color:'#3b82f6', href:'./motor_pro.html'},
+  {key:'tablero_pro',  icon:'🧯', name:'Tablero Pro',     desc:'Análisis predictivo de tableros eléctricos.', color:'#f0b429', href:'./tablero_pro.html'},
+  {key:'vibra_pro',    icon:'📈', name:'Vibra Pro',       desc:'Análisis de vibración con IA.', color:'#10c98a', href:'./vibra_pro.html'},
+  {key:'thermovision', icon:'🌡️', name:'ThermoVision',    desc:'Termografía con IA.', color:'#ef4444', href:'./thermovision.html'},
+  {key:'lubricacion',  icon:'🛢️', name:'Lubricación en Campo', desc:'Seguimiento de lubricación en terreno.', color:'#f97316', href:'./lubricacion_campo.html'},
+  {key:'alineacion',   icon:'🎯', name:'Alineación Láser', desc:'Seguimiento de alineación láser (TKSA 41).', color:'#7c8ba3', href:'./alineacion_laser.html'},
+];
+
+let equiposCache = [];
+
+function fmtFecha(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + d.toLocaleTimeString('es-PY',{hour:'2-digit',minute:'2-digit'});
+}
+
+function badgeSeveridad(sev){
+  const cls = sev || 'na';
+  const label = {ok:'OK', atencion:'ATENCIÓN', critico:'CRÍTICO'}[sev] || 's/d';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function renderModulos(){
+  const grid = document.getElementById('modGrid');
+  grid.innerHTML = MODULOS.map(m => `
+    <a class="mod-card" style="--mc:${m.color}" href="${m.href}" target="_blank" rel="noopener">
+      <div class="icon">${m.icon}</div>
+      <div class="name">${m.name}</div>
+      <div class="desc">${m.desc}</div>
+      <div class="last" id="last-${m.key}">último registro: —</div>
+    </a>`).join('');
+}
+
+async function actualizarUltimos(){
+  if (!SatSync.estaConfigurado()) return;
+  for (const m of MODULOS){
+    try{
+      const rows = await SatSync.listarAnalisis({modulo:m.key, limite:1});
+      const el = document.getElementById('last-'+m.key);
+      if (el) el.textContent = rows.length ? `último registro: ${fmtFecha(rows[0].fecha)} · ${rows[0].equipos?.tag || ''}` : 'último registro: sin datos aún';
+    }catch(e){ /* silencioso por módulo */ }
+  }
+}
+
+async function cargarEquipos(){
+  const wrap = document.getElementById('equiposTableWrap');
+  if (!SatSync.estaConfigurado()){
+    wrap.innerHTML = `<div class="empty">Conectá Supabase para ver y cargar equipos. Usá <b>Configurar Supabase</b> arriba a la derecha.</div>`;
+    return;
+  }
+  try{
+    equiposCache = await SatSync.listarEquipos();
+  }catch(e){
+    wrap.innerHTML = `<div class="empty">No se pudo leer la tabla <b>equipos</b>. Revisá que el schema.sql se haya ejecutado en este proyecto Supabase.</div>`;
+    return;
+  }
+  document.getElementById('stEquipos').textContent = equiposCache.length;
+
+  const fEquipo = document.getElementById('fEquipo');
+  fEquipo.innerHTML = '<option value="">Todos los equipos</option>' +
+    equiposCache.map(e => `<option value="${e.id}">${e.tag} — ${e.nombre}</option>`).join('');
+
+  if (!equiposCache.length){
+    wrap.innerHTML = `<div class="empty">Todavía no hay equipos cargados. Agregá el primero arriba — <b>TAG</b> es el único campo obligatorio.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>TAG</th><th>Nombre</th><th>Tipo</th><th>Ubicación</th><th>Alta</th></tr></thead>
+    <tbody>${equiposCache.map(e => `
+      <tr>
+        <td class="tag-mono">${e.tag}</td>
+        <td>${e.nombre || ''}</td>
+        <td>${e.tipo || '—'}</td>
+        <td>${e.ubicacion || '—'}</td>
+        <td>${fmtFecha(e.created_at)}</td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function cargarAnalisis(){
+  const wrap = document.getElementById('analisisTableWrap');
+  if (!SatSync.estaConfigurado()){
+    wrap.innerHTML = `<div class="empty">Conectá Supabase para ver los análisis cargados desde los módulos.</div>`;
+    return;
+  }
+  const equipo_id = document.getElementById('fEquipo').value || undefined;
+  const modulo = document.getElementById('fModulo').value || undefined;
+  let rows;
+  try{
+    rows = await SatSync.listarAnalisis({equipo_id, modulo, limite:100});
+  }catch(e){
+    wrap.innerHTML = `<div class="empty">No se pudo leer la tabla <b>analisis</b>. Revisá el schema.sql.</div>`;
+    return;
+  }
+
+  const hace30 = Date.now() - 30*24*60*60*1000;
+  const recientes = rows.filter(r => new Date(r.fecha).getTime() >= hace30);
+  document.getElementById('stOk').textContent   = recientes.filter(r=>r.severidad==='ok').length;
+  document.getElementById('stWarn').textContent = recientes.filter(r=>r.severidad==='atencion').length;
+  document.getElementById('stCrit').textContent = recientes.filter(r=>r.severidad==='critico').length;
+
+  if (!rows.length){
+    wrap.innerHTML = `<div class="empty">Sin análisis todavía para este filtro. Los módulos empiezan a aparecer acá apenas alguno cargue un registro con <b>SatSync.guardarAnalisis()</b>.</div>`;
+    return;
+  }
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Fecha</th><th>Equipo</th><th>Módulo</th><th>Estado</th><th>Resumen</th><th></th></tr></thead>
+    <tbody>${rows.map((r,i) => `
+      <tr>
+        <td>${fmtFecha(r.fecha)}</td>
+        <td class="tag-mono">${r.equipos?.tag || '—'}</td>
+        <td>${(MODULOS.find(m=>m.key===r.modulo)||{}).name || r.modulo}</td>
+        <td>${badgeSeveridad(r.severidad)}</td>
+        <td>${r.resumen || '—'}</td>
+        <td><button class="ghost" onclick="verPayload(${i})">ver datos</button></td>
+      </tr>`).join('')}
+    </tbody></table>`;
+  window._analisisRows = rows;
+}
+
+function verPayload(i){
+  const r = window._analisisRows[i];
+  document.getElementById('payloadTitle').textContent = `${r.equipos?.tag || 'equipo'} · ${r.modulo}`;
+  document.getElementById('payloadBody').textContent = JSON.stringify(r.datos, null, 2);
+  document.getElementById('payloadModal').classList.add('show');
+}
+
+function actualizarEstadoConexion(){
+  const on = SatSync.estaConfigurado();
+  document.getElementById('connDot').className = 'dot ' + (on ? 'on' : 'off');
+  document.getElementById('connLabel').textContent = on ? 'conectado' : 'sin conectar';
+}
+
+async function refrescarTodo(){
+  actualizarEstadoConexion();
+  await Promise.all([cargarEquipos(), cargarAnalisis(), actualizarUltimos()]);
+}
+
+// ---- eventos ----
+document.getElementById('btnCfg').onclick = () => {
+  const cfg = SatSync.leerConfig() || {};
+  document.getElementById('inUrl').value = cfg.url || '';
+  document.getElementById('inKey').value = cfg.anonKey || '';
+  document.getElementById('cfgModal').classList.add('show');
+};
+document.getElementById('btnCfgCancel').onclick = () => document.getElementById('cfgModal').classList.remove('show');
+document.getElementById('btnCfgSave').onclick = () => {
+  const url = document.getElementById('inUrl').value.trim();
+  const key = document.getElementById('inKey').value.trim();
+  if (!url || !key){ alert('Completá URL y anon key.'); return; }
+  SatSync.init(url, key);
+  document.getElementById('cfgModal').classList.remove('show');
+  refrescarTodo();
+};
+document.getElementById('btnPayloadClose').onclick = () => document.getElementById('payloadModal').classList.remove('show');
+document.getElementById('btnRefreshAnalisis').onclick = cargarAnalisis;
+document.getElementById('fEquipo').onchange = cargarAnalisis;
+document.getElementById('fModulo').onchange = cargarAnalisis;
+
+document.getElementById('btnAddEquipo').onclick = async () => {
+  const tag = document.getElementById('eqTag').value.trim();
+  if (!tag){ alert('El TAG es obligatorio.'); return; }
+  if (!SatSync.estaConfigurado()){ alert('Conectá Supabase primero.'); return; }
+  try{
+    await SatSync.buscarOCrearEquipo(tag, {
+      nombre: document.getElementById('eqNombre').value.trim(),
+      tipo: document.getElementById('eqTipo').value.trim(),
+      ubicacion: document.getElementById('eqUbic').value.trim(),
+    });
+    ['eqTag','eqNombre','eqTipo','eqUbic'].forEach(id => document.getElementById(id).value = '');
+    cargarEquipos();
+  }catch(e){
+    alert('No se pudo crear el equipo: ' + e.message);
+  }
+};
+
+// ---- init ----
+renderModulos();
+if (SatSync.init()) {
+  refrescarTodo();
+} else {
+  actualizarEstadoConexion();
+  cargarEquipos();
+  cargarAnalisis();
+}
+</script>
+</body>
+</html>
