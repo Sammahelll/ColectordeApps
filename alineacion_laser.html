@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento de Alineación Láser — TKSA 41</title>
+<style>
+  :root{
+    --bg:#07090f;
+    --panel:#0d1117;
+    --ink:#cdd9f0;
+    --muted:#5e7a9a;
+    --accent:#3b82f6;
+    --accent-dark:#60a5fa;
+    --accent-soft:rgba(59,130,246,.12);
+    --amber:#f0b429;
+    --amber-soft:rgba(240,180,41,.12);
+    --red:#ef4444;
+    --red-soft:rgba(239,68,68,.12);
+    --green:#10c98a;
+    --green-soft:rgba(16,201,138,.12);
+    --border:#1e2d45;
+    --border2:#263548;
+    --card:#111827;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px;
+    line-height:1.5;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',monospace;}
+  header{
+    background:var(--panel);
+    border-bottom:1px solid var(--border);
+    padding:18px 28px 0;
+  }
+  header h1{
+    margin:0 0 2px;
+    font-size:20px;
+    font-weight:650;
+    letter-spacing:-0.01em;
+  }
+  header .sub{
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:14px;
+  }
+  nav{display:flex; gap:4px;}
+  nav button{
+    background:none;
+    border:none;
+    padding:10px 16px;
+    font-size:14px;
+    color:var(--muted);
+    cursor:pointer;
+    border-bottom:2px solid transparent;
+    font-weight:500;
+  }
+  nav button.active{
+    color:var(--accent-dark);
+    border-bottom-color:var(--accent);
+  }
+  main{max-width:1100px; margin:0 auto; padding:24px 28px 80px;}
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:20px;
+    margin-bottom:20px;
+  }
+  .panel h2{margin:0 0 14px; font-size:16px; font-weight:650;}
+  .row{display:flex; gap:12px; align-items:center; flex-wrap:wrap;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:14px;}
+  label{display:block; font-size:12.5px; color:var(--muted); margin-bottom:4px; font-weight:500;}
+  input, select, textarea{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-size:14px;
+    background:var(--card);
+    color:var(--ink);
+    font-family:inherit;
+  }
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--accent); outline-offset:1px;}
+  .field{margin-bottom:12px;}
+  fieldset{border:1px solid var(--border); border-radius:6px; padding:14px; margin:0 0 16px;}
+  fieldset legend{font-size:13px; font-weight:600; color:var(--accent-dark); padding:0 4px;}
+  button.btn{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    padding:9px 16px;
+    border-radius:6px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  button.btn:hover{background:var(--accent-dark);}
+  button.btn.secondary{
+    background:none;
+    color:var(--accent-dark);
+    border:1px solid var(--accent);
+  }
+  button.btn.secondary:hover{background:var(--accent-soft);}
+  button.btn.ghost{
+    background:none;
+    border:1px solid var(--border);
+    color:var(--muted);
+  }
+  table{width:100%; border-collapse:collapse; font-size:13.5px;}
+  th{
+    text-align:left;
+    padding:8px 10px;
+    color:var(--muted);
+    font-weight:600;
+    font-size:12px;
+    text-transform:none;
+    border-bottom:1px solid var(--border);
+  }
+  td{padding:9px 10px; border-bottom:1px solid var(--border);}
+  tr.clickable{cursor:pointer;}
+  tr.clickable:hover{background:var(--card);}
+  .badge{
+    display:inline-block;
+    padding:3px 9px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:650;
+  }
+  .badge.verde{background:var(--green-soft); color:var(--green);}
+  .badge.amarillo{background:var(--amber-soft); color:var(--amber);}
+  .badge.rojo{background:var(--red-soft); color:var(--red);}
+  .badge.neutro{background:var(--card); color:var(--muted);}
+  .flag{
+    display:flex; gap:8px; align-items:flex-start;
+    padding:10px 12px; border-radius:6px; font-size:13.5px; margin-bottom:8px;
+  }
+  .flag.warn{background:var(--amber-soft); color:var(--amber);}
+  .flag.danger{background:var(--red-soft); color:var(--red);}
+  .flag.ok{background:var(--green-soft); color:var(--green);}
+  .empty{color:var(--muted); font-size:13.5px; padding:20px; text-align:center;}
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal{
+    background:var(--panel); border:1px solid var(--border2); border-radius:10px; max-width:640px; width:100%;
+    max-height:88vh; overflow-y:auto; padding:24px;
+  }
+  .modal h3{margin:0 0 4px; font-size:18px;}
+  .modal .close-row{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
+  .kv{display:grid; grid-template-columns:150px 1fr; gap:6px 12px; font-size:13.5px; margin-bottom:4px;}
+  .kv .k{color:var(--muted);}
+  .compare{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:14px 0;}
+  .compare .col{border:1px solid var(--border); border-radius:6px; padding:12px;}
+  .compare .col h4{margin:0 0 8px; font-size:13px; color:var(--muted); text-transform:none;}
+  canvas{width:100%; height:140px; display:block;}
+  .stat{font-size:22px; font-weight:700; font-family:ui-monospace,SFMono-Regular,Consolas,monospace;}
+  .stat-label{font-size:12px; color:var(--muted);}
+  @media print{
+    header, nav, .no-print{display:none !important;}
+    body{background:#fff;}
+    main{padding:0; max-width:none;}
+    .panel{border:none; padding:0;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Seguimiento de Alineación Láser</h1>
+  <div class="sub">Registro de intervenciones · SKF TKSA 41</div>
+  <nav id="tabNav">
+    <button data-tab="equipos" class="active">Equipos</button>
+    <button data-tab="nueva">Registrar alineación</button>
+  </nav>
+</header>
+
+<main id="mainArea"></main>
+
+<div id="modalRoot"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  1. DATOS Y PERSISTENCIA
+// ═══════════════════════════════════════════════════════════
+const STORAGE_KEY = 'alineacion_laser_data_v1';
+
+let equiposRegistry = new Map();   // id -> {tag, planta, tipoAcople, rpm, tempTrabajo}
+let alineaciones = new Map();      // equipoId -> [ {id, fecha, tecnico, motivo, asFound, asLeft, semaforo, pataBlanda, observaciones, proximaRevision} ]
+
+function genId(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+
+function saveData(){
+  const data = {
+    equipos: Array.from(equiposRegistry.entries()),
+    alineaciones: Array.from(alineaciones.entries())
+  };
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }catch(e){ console.error('No se pudo guardar', e); }
+}
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    equiposRegistry = new Map(data.equipos || []);
+    alineaciones = new Map(data.alineaciones || []);
+  }catch(e){ console.error('No se pudo cargar', e); }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  2. UTILIDADES
+// ═══════════════════════════════════════════════════════════
+function fmtDate(iso){
+  if(!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  if(isNaN(d)) return iso;
+  return d.toLocaleDateString('es-ES', {day:'2-digit', month:'2-digit', year:'numeric'});
+}
+function fmtNum(n, dec=2){
+  if(n === null || n === undefined || n === '' || isNaN(n)) return '—';
+  return Number(n).toFixed(dec);
+}
+function daysBetween(a,b){
+  return Math.abs((new Date(a) - new Date(b)) / (1000*60*60*24));
+}
+function offsetMagnitud(v){
+  if(!v) return NaN;
+  const ov = parseFloat(v.offV), oh = parseFloat(v.offH);
+  if(isNaN(ov) && isNaN(oh)) return NaN;
+  return Math.sqrt((ov||0)**2 + (oh||0)**2);
+}
+function semaforoBadge(s){
+  const val = (s||'').toLowerCase();
+  const label = val === 'verde' ? 'Verde' : val === 'amarillo' ? 'Amarillo' : val === 'rojo' ? 'Rojo' : '—';
+  const cls = ['verde','amarillo','rojo'].includes(val) ? val : 'neutro';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+function sortedHistorial(equipoId){
+  const list = alineaciones.get(equipoId) || [];
+  return [...list].sort((a,b) => new Date(a.fecha) - new Date(b.fecha));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  3. MOTOR DE DIAGNÓSTICO
+//  No recalcula tolerancias (eso ya lo hace el TKSA 41 en pantalla,
+//  según la norma/OEM que corresponda a cada máquina). Lo que hace
+//  es leer el patrón histórico: recidiva, tendencia y vencimiento
+//  de la próxima revisión.
+// ═══════════════════════════════════════════════════════════
+function diagnosticarEquipo(equipoId){
+  const hist = sortedHistorial(equipoId);
+  const flags = [];
+  if(hist.length === 0) return { flags, ultimo:null, tendencia:null };
+
+  const ultimo = hist[hist.length - 1];
+
+  // Recidiva: 2+ intervenciones con semáforo no-verde dentro de una ventana de 6 meses
+  let recidivas = 0;
+  for(let i=1;i<hist.length;i++){
+    const prevNoVerde = (hist[i-1].semaforo||'').toLowerCase() !== 'verde';
+    const actualNoVerde = (hist[i].semaforo||'').toLowerCase() !== 'verde';
+    if(actualNoVerde && daysBetween(hist[i].fecha, hist[i-1].fecha) <= 183){
+      recidivas++;
+    }
+  }
+  if(recidivas > 0){
+    flags.push({level:'warn', text: `Este equipo tuvo ${recidivas} reincidencia(s): volvió a salir de tolerancia dentro de los 6 meses de una alineación previa. Puede indicar un problema estructural (base, pata blanda recurrente, tensión de tuberías) en vez de solo desgaste normal.`});
+  }
+
+  // Tendencia: comparar magnitud de offset as-left de las últimas 3 intervenciones
+  const ultimas = hist.slice(-3).map(h => offsetMagnitud(h.asLeft)).filter(v => !isNaN(v));
+  if(ultimas.length >= 2){
+    const creciendo = ultimas.every((v,i) => i===0 || v >= ultimas[i-1]);
+    const primero = ultimas[0], last = ultimas[ultimas.length-1];
+    if(creciendo && last > primero * 1.15){
+      flags.push({level:'warn', text:`El offset final (as-left) viene en aumento en las últimas intervenciones (${fmtNum(primero)} → ${fmtNum(last)} mm), aunque cada cierre haya quedado en tolerancia. Vale la pena revisar desgaste de acople o asentamiento de base.`});
+    }
+  }
+
+  // Próxima revisión
+  if(ultimo.proximaRevision){
+    const hoy = new Date();
+    const prox = new Date(ultimo.proximaRevision + 'T00:00:00');
+    const diff = Math.round((prox - hoy)/(1000*60*60*24));
+    if(diff < 0){
+      flags.push({level:'danger', text:`La próxima revisión programada (${fmtDate(ultimo.proximaRevision)}) ya venció hace ${Math.abs(diff)} día(s).`});
+    } else if(diff <= 14){
+      flags.push({level:'warn', text:`Próxima revisión programada en ${diff} día(s) (${fmtDate(ultimo.proximaRevision)}).`});
+    }
+  }
+
+  if(flags.length === 0){
+    flags.push({level:'ok', text:'Sin alertas de recidiva ni de tendencia con el historial actual.'});
+  }
+
+  return { flags, ultimo, tendencia: ultimas };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  4. RENDER — TABS
+// ═══════════════════════════════════════════════════════════
+let currentTab = 'equipos';
+
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('#tabNav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  render();
+}
+
+function render(){
+  const main = document.getElementById('mainArea');
+  if(currentTab === 'equipos') main.innerHTML = renderEquiposTab();
+  else if(currentTab === 'nueva') main.innerHTML = renderNuevaAlineacionTab();
+  else if(currentTab === 'detalle') main.innerHTML = renderDetalleEquipo(window._detalleEquipoId);
+  wireEvents();
+}
+
+// ---- Tab: Equipos ----
+function renderEquiposTab(){
+  const rows = Array.from(equiposRegistry.entries());
+  let body;
+  if(rows.length === 0){
+    body = `<div class="empty">Todavía no hay equipos registrados. Cargá el primero desde "Registrar alineación".</div>`;
+  }else{
+    body = `<table><thead><tr>
+      <th>TAG</th><th>Planta</th><th>RPM</th><th>Acoplamiento</th><th>Alineaciones</th><th>Último resultado</th>
+    </tr></thead><tbody>` +
+    rows.map(([id, eq]) => {
+      const hist = sortedHistorial(id);
+      const ultimo = hist[hist.length-1];
+      return `<tr class="clickable" data-open-equipo="${id}">
+        <td class="mono">${escapeHtml(eq.tag)}</td>
+        <td>${escapeHtml(eq.planta||'—')}</td>
+        <td class="mono">${eq.rpm||'—'}</td>
+        <td>${escapeHtml(eq.tipoAcople||'—')}</td>
+        <td class="mono">${hist.length}</td>
+        <td>${ultimo ? semaforoBadge(ultimo.semaforo) + ' <span class="mono" style="color:var(--muted); font-size:12px;">' + fmtDate(ultimo.fecha) + '</span>' : '—'}</td>
+      </tr>`;
+    }).join('') + `</tbody></table>`;
+  }
+  return `<div class="panel">
+    <div class="row" style="justify-content:space-between; margin-bottom:14px;">
+      <h2 style="margin:0;">Equipos</h2>
+      <button class="btn secondary" id="btnNuevoEquipo">+ Nuevo equipo</button>
+    </div>
+    ${body}
+  </div>`;
+}
+
+// ---- Tab: Registrar alineación ----
+function renderNuevaAlineacionTab(){
+  const opciones = Array.from(equiposRegistry.entries())
+    .map(([id, eq]) => `<option value="${id}">${escapeHtml(eq.tag)} — ${escapeHtml(eq.planta||'')}</option>`).join('');
+  return `<div class="panel">
+    <h2>Registrar alineación</h2>
+    <form id="formAlineacion">
+      <div class="grid2">
+        <div class="field">
+          <label>Equipo</label>
+          <select id="fEquipo" required>
+            <option value="">Seleccionar...</option>
+            ${opciones}
+            <option value="__nuevo__">+ Nuevo equipo...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input type="date" id="fFecha" required value="${new Date().toISOString().slice(0,10)}">
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>Técnico</label>
+          <input type="text" id="fTecnico" placeholder="Nombre del responsable">
+        </div>
+        <div class="field">
+          <label>Motivo de la intervención</label>
+          <select id="fMotivo">
+            <option>Mantenimiento programado</option>
+            <option>Reemplazo de rodamientos / sello</option>
+            <option>Vibración alta (alarma)</option>
+            <option>Falla de acoplamiento</option>
+            <option>Otro</option>
+          </select>
+        </div>
+      </div>
+
+      <fieldset>
+        <legend>Como se encontró (as-found) — opcional</legend>
+        <div class="grid4">
+          <div class="field"><label>Offset vertical (mm)</label><input type="number" step="0.01" id="afOffV"></div>
+          <div class="field"><label>Offset horizontal (mm)</label><input type="number" step="0.01" id="afOffH"></div>
+          <div class="field"><label>Ángulo vertical (mm/100mm)</label><input type="number" step="0.01" id="afAngV"></div>
+          <div class="field"><label>Ángulo horizontal (mm/100mm)</label><input type="number" step="0.01" id="afAngH"></div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Como se dejó (as-left)</legend>
+        <div class="grid4">
+          <div class="field"><label>Offset vertical (mm)</label><input type="number" step="0.01" id="alOffV" required></div>
+          <div class="field"><label>Offset horizontal (mm)</label><input type="number" step="0.01" id="alOffH" required></div>
+          <div class="field"><label>Ángulo vertical (mm/100mm)</label><input type="number" step="0.01" id="alAngV"></div>
+          <div class="field"><label>Ángulo horizontal (mm/100mm)</label><input type="number" step="0.01" id="alAngH"></div>
+        </div>
+        <div class="field" style="max-width:220px;">
+          <label>Resultado del semáforo TKSA 41</label>
+          <select id="fSemaforo" required>
+            <option value="verde">Verde — excelente/conforme</option>
+            <option value="amarillo">Amarillo — aceptable</option>
+            <option value="rojo">Rojo — fuera de tolerancia</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pata blanda — opcional</legend>
+        <div class="grid2">
+          <div class="field">
+            <label>¿Se detectó pata blanda?</label>
+            <select id="fPataDetectada"><option value="no">No</option><option value="si">Sí</option></select>
+          </div>
+          <div class="field"><label>Valor máximo (mm) / pata afectada</label><input type="text" id="fPataDetalle" placeholder="ej: 0.12 mm, pata delantera derecha"></div>
+        </div>
+      </fieldset>
+
+      <div class="grid2">
+        <div class="field"><label>Observaciones</label><textarea id="fObs" rows="3" placeholder="Tensión de tuberías, estado de la base, desgaste del acople, etc."></textarea></div>
+        <div class="field"><label>Próxima revisión sugerida</label><input type="date" id="fProxima"></div>
+      </div>
+
+      <button type="submit" class="btn">Guardar alineación</button>
+    </form>
+  </div>`;
+}
+
+// ---- Detalle de equipo / informe ----
+function renderDetalleEquipo(equipoId){
+  const eq = equiposRegistry.get(equipoId);
+  if(!eq) return `<div class="panel empty">Equipo no encontrado.</div>`;
+  const hist = sortedHistorial(equipoId);
+  const diag = diagnosticarEquipo(equipoId);
+
+  const flagsHtml = diag.flags.map(f => `<div class="flag ${f.level}">${f.text}</div>`).join('');
+
+  const histRows = hist.length === 0 ? `<div class="empty">Sin intervenciones registradas todavía.</div>` :
+    `<table><thead><tr><th>Fecha</th><th>Técnico</th><th>Motivo</th><th>Offset as-left (V/H)</th><th>Resultado</th><th></th></tr></thead><tbody>` +
+    [...hist].reverse().map(a => `<tr class="clickable" data-open-informe="${a.id}">
+      <td class="mono">${fmtDate(a.fecha)}</td>
+      <td>${escapeHtml(a.tecnico||'—')}</td>
+      <td>${escapeHtml(a.motivo||'—')}</td>
+      <td class="mono">${fmtNum(a.asLeft?.offV)} / ${fmtNum(a.asLeft?.offH)}</td>
+      <td>${semaforoBadge(a.semaforo)}</td>
+      <td style="text-align:right; color:var(--accent-dark); font-size:12.5px;">Ver informe →</td>
+    </tr>`).join('') + `</tbody></table>`;
+
+  return `<div class="panel">
+    <div class="row no-print" style="justify-content:space-between; margin-bottom:6px;">
+      <button class="btn ghost" id="btnVolverEquipos">← Equipos</button>
+      <button class="btn secondary" onclick="window.print()">Imprimir informe</button>
+    </div>
+    <h2 style="margin-bottom:2px;">${escapeHtml(eq.tag)}</h2>
+    <div style="color:var(--muted); font-size:13.5px; margin-bottom:14px;">${escapeHtml(eq.planta||'—')} · ${eq.rpm||'—'} RPM · ${escapeHtml(eq.tipoAcople||'—')}</div>
+
+    <div class="grid4" style="margin-bottom:18px;">
+      <div><div class="stat">${hist.length}</div><div class="stat-label">Alineaciones registradas</div></div>
+      <div><div class="stat">${diag.ultimo ? fmtDate(diag.ultimo.fecha) : '—'}</div><div class="stat-label">Última intervención</div></div>
+      <div>${diag.ultimo ? semaforoBadge(diag.ultimo.semaforo) : '—'}<div class="stat-label">Último resultado</div></div>
+      <div><div class="stat">${diag.ultimo?.proximaRevision ? fmtDate(diag.ultimo.proximaRevision) : '—'}</div><div class="stat-label">Próxima revisión</div></div>
+    </div>
+
+    ${flagsHtml}
+
+    ${hist.length >= 2 ? `<h2 style="margin-top:22px;">Tendencia de offset (as-left)</h2><canvas id="trendCanvas"></canvas>` : ''}
+
+    <h2 style="margin-top:22px;">Historial</h2>
+    ${histRows}
+  </div>`;
+}
+
+function drawTrend(equipoId){
+  const canvas = document.getElementById('trendCanvas');
+  if(!canvas) return;
+  const hist = sortedHistorial(equipoId);
+  const points = hist.map(h => ({date:h.fecha, mag:offsetMagnitud(h.asLeft)})).filter(p => !isNaN(p.mag));
+  if(points.length < 2) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.clientWidth, h = 140;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+
+  const pad = {l:34, r:14, t:14, b:22};
+  const plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const maxVal = Math.max(...points.map(p=>p.mag), 0.01) * 1.15;
+
+  // ejes
+  ctx.strokeStyle = '#1e2d45';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, pad.t+plotH); ctx.lineTo(pad.l+plotW, pad.t+plotH);
+  ctx.stroke();
+
+  ctx.fillStyle = '#5e7a9a';
+  ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillText(maxVal.toFixed(2)+' mm', 2, pad.t+6);
+  ctx.fillText('0', 2, pad.t+plotH);
+
+  // linea
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  points.forEach((p,i) => {
+    const x = pad.l + (points.length===1 ? 0 : (i/(points.length-1))*plotW);
+    const y = pad.t + plotH - (p.mag/maxVal)*plotH;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+
+  points.forEach((p,i) => {
+    const x = pad.l + (points.length===1 ? 0 : (i/(points.length-1))*plotW);
+    const y = pad.t + plotH - (p.mag/maxVal)*plotH;
+    ctx.fillStyle = '#60a5fa';
+    ctx.beginPath(); ctx.arc(x,y,3,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#5e7a9a';
+    ctx.font = '10px -apple-system, sans-serif';
+    const label = fmtDate(p.date).slice(0,5);
+    ctx.fillText(label, x-12, h-4);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  5. MODALES: nuevo equipo, informe por trabajo
+// ═══════════════════════════════════════════════════════════
+function openModal(html){
+  document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal">${html}</div></div>`;
+  document.getElementById('modalOverlay').addEventListener('click', e => { if(e.target.id === 'modalOverlay') closeModal(); });
+}
+function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
+
+function openNuevoEquipoModal(onCreated){
+  openModal(`
+    <h3>Nuevo equipo</h3>
+    <div class="field"><label>TAG</label><input type="text" id="mTag" placeholder="ej: BOMBA-AGUA-01"></div>
+    <div class="grid2">
+      <div class="field"><label>Planta / ubicación</label><input type="text" id="mPlanta"></div>
+      <div class="field"><label>RPM</label><input type="number" id="mRpm"></div>
+    </div>
+    <div class="field">
+      <label>Tipo de acoplamiento</label>
+      <select id="mAcople">
+        <option>Gomas / pines (Omega, Quadra-Flex)</option>
+        <option>Mallas / engranajes</option>
+        <option>Correas / poleas</option>
+        <option>Otro</option>
+      </select>
+    </div>
+    <div class="field"><label>Temperatura de trabajo estimada (°C)</label><input type="number" id="mTemp"></div>
+    <div class="close-row">
+      <button class="btn ghost" id="mCancel">Cancelar</button>
+      <button class="btn" id="mSave">Crear equipo</button>
+    </div>
+  `);
+  document.getElementById('mCancel').onclick = closeModal;
+  document.getElementById('mSave').onclick = () => {
+    const tag = document.getElementById('mTag').value.trim();
+    if(!tag){ document.getElementById('mTag').focus(); return; }
+    const id = genId();
+    equiposRegistry.set(id, {
+      tag,
+      planta: document.getElementById('mPlanta').value.trim(),
+      rpm: document.getElementById('mRpm').value,
+      tipoAcople: document.getElementById('mAcople').value,
+      tempTrabajo: document.getElementById('mTemp').value
+    });
+    saveData();
+    closeModal();
+    if(onCreated) onCreated(id);
+    else render();
+  };
+}
+
+function openInformeTrabajo(equipoId, alineacionId){
+  const eq = equiposRegistry.get(equipoId);
+  const a = (alineaciones.get(equipoId)||[]).find(x => x.id === alineacionId);
+  if(!eq || !a) return;
+  const pata = a.pataBlanda && a.pataBlanda.detectada === 'si'
+    ? `Sí — ${escapeHtml(a.pataBlanda.detalle || 'sin detalle')}`
+    : 'No';
+  openModal(`
+    <div class="row no-print" style="justify-content:flex-end; margin-bottom:6px;">
+      <button class="btn secondary" onclick="window.print()">Imprimir</button>
+    </div>
+    <h3>Informe de intervención</h3>
+    <div class="kv"><span class="k">Equipo</span><span>${escapeHtml(eq.tag)} — ${escapeHtml(eq.planta||'')}</span></div>
+    <div class="kv"><span class="k">Fecha</span><span>${fmtDate(a.fecha)}</span></div>
+    <div class="kv"><span class="k">Técnico</span><span>${escapeHtml(a.tecnico||'—')}</span></div>
+    <div class="kv"><span class="k">Motivo</span><span>${escapeHtml(a.motivo||'—')}</span></div>
+    <div class="kv"><span class="k">Resultado</span><span>${semaforoBadge(a.semaforo)}</span></div>
+
+    <div class="compare">
+      <div class="col">
+        <h4>Como se encontró (as-found)</h4>
+        <div class="kv"><span class="k">Offset V / H</span><span class="mono">${fmtNum(a.asFound?.offV)} / ${fmtNum(a.asFound?.offH)} mm</span></div>
+        <div class="kv"><span class="k">Ángulo V / H</span><span class="mono">${fmtNum(a.asFound?.angV)} / ${fmtNum(a.asFound?.angH)}</span></div>
+      </div>
+      <div class="col">
+        <h4>Como se dejó (as-left)</h4>
+        <div class="kv"><span class="k">Offset V / H</span><span class="mono">${fmtNum(a.asLeft?.offV)} / ${fmtNum(a.asLeft?.offH)} mm</span></div>
+        <div class="kv"><span class="k">Ángulo V / H</span><span class="mono">${fmtNum(a.asLeft?.angV)} / ${fmtNum(a.asLeft?.angH)}</span></div>
+      </div>
+    </div>
+
+    <div class="kv"><span class="k">Pata blanda</span><span>${pata}</span></div>
+    <div class="kv"><span class="k">Próxima revisión</span><span>${a.proximaRevision ? fmtDate(a.proximaRevision) : '—'}</span></div>
+    <div class="kv" style="grid-template-columns:150px 1fr;"><span class="k">Observaciones</span><span>${escapeHtml(a.observaciones||'—')}</span></div>
+
+    <div class="close-row no-print"><button class="btn ghost" id="mClose">Cerrar</button></div>
+  `);
+  document.getElementById('mClose').onclick = closeModal;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6. EVENTOS
+// ═══════════════════════════════════════════════════════════
+function escapeHtml(s){
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function wireEvents(){
+  document.querySelectorAll('[data-open-equipo]').forEach(el => {
+    el.addEventListener('click', () => { window._detalleEquipoId = el.dataset.openEquipo; currentTab='detalle'; render(); setTimeout(()=>drawTrend(el.dataset.openEquipo),0); });
+  });
+  const btnNuevoEquipo = document.getElementById('btnNuevoEquipo');
+  if(btnNuevoEquipo) btnNuevoEquipo.onclick = () => openNuevoEquipoModal();
+
+  const btnVolver = document.getElementById('btnVolverEquipos');
+  if(btnVolver) btnVolver.onclick = () => switchTab('equipos');
+
+  document.querySelectorAll('[data-open-informe]').forEach(el => {
+    el.addEventListener('click', () => openInformeTrabajo(window._detalleEquipoId, el.dataset.openInforme));
+  });
+
+  const fEquipo = document.getElementById('fEquipo');
+  if(fEquipo) fEquipo.addEventListener('change', () => {
+    if(fEquipo.value === '__nuevo__'){
+      openNuevoEquipoModal((newId) => {
+        render();
+        setTimeout(() => { document.getElementById('fEquipo').value = newId; }, 0);
+      });
+    }
+  });
+
+  const form = document.getElementById('formAlineacion');
+  if(form) form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    let equipoId = document.getElementById('fEquipo').value;
+    if(!equipoId || equipoId === '__nuevo__'){ document.getElementById('fEquipo').focus(); return; }
+
+    const registro = {
+      id: genId(),
+      fecha: document.getElementById('fFecha').value,
+      tecnico: document.getElementById('fTecnico').value.trim(),
+      motivo: document.getElementById('fMotivo').value,
+      asFound: {
+        offV: document.getElementById('afOffV').value,
+        offH: document.getElementById('afOffH').value,
+        angV: document.getElementById('afAngV').value,
+        angH: document.getElementById('afAngH').value
+      },
+      asLeft: {
+        offV: document.getElementById('alOffV').value,
+        offH: document.getElementById('alOffH').value,
+        angV: document.getElementById('alAngV').value,
+        angH: document.getElementById('alAngH').value
+      },
+      semaforo: document.getElementById('fSemaforo').value,
+      pataBlanda: {
+        detectada: document.getElementById('fPataDetectada').value,
+        detalle: document.getElementById('fPataDetalle').value.trim()
+      },
+      observaciones: document.getElementById('fObs').value.trim(),
+      proximaRevision: document.getElementById('fProxima').value
+    };
+
+    if(!alineaciones.has(equipoId)) alineaciones.set(equipoId, []);
+    alineaciones.get(equipoId).push(registro);
+    saveData();
+
+    window._detalleEquipoId = equipoId;
+    currentTab = 'detalle';
+    render();
+    setTimeout(()=>drawTrend(equipoId),0);
+  });
+}
+
+document.getElementById('tabNav').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-tab]');
+  if(btn) switchTab(btn.dataset.tab);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  7. INIT
+// ═══════════════════════════════════════════════════════════
+loadData();
+render();
+</script>
+</body>
+</html>

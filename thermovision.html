@@ -1,0 +1,2503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="theme-color" content="#000e1a"/>
+<meta name="description" content="Análisis termográfico profesional con IA — FLIR compatible"/>
+<link rel="manifest" href="#" id="manifest-link"/>
+<title>ThermoVision Pro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+
+<style>
+:root {
+  --bg:       #000e1a;
+  --bg2:      #001828;
+  --bg3:      #002033;
+  --accent:   #00d4aa;
+  --accent2:  #0088cc;
+  --hot:      #ff4422;
+  --warm:     #ffaa00;
+  --cold:     #44aaff;
+  --text:     #d8eef8;
+  --muted:    #4a7a8a;
+  --border:   rgba(0,212,170,.18);
+  --mono:     'Share Tech Mono', monospace;
+  --sans:     'Barlow', sans-serif;
+  --cond:     'Barlow Condensed', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── NOISE OVERLAY ─────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0; opacity: .6;
+}
+
+/* ── TOPBAR ────────────────────────────────── */
+#topbar {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(0,14,26,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 20px;
+  display: flex; align-items: stretch;
+}
+
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0;
+  border-right: 1px solid var(--border);
+  padding-right: 20px; margin-right: 4px;
+}
+
+.logo-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: linear-gradient(135deg, #003322, #005544);
+  border: 1px solid var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 16px rgba(0,212,170,.2);
+}
+
+.logo-text { line-height: 1; }
+.logo-name {
+  font-family: var(--cond); font-weight: 900;
+  font-size: 17px; letter-spacing: 4px; color: var(--accent);
+}
+.logo-sub {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 2px;
+  margin-top: 2px;
+}
+
+/* Tabs */
+#tabs { display: flex; align-items: stretch; }
+.tab {
+  font-family: var(--cond); font-weight: 700;
+  font-size: 11px; letter-spacing: 2px;
+  color: var(--muted);
+  background: none; border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0 16px; cursor: pointer;
+  transition: all .18s; white-space: nowrap;
+}
+.tab:hover { color: var(--text); background: rgba(0,212,170,.06); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* Status badges */
+#topbar-right {
+  margin-left: auto; display: flex;
+  align-items: center; gap: 10px; padding: 0 0 0 16px;
+}
+.badge {
+  font-family: var(--mono); font-size: 10px;
+  padding: 4px 10px; border-radius: 4px;
+  border: 1px solid; white-space: nowrap;
+}
+.badge-crit  { color: var(--hot);  border-color: rgba(255,68,34,.4); background: rgba(255,68,34,.1); }
+.badge-warn  { color: var(--warm); border-color: rgba(255,170,0,.4); background: rgba(255,170,0,.1); }
+.badge-ok    { color: var(--accent); border-color: rgba(0,212,170,.4); background: rgba(0,212,170,.1); }
+.badge-info  { color: var(--cold); border-color: rgba(68,170,255,.4); background: rgba(68,170,255,.1); }
+
+/* Thermal scale */
+.thermal-scale {
+  display: flex; align-items: center; gap: 6px;
+}
+.scale-bar {
+  width: 70px; height: 7px; border-radius: 4px;
+  background: linear-gradient(to right,
+    #0a0a2e,#0d2d8a,#0080d0,#00ccaa,#80e000,
+    #ffaa00,#ff6600,#ff2200,#880000);
+  box-shadow: 0 0 8px rgba(255,100,0,.3);
+}
+.scale-label { font-family: var(--mono); font-size: 9px; }
+
+/* ── PANELS ────────────────────────────────── */
+.panel { display: none; padding: 24px 20px; position: relative; z-index: 1; }
+.panel.active { display: block; }
+
+/* Two-column layout */
+.layout-2col {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 0;
+  min-height: calc(100vh - 60px);
+}
+.col-left {
+  border-right: 1px solid var(--border);
+  padding: 24px; overflow-y: auto;
+  max-height: calc(100vh - 60px);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.col-right {
+  padding: 24px; overflow-y: auto;
+  max-height: calc(100vh - 60px);
+}
+
+/* Section label */
+.sect-label {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted); letter-spacing: 3px;
+  margin-bottom: 12px;
+}
+.sect-divider {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.sect-divider span {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--accent); letter-spacing: 2px; font-weight: 700;
+}
+.sect-divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* ── DROP ZONE ─────────────────────────────── */
+#drop-zone {
+  border: 2px dashed rgba(0,212,170,.25);
+  border-radius: 12px;
+  padding: 28px 20px;
+  text-align: center; cursor: pointer;
+  background: rgba(0,30,50,.4);
+  transition: all .2s;
+  position: relative; overflow: hidden;
+}
+#drop-zone::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(0,212,170,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+#drop-zone:hover, #drop-zone.drag { border-color: var(--accent); background: rgba(0,212,170,.05); }
+#drop-zone .dz-icon { font-size: 32px; margin-bottom: 10px; }
+#drop-zone .dz-text { color: #6a9aaa; font-size: 13px; }
+#drop-zone .dz-hint { color: var(--muted); font-size: 11px; margin-top: 6px; font-family: var(--mono); }
+
+/* ── IMAGE PREVIEW ─────────────────────────── */
+#img-wrap {
+  position: relative; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--border);
+  display: none;
+}
+#img-wrap img {
+  width: 100%; display: block; max-height: 300px;
+  object-fit: contain; background: #000;
+}
+#scan-line {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  box-shadow: 0 0 12px var(--accent);
+  animation: scanDown 2.5s linear infinite;
+  display: none; z-index: 5;
+}
+@keyframes scanDown { 0%{top:0} 100%{top:100%} }
+
+/* Image info */
+#img-info {
+  display: none;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--muted); margin-top: 6px;
+  justify-content: space-between;
+}
+
+/* ── METRIC PILLS ──────────────────────────── */
+.metrics-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.metric-pill {
+  background: rgba(0,20,40,.7);
+  border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+}
+.metric-pill .mp-label {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--muted); letter-spacing: 2px;
+}
+.metric-pill .mp-value {
+  font-family: var(--mono); font-size: 16px;
+  font-weight: 700; margin-top: 4px;
+}
+.metric-hot  .mp-value { color: var(--hot); }
+.metric-cold .mp-value { color: var(--cold); }
+.metric-delta .mp-value { color: var(--warm); }
+.metric-mean .mp-value  { color: var(--accent); }
+
+/* ── ANOMALY CARDS ─────────────────────────── */
+.anomaly-card {
+  border-radius: 8px; padding: 12px 14px;
+  border-left: 3px solid;
+  margin-bottom: 10px;
+  animation: fadeIn .3s ease;
+}
+.anom-crit { background: rgba(255,68,34,.1);  border-color: var(--hot);  }
+.anom-alta { background: rgba(255,170,0,.1);  border-color: var(--warm); }
+.anom-med  { background: rgba(255,220,0,.08); border-color: #ffdd00;     }
+.anom-baja { background: rgba(0,212,170,.08); border-color: var(--accent);}
+
+.anom-header {
+  display: flex; justify-content: space-between;
+  align-items: flex-start; gap: 8px; margin-bottom: 6px;
+}
+.anom-title { font-size: 13px; font-weight: 600; color: var(--text); }
+.anom-sev {
+  font-family: var(--mono); font-size: 10px;
+  padding: 2px 8px; border-radius: 3px; border: 1px solid;
+}
+.anom-details {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 3px; font-size: 11px; color: var(--muted);
+}
+
+/* ── SECTION BLOCKS ────────────────────────── */
+.result-block {
+  background: rgba(0,20,40,.6);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+  margin-bottom: 14px; animation: fadeIn .4s ease;
+}
+.result-block p {
+  color: #c0dde8; font-size: 13px; line-height: 1.7;
+}
+
+/* ── DIAGNOSIS BOX ─────────────────────────── */
+.diag-box {
+  background: rgba(0,40,25,.7);
+  border: 1px solid rgba(0,212,170,.35);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px; padding: 16px 18px;
+  margin-bottom: 14px;
+}
+.diag-box p { color: var(--text); font-size: 13.5px; line-height: 1.8; }
+
+/* ── PRIORITY BADGE ────────────────────────── */
+.priority-box {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin-bottom: 14px;
+}
+.prio-card {
+  background: rgba(0,20,40,.7);
+  border-radius: 10px; padding: 14px 16px;
+  border: 1px solid var(--border);
+}
+.prio-label { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 2px; }
+.prio-value { font-family: var(--cond); font-size: 20px; font-weight: 700; margin-top: 6px; }
+.conf-bar-wrap { margin-top: 8px; }
+.conf-bar-bg { height: 6px; background: rgba(255,255,255,.08); border-radius: 3px; overflow: hidden; }
+.conf-bar-fill { height: 100%; border-radius: 3px; transition: width 1s ease; }
+
+/* ── CHIP TAGS ─────────────────────────────── */
+.chip-wrap { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.chip {
+  font-family: var(--mono); font-size: 10px;
+  padding: 3px 10px; border-radius: 4px; border: 1px solid;
+}
+
+/* ── BUTTONS ────────────────────────────────── */
+.btn {
+  width: 100%; padding: 14px;
+  font-family: var(--cond); font-weight: 700;
+  font-size: 13px; letter-spacing: 3px;
+  border-radius: 10px; border: 1px solid;
+  cursor: pointer; transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #004433, #003366);
+  border-color: rgba(0,212,170,.5); color: #00ffcc;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #006644, #004488);
+  box-shadow: 0 6px 20px rgba(0,212,170,.3); transform: translateY(-1px);
+}
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; }
+.btn-secondary {
+  background: rgba(0,30,50,.5);
+  border-color: var(--border); color: var(--muted);
+  font-size: 11px; padding: 8px;
+}
+.btn-secondary:hover { color: var(--text); border-color: rgba(0,212,170,.35); }
+
+/* ── STATUS BAR ────────────────────────────── */
+#status-bar {
+  background: rgba(0,30,20,.85);
+  border-bottom: 1px solid rgba(0,212,170,.2);
+  padding: 7px 20px;
+  display: none; align-items: center; gap: 10px;
+}
+#status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); animation: pulse 1s infinite;
+}
+#status-text { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── SETTINGS ───────────────────────────────── */
+.setting-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+}
+.setting-label { font-size: 13px; color: var(--text); flex: 1; }
+.setting-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+select, input[type=range], input[type=number] {
+  background: rgba(0,30,50,.8); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text); padding: 6px 10px;
+  font-family: var(--mono); font-size: 12px; outline: none;
+}
+select:focus, input:focus { border-color: var(--accent); }
+input[type=range] { padding: 0; width: 120px; accent-color: var(--accent); }
+
+/* ── PROVIDER CARDS ──────────────────────────── */
+.prov-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin-bottom: 14px;
+}
+.prov-card {
+  background: rgba(0,20,40,.7);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 12px;
+  cursor: pointer; transition: all .18s;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.prov-card:hover { border-color: rgba(0,212,170,.45); background: rgba(0,212,170,.05); }
+.prov-card.active {
+  border-color: var(--accent);
+  background: rgba(0,212,170,.1);
+  box-shadow: 0 0 14px rgba(0,212,170,.12);
+}
+.prov-card-name { font-family: var(--cond); font-weight: 700; font-size: 13px; color: var(--text); letter-spacing: 1px; }
+.prov-card-tag  { font-family: var(--mono); font-size: 9px; color: var(--muted); letter-spacing: 1px; }
+.prov-card.active .prov-card-name { color: var(--accent); }
+.prov-card.active .prov-card-tag  { color: rgba(0,212,170,.6); }
+
+/* file:// warning */
+#file-proto-warn {
+  display: none;
+  background: rgba(255,170,0,.08);
+  border: 1px solid rgba(255,170,0,.3);
+  border-left: 4px solid var(--warm);
+  border-radius: 10px; padding: 10px 14px;
+  font-size: .82rem; color: var(--text);
+  line-height: 1.6; margin-bottom: 12px;
+}
+
+.compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.compare-slot {
+  border: 2px dashed rgba(0,212,170,.2);
+  border-radius: 10px; padding: 20px;
+  text-align: center; cursor: pointer;
+  background: rgba(0,20,40,.4); transition: all .2s;
+  min-height: 140px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 8px;
+}
+.compare-slot:hover { border-color: var(--accent); background: rgba(0,212,170,.05); }
+.compare-slot img { width: 100%; max-height: 180px; object-fit: contain; border-radius: 6px; }
+
+.evol-card {
+  text-align: center; padding: 16px;
+  border-radius: 12px; border: 2px solid;
+  margin: 16px 0;
+}
+.evol-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; }
+.evol-value { font-family: var(--cond); font-weight: 900; font-size: 28px; letter-spacing: 4px; }
+
+/* ── REPORT ──────────────────────────────────── */
+#report-pre {
+  background: rgba(0,8,18,.9);
+  border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px;
+  font-family: var(--mono); font-size: 11.5px;
+  line-height: 1.9; color: #b0d0e0;
+  white-space: pre-wrap; word-break: break-word;
+  max-height: 65vh; overflow-y: auto;
+}
+.report-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+.btn-action {
+  font-family: var(--mono); font-size: 11px;
+  padding: 8px 16px; border-radius: 6px; border: 1px solid;
+  cursor: pointer; transition: all .2s;
+}
+.btn-copy { background: rgba(0,50,70,.5); border-color: rgba(0,212,170,.35); color: var(--accent); }
+.btn-copy:hover { background: rgba(0,212,170,.1); }
+.btn-dl { background: linear-gradient(135deg,#003322,#002244); border-color: rgba(0,212,170,.45); color: #00ffcc; }
+.btn-dl:hover { box-shadow: 0 4px 16px rgba(0,212,170,.25); }
+
+/* ── HISTORY ─────────────────────────────────── */
+.hist-item {
+  display: flex; gap: 12px; align-items: flex-start;
+  background: rgba(0,20,40,.6); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px; cursor: pointer;
+  transition: border-color .2s; margin-bottom: 10px;
+}
+.hist-item:hover { border-color: rgba(0,212,170,.4); }
+.hist-thumb { width: 56px; height: 44px; object-fit: cover; border-radius: 6px; flex-shrink: 0; border: 1px solid var(--border); }
+.hist-info { flex: 1; }
+.hist-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.hist-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.hist-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+/* ── EMPTY STATES ────────────────────────────── */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 55vh; gap: 14px; opacity: .4;
+}
+.empty-state .es-icon { font-size: 48px; }
+.empty-state p { font-size: 13px; color: var(--muted); text-align: center; line-height: 1.7; }
+
+/* ── ANIMATIONS ──────────────────────────────── */
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ── LOADING SPINNER ─────────────────────────── */
+.spinner {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(0,212,170,.2);
+  border-top-color: var(--accent);
+  animation: spin .7s linear infinite; display: inline-block;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+
+/* ── RESPONSIVE ──────────────────────────────── */
+@media(max-width:768px) {
+  .layout-2col { grid-template-columns: 1fr; }
+  .col-left { max-height: none; border-right: none; border-bottom: 1px solid var(--border); }
+  .col-right { max-height: none; }
+  #topbar-right .thermal-scale { display: none; }
+  .tab { padding: 0 10px; font-size: 10px; }
+  .compare-grid { grid-template-columns: 1fr; }
+}
+
+/* ── PWA INSTALL BANNER ──────────────────────── */
+#install-banner {
+  display: none; position: fixed; bottom: 20px; right: 20px;
+  background: rgba(0,30,50,.95); border: 1px solid var(--accent);
+  border-radius: 12px; padding: 14px 18px; z-index: 999;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5), 0 0 20px rgba(0,212,170,.1);
+  max-width: 280px;
+}
+#install-banner p { font-size: 12px; color: var(--text); margin-bottom: 10px; line-height: 1.5; }
+.banner-btns { display: flex; gap: 8px; }
+</style>
+</head>
+
+<body>
+
+<!-- ══ TOPBAR ══════════════════════════════════════════════════ -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">🌡️</div>
+    <div class="logo-text">
+      <div class="logo-name">THERMOVISION PRO</div>
+      <div class="logo-sub">FLIR THERMAL ANALYSIS · AI POWERED</div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <button class="tab active" data-tab="main"    onclick="switchTab('main')">📷 ANALIZAR</button>
+    <button class="tab"        data-tab="compare" onclick="switchTab('compare')">⚖️ COMPARAR</button>
+    <button class="tab"        data-tab="history" onclick="switchTab('history')">📁 HISTORIAL</button>
+    <button class="tab"        data-tab="report"  onclick="switchTab('report')">📄 INFORME</button>
+    <button class="tab"        data-tab="settings"onclick="switchTab('settings')">⚙️ AJUSTES</button>
+  </div>
+
+  <div id="topbar-right">
+    <div id="badge-area"></div>
+    <div class="thermal-scale">
+      <span class="scale-label" style="color:var(--cold);font-family:var(--mono);font-size:9px">MIN</span>
+      <div class="scale-bar"></div>
+      <span class="scale-label" style="color:var(--hot);font-family:var(--mono);font-size:9px">MAX</span>
+    </div>
+  </div>
+</div>
+
+<!-- Status bar -->
+<div id="status-bar">
+  <div id="status-dot"></div>
+  <div id="status-text">Procesando imagen termográfica...</div>
+</div>
+
+<!-- ══ MAIN PANEL ═══════════════════════════════════════════════ -->
+<div id="panel-main" class="panel active">
+  <div class="layout-2col">
+
+    <!-- LEFT -->
+    <div class="col-left">
+      <div class="sect-label">▶ IMAGEN TERMOGRÁFICA</div>
+
+      <!-- Drop zone -->
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()"
+           ondragover="onDragOver(event)" ondragleave="onDragLeave()" ondrop="onDrop(event)">
+        <div class="dz-icon">🌡️</div>
+        <div class="dz-text">Arrastrá una imagen o hacé click</div>
+        <div class="dz-hint">JPG · PNG · BMP · TIFF · radiométricas exportadas de FLIR</div>
+      </div>
+      <input type="file" id="file-input" accept="image/*" style="display:none" onchange="loadFile(this.files[0])"/>
+
+      <!-- Preview -->
+      <div id="img-wrap">
+        <div id="scan-line"></div>
+        <img id="preview-img" src="" alt="termografía"/>
+        <div id="analyzing-overlay" style="display:none;position:absolute;inset:0;background:rgba(0,212,170,.04);display:none;align-items:center;justify-content:center">
+          <div style="background:rgba(0,0,0,.85);border:1px solid rgba(0,212,170,.3);border-radius:8px;padding:10px 20px;font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:3px;animation:pulse 1.2s infinite">ANALIZANDO...</div>
+        </div>
+      </div>
+
+      <div id="img-info" style="display:none;font-family:var(--mono);font-size:10px;color:var(--muted);justify-content:space-between">
+        <span id="img-name">—</span><span id="img-size">—</span>
+      </div>
+
+      <!-- Equipment type selector -->
+      <div>
+        <div class="sect-label" style="margin-bottom:6px">TIPO DE EQUIPO</div>
+        <select id="equip-type-sel" style="width:100%" onchange="onEquipTypeChange()">
+          <optgroup label="⚡ Eléctrico">
+            <option value="electrico_general">Eléctrico general</option>
+            <option value="tablero_bt">Tablero BT / MCC</option>
+            <option value="transformador">Transformador</option>
+            <option value="linea_at">Línea AT / subestación</option>
+            <option value="motor_electrico">Motor eléctrico</option>
+            <option value="ups_baterias">UPS / Baterías</option>
+          </optgroup>
+          <optgroup label="🔄 Rotante mecánico">
+            <option value="bomba_centrifuga">Bomba centrífuga</option>
+            <option value="bomba_acople">Bomba centrífuga + acople</option>
+            <option value="compresor_tornillo">Compresor de tornillo</option>
+            <option value="compresor_reciprocante">Compresor reciprocante</option>
+            <option value="ventilador_soplador">Ventilador / Soplador</option>
+            <option value="reductor_engranajes">Reductor / Caja engranajes</option>
+            <option value="rodamiento_general">Rodamientos generales</option>
+          </optgroup>
+          <optgroup label="🏭 Proceso industrial">
+            <option value="intercambiador_calor">Intercambiador de calor</option>
+            <option value="caldera_horno">Caldera / Horno industrial</option>
+            <option value="valvula_trampa_vapor">Válvula / Trampa de vapor</option>
+            <option value="tuberias_aisladas">Tuberías aisladas</option>
+            <option value="reactor_tanque">Reactor / Tanque proceso</option>
+          </optgroup>
+          <optgroup label="🏗️ Edilicias / HVAC">
+            <option value="envolvente_edilicia">Envolvente edilicia</option>
+            <option value="hvac_chiller">HVAC / Chiller</option>
+            <option value="refrigeracion">Sistema de refrigeración</option>
+            <option value="humedad_infiltracion">Humedad / Infiltración</option>
+          </optgroup>
+          <optgroup label="🔍 Otro">
+            <option value="auto">Auto-detectar (genérico)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Measurement point selector (contextual) -->
+      <div id="meas-point-row">
+        <div class="sect-label" style="margin-bottom:6px">PUNTO DE MEDICIÓN</div>
+        <select id="meas-point-sel" style="width:100%" onchange="onMeasPointChange()">
+          <option value="">— seleccionar punto —</option>
+        </select>
+        <input type="text" id="meas-point-custom" placeholder="Describí el punto manualmente…"
+          style="width:100%;margin-top:6px;background:rgba(0,30,50,.8);border:1px solid var(--border);
+                 border-radius:6px;color:var(--text);padding:7px 10px;font-family:var(--mono);
+                 font-size:11px;outline:none;display:none"/>
+      </div>
+
+      <!-- Settings quick -->
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <div class="sect-label" style="margin-bottom:6px">PALETA</div>
+          <select id="palette-sel" style="width:100%">
+            <option value="iron">Iron (FLIR)</option>
+            <option value="rainbow">Rainbow</option>
+            <option value="grey">Gris</option>
+            <option value="hot">Hot</option>
+            <option value="cold">Cold/Arctic</option>
+            <option value="plasma">Plasma</option>
+            <option value="viridis">Viridis</option>
+          </select>
+        </div>
+        <div style="flex:1">
+          <div class="sect-label" style="margin-bottom:6px">EMISIVIDAD</div>
+          <input type="number" id="emissivity-in" value="0.95" min="0.1" max="1.0" step="0.01" style="width:100%"/>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="analyze-btn" onclick="analyzeImage()" disabled>
+        🔬 ANALIZAR CON IA
+      </button>
+
+      <button class="btn btn-secondary" id="reanalyze-btn" onclick="analyzeImage()" style="display:none">
+        🔄 RE-ANALIZAR
+      </button>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="col-right" id="results-col">
+      <div class="empty-state" id="empty-main">
+        <div class="es-icon">🔬</div>
+        <p>Cargá una imagen termográfica<br/>y presioná "Analizar con IA"<br/>para obtener el diagnóstico completo</p>
+      </div>
+      <div id="results-content" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ COMPARE PANEL ════════════════════════════════════════════ -->
+<div id="panel-compare" class="panel" style="max-width:1000px;margin:0 auto">
+
+  <!-- Mode toggle -->
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+    <div class="sect-label" style="margin:0">▶ COMPARACIÓN MULTI-PUNTO</div>
+    <div style="display:flex;gap:6px">
+      <button class="btn-action btn-dl"   id="cmp-mode-pts"  onclick="setCmpMode('puntos')"   style="font-size:10px;padding:6px 12px">📍 Por puntos (mismo equipo)</button>
+      <button class="btn-action btn-copy" id="cmp-mode-time" onclick="setCmpMode('temporal')" style="font-size:10px;padding:6px 12px">📅 Temporal (misma zona)</button>
+    </div>
+  </div>
+
+  <!-- Equip + slots config -->
+  <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1;min-width:200px">
+      <div class="sect-label" style="margin-bottom:5px">EQUIPO</div>
+      <select id="cmp-equip-sel" style="width:100%" onchange="onCmpEquipChange()">
+        <optgroup label="🔄 Rotante mecánico">
+          <option value="compresor_tornillo">Compresor de tornillo</option>
+          <option value="bomba_acople">Bomba centrífuga + acople</option>
+          <option value="bomba_centrifuga">Bomba centrífuga</option>
+          <option value="compresor_reciprocante">Compresor reciprocante</option>
+          <option value="ventilador_soplador">Ventilador / Soplador</option>
+          <option value="reductor_engranajes">Reductor / Engranajes</option>
+          <option value="motor_electrico">Motor eléctrico</option>
+        </optgroup>
+        <optgroup label="⚡ Eléctrico">
+          <option value="tablero_bt">Tablero BT / MCC</option>
+          <option value="transformador">Transformador</option>
+          <option value="electrico_general">Eléctrico general</option>
+        </optgroup>
+        <optgroup label="🏭 Proceso">
+          <option value="intercambiador_calor">Intercambiador de calor</option>
+          <option value="valvula_trampa_vapor">Válvulas / Trampas vapor</option>
+          <option value="tuberias_aisladas">Tuberías aisladas</option>
+        </optgroup>
+        <optgroup label="🔍 Otro">
+          <option value="auto">Genérico / Auto-detectar</option>
+        </optgroup>
+      </select>
+    </div>
+    <div style="min-width:160px">
+      <div class="sect-label" style="margin-bottom:5px">N° DE IMÁGENES</div>
+      <select id="cmp-slots-sel" style="width:100%" onchange="renderCmpSlots()">
+        <option value="2">2 imágenes</option>
+        <option value="3">3 imágenes</option>
+        <option value="4" selected>4 imágenes</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Dynamic slots -->
+  <div id="cmp-slots-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"></div>
+
+  <button class="btn btn-primary" id="compare-btn" onclick="runCompare()" disabled style="max-width:440px;margin:0 auto;display:flex">
+    ⚖️ ANALIZAR COMPARACIÓN CON IA
+  </button>
+
+  <div id="compare-result" style="margin-top:20px"></div>
+</div>
+
+<!-- ══ HISTORY PANEL ════════════════════════════════════════════ -->
+<div id="panel-history" class="panel" style="max-width:800px;margin:0 auto">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div class="sect-label" style="margin:0">▶ HISTORIAL DE ANÁLISIS</div>
+    <button class="btn-action btn-copy" onclick="clearHistory()" style="font-size:10px;padding:6px 12px">🗑 LIMPIAR</button>
+  </div>
+  <div id="history-list">
+    <div class="empty-state">
+      <div class="es-icon">📁</div>
+      <p>No hay análisis en el historial todavía</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ REPORT PANEL ════════════════════════════════════════════ -->
+<div id="panel-report" class="panel" style="max-width:860px;margin:0 auto">
+  <div class="sect-label" style="margin-bottom:14px">▶ INFORME TÉCNICO EXPORTABLE</div>
+  <div id="report-empty" class="empty-state">
+    <div class="es-icon">📄</div>
+    <p>Realizá un análisis para generar el informe</p>
+  </div>
+  <div id="report-content" style="display:none">
+    <div class="report-actions">
+      <button class="btn-action btn-copy" id="copy-btn" onclick="copyReport()">📋 COPIAR</button>
+      <button class="btn-action btn-dl"   onclick="downloadReport()">⬇️ DESCARGAR .TXT</button>
+      <button class="btn-action btn-copy" onclick="downloadHTML()" style="color:var(--warm);border-color:rgba(255,170,0,.35)">🌐 EXPORTAR HTML</button>
+    </div>
+    <pre id="report-pre"></pre>
+  </div>
+</div>
+
+<!-- ══ SETTINGS PANEL ══════════════════════════════════════════ -->
+<div id="panel-settings" class="panel" style="max-width:600px;margin:0 auto">
+  <div class="sect-label" style="margin-bottom:16px">▶ CONFIGURACIÓN</div>
+
+  <!-- MULTI-PROVIDER API KEY SECTION -->
+  <div class="result-block">
+    <div class="sect-divider"><span>🤖 PROVEEDOR DE IA</span></div>
+
+    <!-- file:// warning -->
+    <div id="file-proto-warn">
+      ⚠️ <strong>Abriste el archivo con <code>file://</code></strong> — algunos navegadores bloquean peticiones a APIs externas.<br>
+      Si Gemini falla, usá <strong>Groq</strong> (más permisivo). O servilo con:<br>
+      <code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-size:.79rem">python -m http.server 8080</code>
+    </div>
+
+    <!-- Provider cards -->
+    <div class="prov-grid">
+      <div class="prov-card active" data-prov="gemini" onclick="selectProvider('gemini')">
+        <div class="prov-card-name">🌐 Gemini</div>
+        <div class="prov-card-tag">GOOGLE · GRATIS</div>
+      </div>
+      <div class="prov-card" data-prov="groq" onclick="selectProvider('groq')">
+        <div class="prov-card-name">⚡ Groq</div>
+        <div class="prov-card-tag">GROQ · GRATIS</div>
+      </div>
+      <div class="prov-card" data-prov="openrouter" onclick="selectProvider('openrouter')">
+        <div class="prov-card-name">🔀 OpenRouter</div>
+        <div class="prov-card-tag">MULTI-MODELO · GRATIS</div>
+      </div>
+      <div class="prov-card" data-prov="claude" onclick="selectProvider('claude')">
+        <div class="prov-card-name">🧠 Claude</div>
+        <div class="prov-card-tag">ANTHROPIC · $5 CRÉDITO</div>
+      </div>
+    </div>
+
+    <!-- Key input -->
+    <div class="setting-row" style="flex-wrap:wrap;gap:8px;padding-top:0;border:none">
+      <div style="flex:1;min-width:180px">
+        <div class="setting-label" id="prov-key-title">API Key — Gemini (Google)</div>
+        <div class="setting-sub">Se guarda localmente. Nunca sale del dispositivo.</div>
+      </div>
+      <a id="prov-key-link" href="https://aistudio.google.com" target="_blank"
+        class="btn-action btn-dl" style="font-size:10px;padding:6px 12px;text-decoration:none;white-space:nowrap">
+        Obtener clave gratis →
+      </a>
+    </div>
+
+    <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+      <input type="password" id="api-key-input" placeholder="AIzaSy…"
+        style="flex:1;min-width:200px;background:rgba(0,30,50,.8);border:1px solid var(--border);
+               border-radius:6px;color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:12px;outline:none"
+        oninput="document.getElementById('api-key-status').textContent=''"/>
+      <button class="btn-action btn-copy" onclick="toggleKeyVisibility()" style="font-size:12px;padding:7px 10px">👁</button>
+      <select id="prov-model-sel" style="min-width:200px;background:rgba(0,30,50,.8);border:1px solid var(--border);
+              border-radius:6px;color:var(--text);padding:7px 10px;font-family:var(--mono);font-size:11px;outline:none"></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn-action btn-dl"   onclick="saveApiKeySetting()" style="font-size:11px;padding:7px 14px">Guardar</button>
+      <button class="btn-action btn-copy" onclick="clearApiKeySetting()" style="font-size:11px;padding:7px 14px;color:var(--muted)">Borrar</button>
+      <span id="api-key-status" style="font-family:var(--mono);font-size:11px;align-self:center;min-height:16px"></span>
+    </div>
+    <div id="prov-hint" style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.6"></div>
+  </div>
+    <div class="sect-divider"><span>🌡️ ANÁLISIS</span></div>
+    <div class="setting-row">
+      <div><div class="setting-label">Umbral de detección de anomalías</div><div class="setting-sub">Desviaciones estándar por encima de la media</div></div>
+      <input type="range" id="sigma-in" min="1.5" max="4" step="0.5" value="2.5" oninput="document.getElementById('sigma-val').textContent=this.value+'σ'"/>
+      <span id="sigma-val" style="font-family:var(--mono);font-size:12px;color:var(--accent);min-width:32px">2.5σ</span>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Idioma del informe IA</div></div>
+      <select id="lang-sel">
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="pt">Português</option>
+      </select>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Nivel de detalle</div><div class="setting-sub">Profundidad del diagnóstico IA</div></div>
+      <select id="detail-sel">
+        <option value="completo">Completo (recomendado)</option>
+        <option value="resumido">Resumido</option>
+        <option value="ejecutivo">Resumen ejecutivo</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="result-block">
+    <div class="sect-divider"><span>📱 APLICACIÓN</span></div>
+    <div class="setting-row">
+      <div><div class="setting-label">Instalar como PWA</div><div class="setting-sub">Funciona offline en tu dispositivo</div></div>
+      <button class="btn-action btn-dl" id="install-btn" onclick="installPWA()" style="display:none">Instalar</button>
+      <span id="pwa-status" style="font-family:var(--mono);font-size:11px;color:var(--muted)">No disponible en este navegador</span>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Versión</div></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">ThermoVision Pro 2.0</span>
+    </div>
+    <div class="setting-row">
+      <div><div class="setting-label">Historial guardado</div></div>
+      <span id="hist-count" style="font-family:var(--mono);font-size:11px;color:var(--accent)">0 análisis</span>
+    </div>
+  </div>
+
+  <div class="result-block" style="background:rgba(0,8,18,.8)">
+    <div class="sect-divider"><span>ℹ️ FORMATOS SOPORTADOS</span></div>
+    <table style="width:100%;font-size:12px;border-collapse:collapse">
+      <tr style="color:var(--muted);font-family:var(--mono);font-size:10px">
+        <td style="padding:6px 8px">FORMATO</td><td style="padding:6px 8px">TIPO</td><td style="padding:6px 8px">TEMP. REAL</td>
+      </tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px;font-family:var(--mono)">.fff</td><td style="padding:6px 8px">Radiométrico FLIR</td><td style="padding:6px 8px;color:#0f0">✅ Con backend Python</td>
+      </tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px;font-family:var(--mono)">.seq</td><td style="padding:6px 8px">Video FLIR</td><td style="padding:6px 8px;color:#0f0">✅ Con backend Python</td>
+      </tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px;font-family:var(--mono)">.jpg .png</td><td style="padding:6px 8px">Imagen estándar</td><td style="padding:6px 8px;color:var(--warm)">⚠️ Análisis visual IA</td>
+      </tr>
+      <tr style="border-top:1px solid var(--border)">
+        <td style="padding:6px 8px;font-family:var(--mono)">.bmp .tiff</td><td style="padding:6px 8px">Imagen estándar</td><td style="padding:6px 8px;color:var(--warm)">⚠️ Análisis visual IA</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- PWA install banner -->
+<div id="install-banner">
+  <p>📱 <strong>Instalá ThermoVision Pro</strong> en tu dispositivo para usarlo offline y sin navegador.</p>
+  <div class="banner-btns">
+    <button class="btn-action btn-dl" onclick="installPWA()" style="font-size:11px;padding:7px 14px">Instalar</button>
+    <button class="btn-action btn-copy" onclick="document.getElementById('install-banner').style.display='none'" style="font-size:11px;padding:7px 14px">Ahora no</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════
+const state = {
+  imageFile: null,
+  imageUrl:  null,
+  imageB64:  null,
+  imageMime: null,
+  result:    null,
+  history:   JSON.parse(localStorage.getItem('thermo_history') || '[]'),
+  compareSlots: [null, null, null, null],   // up to 4 slots: {file,url,b64,mime,point}
+  compareMode: 'puntos',
+  analyzing: false,
+  deferredPrompt: null,
+};
+
+// ══════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`[data-tab="${id}"]`).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`panel-${id}`).classList.add('active');
+  if (id === 'history') renderHistory();
+  if (id === 'report')  renderReport();
+  if (id === 'settings') updateSettingsUI();
+}
+
+// ══════════════════════════════════════════════════════
+//  FILE LOAD
+// ══════════════════════════════════════════════════════
+function onDragOver(e) { e.preventDefault(); document.getElementById('drop-zone').classList.add('drag'); }
+function onDragLeave() { document.getElementById('drop-zone').classList.remove('drag'); }
+function onDrop(e) {
+  e.preventDefault(); onDragLeave();
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+}
+
+async function loadFile(file) {
+  if (!file) return;
+  state.imageFile = file;
+  state.imageMime = file.type || 'image/jpeg';
+  state.imageUrl  = URL.createObjectURL(file);
+  state.imageB64  = await toBase64(file);
+  state.result    = null;
+
+  // Preview
+  const wrap = document.getElementById('img-wrap');
+  const img  = document.getElementById('preview-img');
+  img.src = state.imageUrl;
+  wrap.style.display = 'block';
+
+  // Info
+  const info = document.getElementById('img-info');
+  info.style.display = 'flex';
+  document.getElementById('img-name').textContent = file.name;
+  document.getElementById('img-size').textContent =
+    file.size > 1048576 ? `${(file.size/1048576).toFixed(1)} MB` : `${Math.round(file.size/1024)} KB`;
+
+  document.getElementById('analyze-btn').disabled = false;
+  document.getElementById('reanalyze-btn').style.display = 'none';
+  document.getElementById('results-content').style.display = 'none';
+  document.getElementById('empty-main').style.display = 'flex';
+  clearBadges();
+}
+
+function toBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => res(e.target.result.split(',')[1]);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  ANALYZE
+// ══════════════════════════════════════════════════════
+async function analyzeImage() {
+  if (!state.imageB64 || state.analyzing) return;
+  state.analyzing = true;
+  setAnalyzingUI(true);
+
+  const lang   = document.getElementById('lang-sel').value;
+  const detail = document.getElementById('detail-sel').value;
+  const emi    = document.getElementById('emissivity-in').value;
+
+  const prompt = buildPrompt(lang, detail, emi);
+
+  try {
+    const text = await callAI(
+      [{ b64: state.imageB64, mime: state.imageMime }],
+      prompt
+    );
+
+    const result = parseJSON(text);
+    if (!result) throw new Error('No se pudo parsear la respuesta. Intentá nuevamente.');
+
+    state.result = result;
+    addToHistory();
+    renderResults(result);
+    setAnalyzingUI(false);
+
+  } catch(err) {
+    setAnalyzingUI(false);
+    showError(err.message);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  MEASUREMENT POINTS — per equipment type
+// ══════════════════════════════════════════════════════
+const MEAS_POINTS = {
+  compresor_tornillo: [
+    'Motor DE (lado acople)',
+    'Motor NDE (lado ventilador)',
+    'Acople motor-compresor',
+    'Compresor DE (entrada)',
+    'Compresor NDE (descarga)',
+    'Cuerpo de compresión',
+    'Separador de aceite',
+    'Filtro de aceite',
+    'Enfriador de aceite',
+    'Válvula de mínima presión',
+    'Válvula de admisión',
+    'Zona de inyección de aceite',
+    'Engranajes de sincronismo',
+  ],
+  bomba_acople: [
+    'Motor DE (lado acople)',
+    'Motor NDE (lado ventilador)',
+    'Acople motor-bomba',
+    'Bomba DE (lado impulsor)',
+    'Bomba NDE',
+    'Sello mecánico',
+    'Cuerpo de bomba / voluta',
+    'Prensaestopas',
+  ],
+  bomba_centrifuga: [
+    'Rodamiento DE (lado impulsor)',
+    'Rodamiento NDE',
+    'Sello mecánico',
+    'Prensaestopas',
+    'Cuerpo de bomba / voluta',
+    'Succión',
+    'Descarga',
+  ],
+  motor_electrico: [
+    'Carcasa DE (lado acople)',
+    'Carcasa NDE (lado ventilador)',
+    'Rodamiento DE',
+    'Rodamiento NDE',
+    'Caja de bornes',
+    'Ventilador de refrigeración',
+  ],
+  compresor_reciprocante: [
+    'Cabeza de cilindro — banco A',
+    'Cabeza de cilindro — banco B',
+    'Válvula de aspiración — etapa 1',
+    'Válvula de descarga — etapa 1',
+    'Válvula de aspiración — etapa 2',
+    'Válvula de descarga — etapa 2',
+    'Intercooler entre etapas',
+    'Rodamiento de cigüeñal',
+    'Biela / cruceta',
+    'Cárter / lubricación',
+  ],
+  ventilador_soplador: [
+    'Motor DE (lado acople)',
+    'Motor NDE',
+    'Acople motor-ventilador',
+    'Chumacera DE',
+    'Chumacera NDE',
+    'Carcasa ventilador',
+  ],
+  reductor_engranajes: [
+    'Rodamiento de entrada',
+    'Rodamiento de salida',
+    'Cárter / nivel de aceite',
+    'Zona de engranajes primarios',
+    'Zona de engranajes secundarios',
+    'Sello de eje entrada',
+    'Sello de eje salida',
+    'Tapa superior',
+  ],
+  rodamiento_general: [
+    'Rodamiento DE',
+    'Rodamiento NDE',
+    'Rodamiento intermedio',
+    'Chumacera fija',
+    'Chumacera libre',
+  ],
+  tablero_bt: [
+    'Barra fase R',
+    'Barra fase S',
+    'Barra fase T',
+    'Neutro / PE',
+    'Interruptor principal',
+    'Salida alimentador 1',
+    'Salida alimentador 2',
+    'Salida alimentador 3',
+    'Contactor / relé térmico',
+    'Transformador de corriente (TC)',
+    'Cables de entrada',
+  ],
+  transformador: [
+    'Tapa (hotspot winding)',
+    'Bushing AT fase R',
+    'Bushing AT fase S',
+    'Bushing AT fase T',
+    'Bushing BT',
+    'Radiadores / aletas',
+    'Conmutador de taps',
+    'Cuerpo / tanque',
+  ],
+  electrico_general: [
+    'Conexión / borne fase R',
+    'Conexión / borne fase S',
+    'Conexión / borne fase T',
+    'Fusible / protección',
+    'Empalme de cable',
+    'Bornera general',
+  ],
+  intercambiador_calor: [
+    'Carcasa — zona entrada caliente',
+    'Carcasa — zona salida caliente',
+    'Carcasa — zona entrada fría',
+    'Carcasa — zona salida fría',
+    'Cabezal entrada',
+    'Cabezal salida',
+    'Zona de fouling detectada',
+  ],
+  valvula_trampa_vapor: [
+    'Trampa de vapor — entrada',
+    'Trampa de vapor — salida',
+    'Válvula — aguas arriba',
+    'Válvula — aguas abajo',
+    'Actuador neumático',
+    'Cuerpo de válvula',
+  ],
+  hvac_chiller: [
+    'Compresor — carcasa',
+    'Evaporador',
+    'Condensador',
+    'Línea de líquido',
+    'Línea de succión',
+    'Válvula de expansión',
+    'Motor ventilador condensador',
+  ],
+  caldera_horno: [
+    'Pared frontal',
+    'Pared lateral',
+    'Techo / bóveda',
+    'Puerta de inspección',
+    'Zona de llama',
+    'Tubería de vapor — salida',
+    'Refractario',
+  ],
+  tuberias_aisladas: [
+    'Tramo recto 1',
+    'Tramo recto 2',
+    'Brida / unión',
+    'Codo',
+    'Soporte / colgador',
+    'Válvula en línea',
+  ],
+  reactor_tanque: [
+    'Pared lateral superior',
+    'Pared lateral media',
+    'Pared lateral inferior',
+    'Fondo',
+    'Tapa',
+    'Nozzle entrada',
+    'Nozzle salida',
+    'Chaqueta de calentamiento',
+  ],
+  linea_at: [
+    'Aislador fase R',
+    'Aislador fase S',
+    'Aislador fase T',
+    'Conector de línea',
+    'Pararrayos',
+    'Seccionador',
+    'Transformador de medida',
+  ],
+  ups_baterias: [
+    'Banco baterías — sector A',
+    'Banco baterías — sector B',
+    'Rectificador',
+    'Inversor',
+    'Bornes de batería',
+    'Bypass estático',
+  ],
+  envolvente_edilicia: [
+    'Muro norte',
+    'Muro sur',
+    'Muro este',
+    'Muro oeste',
+    'Techo',
+    'Ventana / marco',
+    'Puerta / jamba',
+    'Junta de dilatación',
+  ],
+  refrigeracion: [
+    'Compresor — carcasa',
+    'Evaporador',
+    'Condensador',
+    'Línea de líquido',
+    'Línea de succión',
+    'Válvula de expansión',
+    'Separador de líquido',
+  ],
+  auto: [],
+};
+
+function onEquipTypeChange() {
+  const t = document.getElementById('equip-type-sel').value;
+  const pts = MEAS_POINTS[t] || [];
+  const sel = document.getElementById('meas-point-sel');
+  const customIn = document.getElementById('meas-point-custom');
+
+  // Rebuild options
+  sel.innerHTML = '<option value="">— seleccionar punto —</option>';
+  pts.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p; opt.textContent = p;
+    sel.appendChild(opt);
+  });
+  const hasOther = document.createElement('option');
+  hasOther.value = '__otro__'; hasOther.textContent = 'Otro (escribir abajo)…';
+  sel.appendChild(hasOther);
+
+  // Show/hide custom input
+  customIn.style.display = 'none';
+  sel.value = '';
+
+  // Show/hide the whole row (auto has no points)
+  document.getElementById('meas-point-row').style.display = t === 'auto' ? 'none' : 'block';
+
+  // Legacy: hide old component-detail-row if it exists
+  const old = document.getElementById('component-detail-row');
+  if (old) old.style.display = 'none';
+}
+
+function onMeasPointChange() {
+  const sel = document.getElementById('meas-point-sel');
+  const customIn = document.getElementById('meas-point-custom');
+  customIn.style.display = sel.value === '__otro__' ? 'block' : 'none';
+}
+
+function getMeasPoint() {
+  const sel = document.getElementById('meas-point-sel');
+  if (!sel) return '';
+  if (sel.value === '__otro__') return document.getElementById('meas-point-custom')?.value?.trim() || '';
+  return sel.value || '';
+}
+
+// Equipment-specific context injected into the prompt
+const EQUIP_CONTEXT = {
+  electrico_general: {
+    rol: 'ingeniero termógrafo eléctrico certificado nivel III',
+    normas: 'NETA MTS, NFPA 70B, IEC 60364, ISO 18434-1',
+    contexto: `Equipo eléctrico general. Evaluá:
+- Diferencia de temperatura entre fases (umbral NETA: ΔT>3°C atención, ΔT>15°C crítico)
+- Puntos calientes en conexiones, empalmes, bornes y fusibles
+- Desequilibrio de carga entre fases
+- Resistencia de contacto elevada (causa más común de hot spots)
+- Cortocircuito incipiente o sobrecarga`,
+    umbrales: 'NETA MTS: ΔT 1-3°C monitoreo, 3-15°C urgente, >15°C crítico inmediato'
+  },
+  tablero_bt: {
+    rol: 'ingeniero termógrafo eléctrico especialista en instalaciones BT/MCC',
+    normas: 'NETA MTS, NFPA 70B, IEC 61439',
+    contexto: `Tablero de Baja Tensión o Centro de Control de Motores. Evaluá:
+- Temperatura de barras colectoras y conexiones (referencia: <45°C sobre ambiente)
+- Interruptores termomagnéticos: calentamiento asimétrico indica sobrecarga o falla interna
+- Contactores y relés térmicos
+- Desequilibrio térmico entre fases en salidas de alimentadores
+- Cables y terminales: comparar temperatura entre fases del mismo circuito
+- Inductores/transformadores de corriente`,
+    umbrales: 'IEC 61439: ΔT <10°C normal, 10-30°C precaución, >30°C sobre temperatura ambiente crítico'
+  },
+  transformador: {
+    rol: 'ingeniero termógrafo especialista en transformadores de potencia',
+    normas: 'IEC 60076-7, IEEE C57.12, CIGRE TF D1.01.09',
+    contexto: `Transformador de potencia o distribución. Evaluá:
+- Temperatura de tapa (hotspot winding estimado)
+- Bushings y terminales de alta y baja tensión
+- Temperatura del aceite/resina en relación a la carga
+- Radiadores y aletas de disipación: distribución uniforme (obstrucciones)
+- Conmutador de taps bajo carga
+- Temperatura de núcleo en transformadores secos
+- Detectar circulación de aceite por convección (termosifón)`,
+    umbrales: 'IEC 60076-7: hotspot <98°C operación normal, >120°C reducción vida útil, >140°C alarma'
+  },
+  motor_electrico: {
+    rol: 'ingeniero termógrafo especialista en máquinas eléctricas rotantes',
+    normas: 'IEC 60034-1, ISO 18434-1, EASA AR100',
+    contexto: `Motor eléctrico de inducción o DC. Evaluá:
+- Temperatura de carcasa: distribución simétrica esperada (más caliente lado del ventilador opuesto)
+- Rodamientos DE (lado acople) y NDE (lado ventilador): diferencia entre ellos <15°C normal
+- Temperatura de conexiones en caja de bornes
+- Desequilibrio de temperatura en carcasa → posible excentricidad o desequilibrio magnético
+- Ventilador de refrigeración: flujo de aire adecuado
+- Temperatura de bobinado estimada por correlación con carcasa`,
+    umbrales: 'EASA: temperatura carcasa hasta clase F=130°C, clase H=155°C. Rodamientos: <70°C sobre ambiente'
+  },
+  bomba_centrifuga: {
+    rol: 'ingeniero termógrafo especialista en equipos rotativos y sistemas hidráulicos',
+    normas: 'ISO 18434-1, ISO 10816-7, HI 9.6.4',
+    contexto: `Bomba centrífuga. Puntos críticos a evaluar:
+- Rodamiento de la bomba (lado impulsor): temperatura operativa normal 40-70°C sobre ambiente
+- Sello mecánico o prensaestopas: calor excesivo indica desgaste o lubricación insuficiente
+- Cuerpo de bomba: distribución térmica en voluta (punto caliente puede indicar recirculación o cavitación)
+- Temperatura de fluido en succión vs descarga: evaluar pérdida de eficiencia hidráulica
+- Cavitación: puede generar calentamiento localizado en zona de baja presión
+- Comparar temperatura de rodamiento DE vs NDE: diferencia >15°C indica problema
+- Cuerpo de válvulas cercanas: verificar pérdidas por by-pass no deseado`,
+    umbrales: 'ISO 10816-7: rodamientos de rodillos <70°C sobre ambiente, deslizamiento <60°C. Sello mecánico: <80°C'
+  },
+  bomba_acople: {
+    rol: 'ingeniero termógrafo especialista en trenes de transmisión y acoples',
+    normas: 'ISO 18434-1, ISO 10816-7, ISO 4867',
+    contexto: `Bomba centrífuga con acople (directo, elástico o hidráulico). Evaluá específicamente:
+- ACOPLE: zona más crítica. Calentamiento en acople elástico → desgaste de elemento flexible, desalineación
+- Desalineación angular: patrón térmico asimétrico en el acople (más caliente de un lado)
+- Desalineación paralela: calentamiento simétrico pero excesivo en todo el acople
+- Rodamiento DE bomba (lado acople): compara con rodamiento NDE
+- Rodamiento DE motor (lado acople): debe ser más frío que el DE de la bomba
+- Temperatura del eje en zona de acople: gradiente indica problemas de transmisión
+- Sello mecánico de bomba
+- Temperatura de cuerpo de bomba: verifica cavitación o recirculación interna
+PATRÓN NORMAL: motor NDE < motor DE ≈ acople ≈ bomba DE > bomba NDE`,
+    umbrales: 'Acople elástico: <60°C sobre ambiente. Rodamientos: <70°C sobre ambiente. ΔT entre rodamientos del mismo eje: <15°C'
+  },
+  compresor_tornillo: {
+    rol: 'ingeniero termógrafo especialista en compresores rotativos de tornillo',
+    normas: 'ISO 18434-1, ISO 1217, CAGI',
+    contexto: `Compresor de tornillo (rotativo). Evaluá:
+- Rodamiento de entrada (lado acople/engranaje): temperatura más crítica
+- Cuerpo de compresión: temperatura de descarga correlacionada con relación de compresión (normal 80-100°C)
+- Separador de aceite: temperatura de operación normal 70-90°C
+- Filtro de aceite: ΔT antes/después indica colmatación
+- Válvula de mínima presión / admisión: verifica pérdidas internas
+- Temperatura de aire a la salida del enfriador de aceite: sobrecalentamiento → problemas en enfriamiento
+- Rodamiento de los rotores macho y hembra: comparar entre sí
+- Engranajes de sincronismo (si accesibles): calentamiento indica lubricación deficiente
+- Zona de inyección de aceite: distribución uniforme
+PATRÓN NORMAL: temperatura creciente de aspiración → compresión → descarga. Enfriador debe bajar temp significativamente`,
+    umbrales: 'Temperatura de descarga: <100°C. Rodamientos: <70°C sobre ambiente. Aceite de lubricación: 60-85°C operación normal'
+  },
+  compresor_reciprocante: {
+    rol: 'ingeniero termógrafo especialista en compresores alternativos',
+    normas: 'ISO 18434-1, API 618, ISO 1217',
+    contexto: `Compresor reciprocante (pistón). Evaluá:
+- Válvulas de aspiración y descarga por cilindro: temperatura anormal indica válvula con pérdida interna
+- Temperatura de camisas de cilindro: distribución uniforme por banco
+- Temperatura de descarga por etapa (comparar etapas): diferencia indica problemas
+- Rodamiento cigüeñal
+- Temperatura de bielas y crucetas (si accesibles)
+- Cabezas de cilindro: hot spot indica junta con pérdida
+- Intercoolers entre etapas: gradiente de temperatura uniforme
+- Temperatura de cárter: lubricación y enfriamiento del aceite`,
+    umbrales: 'Temperatura de descarga por etapa según diseño. Válvulas: ΔT>30°C entre válvulas del mismo banco indica falla'
+  },
+  ventilador_soplador: {
+    rol: 'ingeniero termógrafo especialista en equipos de movimiento de aire',
+    normas: 'ISO 18434-1, ISO 10816-3',
+    contexto: `Ventilador centrífugo o axial / Soplador. Evaluá:
+- Rodamientos (DE y NDE): temperatura y simetría
+- Temperatura de carcasa del ventilador: distribución uniforme
+- Acople motor-ventilador: mismo análisis que bomba con acople
+- Temperatura de motor: verificar eficiencia de refrigeración (ventilador propio o forzado)
+- Chumaceras y housing de rodamientos: comparar entre sí
+- Temperatura de eje en zona de rodamientos`,
+    umbrales: 'Rodamientos: <70°C sobre ambiente. ΔT entre rodamientos DE/NDE: <15°C'
+  },
+  reductor_engranajes: {
+    rol: 'ingeniero termógrafo especialista en transmisiones mecánicas',
+    normas: 'ISO 18434-1, AGMA 9005',
+    contexto: `Reductor o multiplicador de velocidad. Evaluá:
+- Temperatura de aceite / cárter: indica eficiencia de engranajes y lubricación
+- Rodamientos de entrada y salida: temperatura y comparación entre ejes
+- Zona de engranajes primarios: hot spot indica lubricación insuficiente o daño
+- Temperatura de sellos en ejes: calentamiento → desgaste o presión excesiva de labio
+- Respiradero: temperatura puede indicar presurización interna
+- Temperatura de tapa superior vs fondo: gradiente normal (aceite más frío al fondo)`,
+    umbrales: 'Temperatura de cárter: <80°C sobre ambiente. Rodamientos: <70°C sobre ambiente. Aceite: 60-80°C operación normal'
+  },
+  rodamiento_general: {
+    rol: 'ingeniero termógrafo especialista en rodamientos y lubricación',
+    normas: 'ISO 18434-1, ISO 15243, SKF/FAG guidelines',
+    contexto: `Análisis de rodamientos. Evaluá:
+- Temperatura absoluta del rodamiento: >70°C sobre ambiente es alarma
+- Comparación entre rodamientos del mismo eje: diferencia >15°C indica problema en el más caliente
+- Tipo de falla probable según patrón:
+  · Calor concentrado en pista exterior → defecto pista exterior o montaje forzado
+  · Calor en toda la zona → lubricación insuficiente o contaminación
+  · Calor asimétrico → desalineación o precarga excesiva
+- Temperatura de lubricante / grasa: inferir estado
+- Calentamiento en sellos del rodamiento`,
+    umbrales: 'SKF: temperatura operativa máxima 70°C sobre ambiente (rodillos) o 60°C (deslizamiento). >10°C de aumento rápido = alarma'
+  },
+  intercambiador_calor: {
+    rol: 'ingeniero termógrafo especialista en equipos de proceso e intercambio de calor',
+    normas: 'ISO 18434-1, TEMA, ASME PCC-2',
+    contexto: `Intercambiador de calor (carcasa/tubos, placas, etc.). Evaluá:
+- Distribución de temperatura en carcasa: zona fría indica tubos tapados o bypass de fluido
+- Zonas inactivas (cold spots en IC): fouling / incrustaciones internas
+- Temperatura de entrada y salida de cada fluido: comparar con diseño
+- Pérdidas de calor por aislación defectuosa (hot spots en zonas aisladas)
+- Fugas en juntas o cabezales: zona más fría o húmeda
+- Temperatura de boquillas: identifica flujos reales vs esperados`,
+    umbrales: 'Zona inactiva >15% del área superficial indica limpieza necesaria. Pérdida por aislación: ΔT>10°C sobre aislamiento'
+  },
+  caldera_horno: {
+    rol: 'ingeniero termógrafo especialista en calderas y hornos industriales',
+    normas: 'ASME BPVC, EN 12952, NFPA 85',
+    contexto: `Caldera industrial u horno. Evaluá:
+- Puntos calientes en refractario: indica erosión, daño o bypass de gases
+- Distribución de temperatura en pared de caldera: irregularidades indican depósitos o flujo no uniforme
+- Temperatura de superficie exterior de cañerías de vapor: pérdidas por aislación
+- Zona de llama visible en radiación: análisis de distribución
+- Temperatura de sellos y registros
+- Pérdidas en puertas de inspección y acceso`,
+    umbrales: 'Temperatura superficial exterior de aislamiento: <60°C en zonas de trabajo. Hot spot en refractario >200°C indica daño'
+  },
+  valvula_trampa_vapor: {
+    rol: 'ingeniero termógrafo especialista en sistemas de vapor y condensado',
+    normas: 'ISO 18434-1, TLV guidelines, Spirax Sarco standards',
+    contexto: `Válvulas y trampas de vapor. Evaluá:
+TRAMPAS DE VAPOR:
+- Trampa operando: temperatura alta aguas arriba, baja aguas abajo (condensado frío) = NORMAL
+- Trampa bloqueada (fría): igual temperatura arriba y abajo a temperatura de condensado = BLOQUEADA
+- Trampa con bypass: temperatura alta en ambos lados = STEAM LOSS (falla abierta)
+VÁLVULAS:
+- Válvula cerrada con ΔT: indica fuga interna (blowby)
+- Válvula abierta: temperatura uniforme aguas arriba/abajo según fluido
+- Temperatura de actuadores neumáticos/eléctricos: sobrecalentamiento indica problema`,
+    umbrales: 'Trampa operando: ΔT >50°C entre entrada/salida es normal en vapor. ΔT <10°C = trampa bloqueada'
+  },
+  tuberias_aisladas: {
+    rol: 'ingeniero termógrafo especialista en integridad de aislamiento térmico',
+    normas: 'ISO 18434-1, ASTM C680, EN 13187',
+    contexto: `Tuberías aisladas o equipos con aislamiento térmico. Evaluá:
+- Hot spots sobre aislamiento: pérdida de aislación, humedad absorbida o vacíos
+- Temperatura superficial uniforme esperada (según fluido interior y espesor de aislación)
+- Soportes y colgadores: pérdidas por puentes térmicos
+- Bridas y uniones: puntos de pérdida de calor preferente
+- Comparar temperatura con tramos adyacentes: diferencias indican daño localizado
+- Temperatura en válvulas y accesorios: generalmente mayor que tramos rectos`,
+    umbrales: 'ASTM C680: temperatura superficial de aislamiento óptima <40°C. >60°C indica daño significativo'
+  },
+  reactor_tanque: {
+    rol: 'ingeniero termógrafo especialista en equipos estáticos de proceso',
+    normas: 'ISO 18434-1, API 510, ASME VIII',
+    contexto: `Reactor o tanque de proceso. Evaluá:
+- Distribución de temperatura en pared: identifica nivel de fluido, zonas muertas y depósitos
+- Hot spots en pared: reacciones exotérmicas, puntos sin agitación, incrustaciones
+- Temperatura de nozzles y conexiones: pérdidas o fugas
+- Nivel de contenido: líquido vs vapor/gas tienen temperatura diferente
+- Aislamiento térmico: pérdidas en soportes y accesorios
+- Temperatura de chaqueta/serpentín de calentamiento/enfriamiento`,
+    umbrales: 'Varía por proceso. Pérdidas en aislamiento: temperatura superficial >60°C sobre ambiente indica necesidad de inspección'
+  },
+  envolvente_edilicia: {
+    rol: 'ingeniero termógrafo especialista en diagnóstico edilicio y eficiencia energética',
+    normas: 'ISO 6781, EN 13187, ASTM C1060',
+    contexto: `Envolvente edilicia (muros, techos, ventanas, puertas). Evaluá:
+- Pérdidas de calor en puentes térmicos (estructura, marcos, encuentros)
+- Infiltraciones de aire: patrón de enfriamiento en forma de pluma
+- Humedad y condensación: zona más fría en verano, más caliente en invierno
+- Ventanas y puertas: temperatura de marco vs vidrio, pérdidas de sellado
+- Aislamiento faltante o dañado: diferencia notable con zonas adyacentes
+- Detectar humedad oculta: temperatura levemente diferente`,
+    umbrales: 'EN 13187: factor de temperatura superficial fRsi. Puente térmico relevante si ΔT>1°C sobre muro referencia'
+  },
+  hvac_chiller: {
+    rol: 'ingeniero termógrafo especialista en sistemas HVAC y refrigeración',
+    normas: 'ASHRAE 180, ISO 18434-1',
+    contexto: `Sistema HVAC o Chiller. Evaluá:
+- Evaporador: temperatura uniforme en superficie (hot spots = escarcha o fouling)
+- Condensador: distribución de temperatura (zonas muertas = tubos tapados)
+- Compresor: temperatura de carcasa y descarga
+- Expansión: temperatura de línea de líquido (subenfriamiento)
+- Temperatura de retorno vs impulsión de agua helada
+- Pérdidas en aislación de ductos y cañerías
+- Temperatura de motor de compresor y ventiladores de condensador`,
+    umbrales: 'Evaporador: temperatura uniforme esperada. Condensador: ΔT >5°C entre zonas indica problema'
+  },
+  refrigeracion: {
+    rol: 'ingeniero termógrafo especialista en sistemas de refrigeración industrial',
+    normas: 'ISO 18434-1, ASHRAE 15',
+    contexto: `Sistema de refrigeración. Evaluá:
+- Evaporador: temperatura superficial uniforme, presencia de escarcha excesiva
+- Condensador (aire/agua): eficiencia de disipación de calor
+- Compresor: temperatura de aspiración y descarga, carcasa
+- Líneas de refrigerante: temperatura de línea de líquido (subenfriamiento) y succión (sobrecalentamiento)
+- Válvulas de expansión: temperatura aguas arriba y abajo
+- Pérdidas en aislamiento de tuberías y cámara`,
+    umbrales: 'Temperatura de línea de líquido: máx 40°C. Sobrecalentamiento succión: 5-10°C. Temperatura compresor: <80°C carcasa'
+  },
+  auto: {
+    rol: 'ingeniero termógrafo certificado nivel III',
+    normas: 'ISO 18434-1, ASTM E1149',
+    contexto: 'Identifica automáticamente el tipo de equipo o sistema en la imagen y aplica el criterio técnico correspondiente.',
+    umbrales: 'Aplica umbrales según la norma específica del tipo de equipo identificado'
+  }
+};
+
+function buildPrompt(lang, detail, emi) {
+  const langNote   = lang === 'en' ? 'Respond in English.' : lang === 'pt' ? 'Responda em Português.' : '';
+  const detailNote = detail === 'resumido' ? 'Sé conciso.' : detail === 'ejecutivo' ? 'Solo diagnóstico ejecutivo, máximo 5 oraciones.' : '';
+  const equipType  = document.getElementById('equip-type-sel').value;
+  const measPoint  = getMeasPoint();
+  const ctx        = EQUIP_CONTEXT[equipType] || EQUIP_CONTEXT['auto'];
+
+  const equipLine = measPoint ? `Punto de medición: ${measPoint}.` : '';
+
+  return `Sos ${ctx.rol} (${ctx.normas}). Emisividad configurada: ${emi}.
+${langNote} ${detailNote}
+
+TIPO DE EQUIPO A ANALIZAR: ${equipType.replace(/_/g,' ').toUpperCase()}
+${measPoint ? `PUNTO DE MEDICIÓN ESPECÍFICO: ${measPoint}` : ''}
+
+CRITERIO TÉCNICO ESPECÍFICO A APLICAR:
+${ctx.contexto}
+
+UMBRALES DE REFERENCIA: ${ctx.umbrales}
+
+Analizá esta imagen termográfica aplicando el criterio técnico específico del equipo indicado.
+Respondé ÚNICAMENTE con JSON válido, sin texto extra, sin backticks:
+
+{
+  "aplicacion": "tipo de sistema / equipo identificado",
+  "componente": "componente analizado específicamente",
+  "escala_colores": "paleta detectada",
+  "temperatura_max": "valor °C",
+  "temperatura_min": "valor °C",
+  "temperatura_media": "valor °C",
+  "delta_T": "diferencia entre punto más caliente y temperatura de referencia",
+  "emissividad_usada": "${emi}",
+  "anomalias": [
+    {
+      "descripcion": "descripción técnica específica del tipo de equipo",
+      "severidad": "Crítica|Alta|Media|Baja",
+      "ubicacion": "ubicación precisa en imagen",
+      "causa_probable": "causa técnica específica",
+      "temperatura_local": "°C estimada"
+    }
+  ],
+  "patron_termico": "descripción del patrón observado y su significado para este tipo de equipo",
+  "gradiente": "gradiente térmico y su interpretación",
+  "norma_referencia": "norma aplicada",
+  "umbral_accion": "umbral específico superado o referencia",
+  "recomendaciones": ["acción técnica 1","acción técnica 2","acción técnica 3"],
+  "prioridad_intervencion": "Inmediata|Urgente|Programada|Monitoreo",
+  "proximo_control": "frecuencia de reinspección recomendada",
+  "condiciones_medicion": "condiciones estimadas de la medición",
+  "confianza_diagnostico": "Alta|Media|Baja",
+  "diagnostico_final": "diagnóstico técnico completo en 3-4 oraciones usando terminología del tipo de equipo",
+  "observaciones_adicionales": "observaciones relevantes para este tipo de equipo"
+}`;
+}
+
+// ══════════════════════════════════════════════════════
+//  RENDER RESULTS
+// ══════════════════════════════════════════════════════
+function renderResults(r) {
+  const priColors = { Inmediata:'#ff3333', Urgente:'#ff8800', Programada:'#ffcc00', Monitoreo:'#00cc88' };
+  const sevConfig = {
+    Crítica: { cls:'anom-crit', color:'#ff4422' },
+    Alta:    { cls:'anom-alta', color:'#ffaa00' },
+    Media:   { cls:'anom-med',  color:'#ffdd00' },
+    Baja:    { cls:'anom-baja', color:'#00d4aa' },
+  };
+  const priColor = priColors[r.prioridad_intervencion] || '#00d4aa';
+  const confPct  = r.confianza_diagnostico === 'Alta' ? 90 : r.confianza_diagnostico === 'Media' ? 60 : 30;
+  const confCol  = r.confianza_diagnostico === 'Alta' ? '#00cc88' : r.confianza_diagnostico === 'Media' ? '#ffcc00' : '#ff6644';
+
+  let html = '';
+
+  // Metrics
+  html += `<div class="metrics-grid" style="margin-bottom:14px">
+    <div class="metric-pill metric-hot"><div class="mp-label">TEMP. MÁXIMA</div><div class="mp-value">${r.temperatura_max||'—'}</div></div>
+    <div class="metric-pill metric-cold"><div class="mp-label">TEMP. MÍNIMA</div><div class="mp-value">${r.temperatura_min||'—'}</div></div>
+    <div class="metric-pill metric-delta"><div class="mp-label">DELTA T</div><div class="mp-value">${r.delta_T||'—'}</div></div>
+    <div class="metric-pill metric-mean"><div class="mp-label">TEMP. MEDIA</div><div class="mp-value">${r.temperatura_media||'—'}</div></div>
+  </div>`;
+
+  // System
+  html += `<div class="result-block">
+    <div class="sect-divider"><span>🏭 SISTEMA ANALIZADO</span></div>
+    <div class="chip-wrap">
+      ${r.aplicacion ? `<span class="chip" style="color:var(--accent);border-color:rgba(0,212,170,.35)">${r.aplicacion.toUpperCase()}</span>` : ''}
+      ${r.componente ? `<span class="chip" style="color:var(--cold);border-color:rgba(68,170,255,.35)">${r.componente}</span>` : ''}
+      ${r.escala_colores ? `<span class="chip" style="color:#aa88ff;border-color:rgba(170,136,255,.35)">Paleta: ${r.escala_colores}</span>` : ''}
+      ${r.emissividad_usada ? `<span class="chip" style="color:var(--warm);border-color:rgba(255,170,0,.35)">ε=${r.emissividad_usada}</span>` : ''}
+    </div>
+  </div>`;
+
+  // Anomalies
+  if (r.anomalias?.length > 0) {
+    html += `<div class="result-block">
+      <div class="sect-divider"><span>⚠️ ANOMALÍAS (${r.anomalias.length})</span></div>`;
+    r.anomalias.forEach(a => {
+      const sc = sevConfig[a.severidad] || sevConfig['Baja'];
+      html += `<div class="anomaly-card ${sc.cls}">
+        <div class="anom-header">
+          <div class="anom-title">${sevIcon(a.severidad)} ${a.descripcion}</div>
+          <span class="anom-sev" style="color:${sc.color};border-color:${sc.color}55">${a.severidad}</span>
+        </div>
+        <div class="anom-details">
+          <span>📍 ${a.ubicacion||'—'}</span>
+          <span>🌡️ ${a.temperatura_local||'—'}</span>
+          <span style="grid-column:1/-1">🔍 ${a.causa_probable||'—'}</span>
+        </div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Thermal pattern
+  html += `<div class="result-block">
+    <div class="sect-divider"><span>🔍 PATRÓN TÉRMICO</span></div>
+    <p>${r.patron_termico||'—'}</p>
+    ${r.gradiente ? `<p style="color:var(--muted);font-size:12px;margin-top:8px">Gradiente: ${r.gradiente}</p>` : ''}
+  </div>`;
+
+  // Norms
+  if (r.norma_referencia || r.umbral_accion) {
+    html += `<div class="result-block">
+      <div class="sect-divider"><span>📏 NORMATIVA</span></div>
+      ${r.norma_referencia ? `<p>📘 Norma: <span style="color:var(--accent)">${r.norma_referencia}</span></p>` : ''}
+      ${r.umbral_accion    ? `<p style="margin-top:6px">⚡ Umbral de acción: <span style="color:var(--warm)">${r.umbral_accion}</span></p>` : ''}
+      ${r.condiciones_medicion ? `<p style="margin-top:6px;font-size:12px;color:var(--muted)">🔧 ${r.condiciones_medicion}</p>` : ''}
+    </div>`;
+  }
+
+  // Recommendations
+  if (r.recomendaciones?.length > 0) {
+    html += `<div class="result-block">
+      <div class="sect-divider"><span>✅ RECOMENDACIONES</span></div>
+      <ol style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+        ${r.recomendaciones.map(rec => `<li style="color:#c0dde8;font-size:13px;line-height:1.6">${rec}</li>`).join('')}
+      </ol>
+    </div>`;
+  }
+
+  // Priority + Confidence
+  html += `<div class="priority-box">
+    <div class="prio-card" style="border-color:${priColor}44">
+      <div class="prio-label">PRIORIDAD DE INTERVENCIÓN</div>
+      <div class="prio-value" style="color:${priColor}">${r.prioridad_intervencion||'—'}</div>
+      ${r.proximo_control ? `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px">Reinsp.: ${r.proximo_control}</div>` : ''}
+    </div>
+    <div class="prio-card">
+      <div class="prio-label">CONFIANZA DEL DIAGNÓSTICO</div>
+      <div style="font-family:var(--mono);font-size:15px;font-weight:700;color:${confCol};margin:6px 0">${r.confianza_diagnostico||'—'}</div>
+      <div class="conf-bar-wrap">
+        <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${confPct}%;background:${confCol}"></div></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Final diagnosis
+  html += `<div class="diag-box">
+    <div class="sect-divider"><span>📋 DIAGNÓSTICO FINAL</span></div>
+    <p>${r.diagnostico_final||'—'}</p>
+    ${r.observaciones_adicionales ? `<p style="color:var(--muted);font-size:12px;margin-top:10px;border-top:1px solid rgba(255,255,255,.06);padding-top:10px">💡 ${r.observaciones_adicionales}</p>` : ''}
+  </div>`;
+
+  document.getElementById('results-content').innerHTML = html;
+  document.getElementById('results-content').style.display = 'block';
+  document.getElementById('empty-main').style.display = 'none';
+  document.getElementById('reanalyze-btn').style.display = 'flex';
+
+  // Top badges
+  updateBadges(r);
+}
+
+function sevIcon(s) {
+  return { Crítica:'🔴', Alta:'🟠', Media:'🟡', Baja:'🟢' }[s] || '⚪';
+}
+
+function updateBadges(r) {
+  const area = document.getElementById('badge-area');
+  const crit = (r.anomalias||[]).filter(a=>a.severidad==='Crítica').length;
+  const tot  = (r.anomalias||[]).length;
+  const pc   = r.prioridad_intervencion;
+  const priColors = { Inmediata:'badge-crit', Urgente:'badge-warn', Programada:'badge-warn', Monitoreo:'badge-ok' };
+  let html = '';
+  if (crit > 0) html += `<span class="badge badge-crit">🔴 ${crit} CRÍTICA${crit>1?'S':''}</span>`;
+  if (tot  > 0) html += `<span class="badge badge-warn">⚠️ ${tot} ANOMALÍA${tot>1?'S':''}</span>`;
+  if (pc)       html += `<span class="badge ${priColors[pc]||'badge-ok'}">${pc.toUpperCase()}</span>`;
+  area.innerHTML = html;
+}
+
+function clearBadges() { document.getElementById('badge-area').innerHTML = ''; }
+
+// ══════════════════════════════════════════════════════
+//  COMPARE — multi-slot (up to 4 images)
+// ══════════════════════════════════════════════════════
+
+function setCmpMode(mode) {
+  state.compareMode = mode;
+  document.getElementById('cmp-mode-pts').className  = mode === 'puntos'   ? 'btn-action btn-dl'   : 'btn-action btn-copy';
+  document.getElementById('cmp-mode-time').className = mode === 'temporal' ? 'btn-action btn-dl'   : 'btn-action btn-copy';
+  renderCmpSlots();
+}
+
+function onCmpEquipChange() {
+  renderCmpSlots();
+}
+
+function getSlotCount() {
+  return parseInt(document.getElementById('cmp-slots-sel').value, 10) || 2;
+}
+
+function renderCmpSlots() {
+  const n     = getSlotCount();
+  const equip = document.getElementById('cmp-equip-sel').value;
+  const pts   = MEAS_POINTS[equip] || [];
+  const mode  = state.compareMode;
+  const grid  = document.getElementById('cmp-slots-grid');
+
+  // Reset slots array to match count
+  while (state.compareSlots.length < n) state.compareSlots.push(null);
+
+  const slotLabels = mode === 'puntos'
+    ? ['Punto A', 'Punto B', 'Punto C', 'Punto D']
+    : ['Medición 1 (más antigua)', 'Medición 2', 'Medición 3', 'Medición 4 (más reciente)'];
+
+  const cols = n <= 2 ? 'repeat(2,1fr)' : n === 3 ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
+  grid.style.gridTemplateColumns = cols;
+
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const slot = state.compareSlots[i];
+    const slotInputId = `cmp-file-${i}`;
+    const pointSelId  = `cmp-point-${i}`;
+    const slotDivId   = `cmp-slot-${i}`;
+
+    // Point options
+    let pointOpts = `<option value="">— punto —</option>`;
+    pts.forEach(p => { pointOpts += `<option value="${p}">${p}</option>`; });
+    pointOpts += `<option value="__otro__">Otro…</option>`;
+
+    const imgHtml = slot?.url
+      ? `<img src="${slot.url}" style="width:100%;max-height:160px;object-fit:contain;border-radius:6px"/>`
+      : `<div style="font-size:28px;margin-bottom:6px">📷</div><div style="font-size:12px;color:#6a9aaa">${slotLabels[i]}</div><div style="font-size:10px;color:var(--muted);margin-top:4px;font-family:var(--mono)">click para cargar</div>`;
+
+    html += `
+    <div>
+      <div class="compare-slot" id="${slotDivId}" onclick="document.getElementById('${slotInputId}').click()">
+        ${imgHtml}
+      </div>
+      <input type="file" id="${slotInputId}" accept="image/*" style="display:none" onchange="loadCmpSlot(${i},this.files[0])"/>
+      ${mode === 'puntos' ? `
+      <div style="margin-top:6px">
+        <select id="${pointSelId}" style="width:100%;font-size:11px" onchange="onCmpPointChange(${i})">
+          ${pointOpts}
+        </select>
+        <input type="text" id="cmp-custom-${i}" placeholder="Nombre del punto…"
+          style="display:none;width:100%;margin-top:4px;background:rgba(0,30,50,.8);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-family:var(--mono);font-size:11px;outline:none"/>
+      </div>` : `
+      <div style="margin-top:6px">
+        <input type="text" id="${pointSelId}" placeholder="Ej: 18/05/2025 — 08:30hs"
+          style="width:100%;background:rgba(0,30,50,.8);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-family:var(--mono);font-size:11px;outline:none"/>
+      </div>`}
+    </div>`;
+  }
+  grid.innerHTML = html;
+  checkCmpReady();
+}
+
+function onCmpPointChange(i) {
+  const sel = document.getElementById(`cmp-point-${i}`);
+  const custom = document.getElementById(`cmp-custom-${i}`);
+  if (custom) custom.style.display = sel?.value === '__otro__' ? 'block' : 'none';
+}
+
+function getCmpSlotLabel(i) {
+  const mode = state.compareMode;
+  if (mode === 'temporal') {
+    const inp = document.getElementById(`cmp-point-${i}`);
+    return inp?.value?.trim() || `Medición ${i+1}`;
+  }
+  const sel = document.getElementById(`cmp-point-${i}`);
+  if (!sel) return `Punto ${String.fromCharCode(65+i)}`;
+  if (sel.value === '__otro__') return document.getElementById(`cmp-custom-${i}`)?.value?.trim() || `Punto ${String.fromCharCode(65+i)}`;
+  return sel.value || `Punto ${String.fromCharCode(65+i)}`;
+}
+
+async function loadCmpSlot(i, file) {
+  if (!file) return;
+  state.compareSlots[i] = {
+    file, url: URL.createObjectURL(file),
+    mime: file.type || 'image/jpeg',
+    b64: await toBase64(file),
+  };
+  // Refresh that slot's image preview without re-rendering all selectors
+  const div = document.getElementById(`cmp-slot-${i}`);
+  if (div) div.innerHTML = `<img src="${state.compareSlots[i].url}" style="width:100%;max-height:160px;object-fit:contain;border-radius:6px"/>`;
+  checkCmpReady();
+}
+
+function checkCmpReady() {
+  const n = getSlotCount();
+  const filled = state.compareSlots.slice(0, n).filter(s => s?.b64).length;
+  document.getElementById('compare-btn').disabled = filled < 2;
+}
+
+async function runCompare() {
+  const n = getSlotCount();
+  const slots = state.compareSlots.slice(0, n).filter(s => s?.b64);
+  if (slots.length < 2) return;
+
+  const btn = document.getElementById('compare-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> ANALIZANDO TREN COMPLETO...';
+
+  const equip = document.getElementById('cmp-equip-sel').value;
+  const ctx   = EQUIP_CONTEXT[equip] || EQUIP_CONTEXT['auto'];
+  const mode  = state.compareMode;
+
+  const labels = slots.map((_, idx) => getCmpSlotLabel(idx));
+  const imagesDesc = slots.map((_, idx) => `- Imagen ${idx+1}: "${labels[idx]}"`).join('\n');
+
+  const modeInstruction = mode === 'puntos'
+    ? `Estás comparando DISTINTOS PUNTOS DE MEDICIÓN del mismo equipo (${equip.replace(/_/g,' ')}). Diagnosticá el estado de cada punto y luego hacé un diagnóstico integrado del tren completo, identificando la zona de mayor riesgo y la interacción entre puntos (p.ej. si el rodamiento DE está caliente y el acople también, describí la relación causal).`
+    : `Estás comparando EL MISMO PUNTO o zona en DISTINTAS FECHAS (evolución temporal). Identificá la tendencia, tasa de deterioro y urgencia de intervención.`;
+
+  const prompt = `Sos ${ctx.rol} (${ctx.normas}).
+${modeInstruction}
+
+IMÁGENES ENVIADAS (en orden):
+${imagesDesc}
+
+Analizá cada imagen y respondé ÚNICAMENTE con JSON válido, sin texto extra:
+
+{
+  "modo": "${mode}",
+  "equipo": "${equip.replace(/_/g,' ')}",
+  "puntos": [
+    ${slots.map((_,i) => `{
+      "etiqueta": "${labels[i]}",
+      "temperatura_max": "°C estimada",
+      "temperatura_media": "°C estimada",
+      "anomalias": ["anomalía 1","anomalía 2"],
+      "estado": "Normal|Precaución|Alerta|Crítico",
+      "observacion": "observación técnica específica para este punto"
+    }`).join(',\n    ')}
+  ],
+  "diagnostico_integrado": "diagnóstico global del tren / evolución completa en 3-5 oraciones con terminología técnica",
+  "zona_mayor_riesgo": "etiqueta del punto más crítico",
+  "relacion_entre_puntos": "descripción de la interacción causal entre los puntos analizados",
+  "tendencia": "estable|deterioro_lento|deterioro_rapido|mejora|indeterminado",
+  "delta_temperatura_max": "diferencia de Tmax entre el punto más frío y el más caliente",
+  "recomendaciones": ["recomendación 1","recomendación 2","recomendación 3"],
+  "prioridad_intervencion": "Inmediata|Urgente|Programada|Monitoreo",
+  "proximo_control": "frecuencia recomendada",
+  "conclusion": "conclusión ejecutiva en 2 oraciones"
+}`;
+
+  try {
+    const images = slots.map(s => ({ b64: s.b64, mime: s.mime }));
+    const text = await callAI(images, prompt);
+    const r = parseJSON(text);
+    if (!r) throw new Error('Error parseando respuesta de comparación');
+    renderCompareResult(r, labels);
+  } catch(e) {
+    document.getElementById('compare-result').innerHTML =
+      `<div style="color:var(--hot);font-family:var(--mono);font-size:12px;padding:16px">⚠️ ${e.message}</div>`;
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '⚖️ ANALIZAR COMPARACIÓN CON IA';
+  checkCmpReady();
+}
+
+function renderCompareResult(r, labels) {
+  const stateColors = {
+    Normal:    { bg:'rgba(0,212,170,.08)', border:'rgba(0,212,170,.4)', text:'var(--accent)' },
+    Precaución:{ bg:'rgba(255,220,0,.08)', border:'rgba(255,220,0,.4)', text:'#ffdd00' },
+    Alerta:    { bg:'rgba(255,170,0,.1)',  border:'rgba(255,170,0,.5)', text:'var(--warm)' },
+    Crítico:   { bg:'rgba(255,68,34,.12)', border:'rgba(255,68,34,.5)', text:'var(--hot)' },
+  };
+  const trendColors = { estable:'#00cc88', deterioro_lento:'#ffcc00', deterioro_rapido:'#ff4422', mejora:'#44aaff', indeterminado:'#7aa8c4' };
+  const priColors   = { Inmediata:'#ff3333', Urgente:'#ff8800', Programada:'#ffcc00', Monitoreo:'#00cc88' };
+
+  const tc  = trendColors[r.tendencia] || '#7aa8c4';
+  const pc  = priColors[r.prioridad_intervencion] || '#00cc88';
+
+  // Evolution / trend banner
+  let html = `<div class="evol-card" style="border-color:${tc}55;margin-bottom:16px">
+    <div class="evol-label">TENDENCIA GENERAL</div>
+    <div class="evol-value" style="color:${tc}">${(r.tendencia||'').replace(/_/g,' ').toUpperCase()}</div>
+    ${r.delta_temperatura_max ? `<div style="font-family:var(--mono);font-size:12px;color:var(--muted);margin-top:6px">ΔT entre puntos: ${r.delta_temperatura_max}</div>` : ''}
+    ${r.zona_mayor_riesgo ? `<div style="font-family:var(--mono);font-size:11px;color:var(--hot);margin-top:4px">⚠️ Mayor riesgo: ${r.zona_mayor_riesgo}</div>` : ''}
+  </div>`;
+
+  // Per-point cards
+  if (r.puntos?.length > 0) {
+    const ptCols = r.puntos.length <= 2 ? 'repeat(2,1fr)' : r.puntos.length === 3 ? 'repeat(3,1fr)' : 'repeat(2,1fr)';
+    html += `<div style="display:grid;grid-template-columns:${ptCols};gap:10px;margin-bottom:16px">`;
+    r.puntos.forEach((p, i) => {
+      const sc = stateColors[p.estado] || stateColors['Normal'];
+      html += `<div class="result-block" style="margin:0;background:${sc.bg};border-color:${sc.border}">
+        <div style="font-family:var(--mono);font-size:9px;color:${sc.text};letter-spacing:2px;margin-bottom:6px">▸ ${(p.etiqueta||labels[i]||`PUNTO ${i+1}`).toUpperCase()}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-family:var(--mono);font-size:15px;font-weight:700;color:var(--hot)">${p.temperatura_max||'—'}</span>
+          <span style="font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:4px;border:1px solid ${sc.border};color:${sc.text}">${p.estado||'—'}</span>
+        </div>
+        ${p.temperatura_media ? `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-bottom:6px">Media: ${p.temperatura_media}</div>` : ''}
+        <p style="font-size:12px;line-height:1.6">${p.observacion||'—'}</p>
+        ${p.anomalias?.length ? `<ul style="margin-top:8px;padding-left:14px;display:flex;flex-direction:column;gap:2px">
+          ${p.anomalias.map(a => `<li style="font-size:11px;color:var(--warm)">${a}</li>`).join('')}
+        </ul>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Integrated diagnosis
+  html += `<div class="diag-box" style="margin-bottom:14px">
+    <div class="sect-divider"><span>🔗 DIAGNÓSTICO INTEGRADO DEL TREN</span></div>
+    <p>${r.diagnostico_integrado||'—'}</p>
+    ${r.relacion_entre_puntos ? `<p style="color:var(--muted);font-size:12px;margin-top:8px;border-top:1px solid rgba(255,255,255,.06);padding-top:8px">🔗 ${r.relacion_entre_puntos}</p>` : ''}
+  </div>`;
+
+  // Recommendations
+  if (r.recomendaciones?.length) {
+    html += `<div class="result-block" style="margin-bottom:14px">
+      <div class="sect-divider"><span>✅ RECOMENDACIONES</span></div>
+      <ol style="padding-left:18px;display:flex;flex-direction:column;gap:6px">
+        ${r.recomendaciones.map(rc => `<li style="color:#c0dde8;font-size:13px;line-height:1.6">${rc}</li>`).join('')}
+      </ol>
+    </div>`;
+  }
+
+  // Priority + conclusion
+  html += `<div class="priority-box">
+    <div class="prio-card" style="border-color:${pc}44">
+      <div class="prio-label">PRIORIDAD DE INTERVENCIÓN</div>
+      <div class="prio-value" style="color:${pc}">${r.prioridad_intervencion||'—'}</div>
+      ${r.proximo_control ? `<div style="font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px">Reinsp.: ${r.proximo_control}</div>` : ''}
+    </div>
+    <div class="prio-card">
+      <div class="prio-label">CONCLUSIÓN EJECUTIVA</div>
+      <p style="font-size:12px;line-height:1.6;margin-top:6px;color:var(--text)">${r.conclusion||'—'}</p>
+    </div>
+  </div>`;
+
+  document.getElementById('compare-result').innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════════════════
+function addToHistory() {
+  if (!state.result || !state.imageUrl) return;
+  const item = {
+    ts:     Date.now(),
+    url:    state.imageUrl,
+    name:   state.imageFile?.name || 'imagen',
+    result: state.result,
+  };
+  state.history.unshift(item);
+  if (state.history.length > 20) state.history.pop();
+  try { localStorage.setItem('thermo_history', JSON.stringify(
+    state.history.map(h => ({ ...h, url: null })) // no guardamos blob urls
+  )); } catch(e) {}
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!state.history.length) {
+    list.innerHTML = `<div class="empty-state"><div class="es-icon">📁</div><p>No hay análisis en el historial todavía</p></div>`;
+    return;
+  }
+  const priColors = { Inmediata:'badge-crit', Urgente:'badge-warn', Programada:'badge-warn', Monitoreo:'badge-ok' };
+  list.innerHTML = state.history.map((item, i) => {
+    const r = item.result || {};
+    const pc = r.prioridad_intervencion || '—';
+    return `<div class="hist-item" onclick="restoreHistory(${i})">
+      ${item.url ? `<img class="hist-thumb" src="${item.url}" onerror="this.style.display='none'"/>` : ''}
+      <div class="hist-info">
+        <div class="hist-name">${item.name}</div>
+        <div class="hist-meta">${new Date(item.ts).toLocaleString('es-AR')}</div>
+        <div class="chip-wrap" style="margin-top:6px">
+          ${r.aplicacion ? `<span class="chip" style="color:var(--accent);border-color:rgba(0,212,170,.3);font-size:9px">${r.aplicacion}</span>` : ''}
+          ${r.anomalias?.length ? `<span class="chip" style="color:var(--warm);border-color:rgba(255,170,0,.3);font-size:9px">${r.anomalias.length} anomalías</span>` : ''}
+        </div>
+      </div>
+      <div class="hist-right">
+        <span class="badge ${priColors[pc]||'badge-ok'}" style="font-size:9px">${pc}</span>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--muted)">${r.temperatura_max||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('hist-count').textContent = `${state.history.length} análisis`;
+}
+
+function restoreHistory(i) {
+  const item = state.history[i];
+  if (!item) return;
+  state.result = item.result;
+  if (item.url) {
+    state.imageUrl = item.url;
+    document.getElementById('preview-img').src = item.url;
+    document.getElementById('img-wrap').style.display = 'block';
+    document.getElementById('img-info').style.display = 'flex';
+    document.getElementById('img-name').textContent = item.name;
+  }
+  renderResults(item.result);
+  switchTab('main');
+}
+
+function clearHistory() {
+  state.history = [];
+  localStorage.removeItem('thermo_history');
+  renderHistory();
+  updateSettingsUI();
+}
+
+// ══════════════════════════════════════════════════════
+//  REPORT
+// ══════════════════════════════════════════════════════
+function renderReport() {
+  if (!state.result) {
+    document.getElementById('report-empty').style.display = 'flex';
+    document.getElementById('report-content').style.display = 'none';
+    return;
+  }
+  document.getElementById('report-empty').style.display = 'none';
+  document.getElementById('report-content').style.display = 'block';
+  document.getElementById('report-pre').textContent = buildReportText();
+}
+
+function buildReportText() {
+  const r = state.result;
+  const fname = state.imageFile?.name || '—';
+  const now = new Date().toLocaleString('es-AR');
+  return `INFORME TERMOGRÁFICO — THERMOVISION PRO v2.0
+${'='.repeat(52)}
+Fecha:     ${now}
+Archivo:   ${fname}
+${'='.repeat(52)}
+
+SISTEMA ANALIZADO
+  Aplicación : ${r.aplicacion||'—'}
+  Componente : ${r.componente||'—'}
+  Paleta     : ${r.escala_colores||'—'}
+  Emisividad : ${r.emissividad_usada||'—'}
+
+TEMPERATURAS REGISTRADAS
+  Máxima  : ${r.temperatura_max||'—'}
+  Mínima  : ${r.temperatura_min||'—'}
+  Media   : ${r.temperatura_media||'—'}
+  Delta T : ${r.delta_T||'—'}
+
+ANOMALÍAS DETECTADAS (${(r.anomalias||[]).length})
+${(r.anomalias||[]).map((a,i)=>`
+  ${i+1}. [${a.severidad}] ${a.descripcion}
+     Ubicación  : ${a.ubicacion||'—'}
+     Temperatura: ${a.temperatura_local||'—'}
+     Causa      : ${a.causa_probable||'—'}`).join('\n')||'  Sin anomalías detectadas'}
+
+PATRÓN TÉRMICO
+  ${r.patron_termico||'—'}
+
+${r.gradiente ? `GRADIENTE\n  ${r.gradiente}\n` : ''}
+NORMATIVA
+  Norma            : ${r.norma_referencia||'—'}
+  Umbral de acción : ${r.umbral_accion||'—'}
+  Condiciones      : ${r.condiciones_medicion||'—'}
+
+RECOMENDACIONES
+${(r.recomendaciones||[]).map((rc,i)=>`  ${i+1}. ${rc}`).join('\n')||'  —'}
+
+EVALUACIÓN FINAL
+  Prioridad de intervención : ${r.prioridad_intervencion||'—'}
+  Próxima reinspección      : ${r.proximo_control||'—'}
+  Confianza del diagnóstico : ${r.confianza_diagnostico||'—'}
+
+DIAGNÓSTICO FINAL
+  ${r.diagnostico_final||'—'}
+
+${r.observaciones_adicionales ? `OBSERVACIONES ADICIONALES\n  ${r.observaciones_adicionales}\n` : ''}
+${'='.repeat(52)}
+Generado por ThermoVision Pro · Powered by Claude AI
+${'='.repeat(52)}`;
+}
+
+function copyReport() {
+  navigator.clipboard.writeText(buildReportText()).then(() => {
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ COPIADO';
+    setTimeout(() => btn.textContent = '📋 COPIAR', 2000);
+  });
+}
+
+function downloadReport() {
+  const blob = new Blob([buildReportText()], { type:'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `termografia_${Date.now()}.txt`;
+  a.click();
+}
+
+function downloadHTML() {
+  const r = state.result || {};
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/>
+<title>Informe Termográfico</title>
+<style>body{font-family:monospace;background:#000e1a;color:#d8eef8;padding:40px;max-width:800px;margin:auto}
+h1{color:#00d4aa;letter-spacing:4px}h2{color:#00d4aa;font-size:14px;border-bottom:1px solid #003355;padding-bottom:6px;margin-top:24px}
+.meta{color:#4a7a8a;font-size:12px}.val{color:#fff}
+.crit{color:#ff4422}.alta{color:#ffaa00}.med{color:#ffdd00}.baja{color:#00d4aa}
+pre{background:#000810;padding:20px;border:1px solid #003344;border-radius:8px;white-space:pre-wrap;font-size:12px}
+</style></head><body>
+<h1>🌡️ THERMOVISION PRO</h1>
+<p class="meta">Generado: ${new Date().toLocaleString('es-AR')} · Archivo: ${state.imageFile?.name||'—'}</p>
+<h2>TEMPERATURAS</h2>
+<p>Máx: <span class="val crit">${r.temperatura_max||'—'}</span> · Mín: <span class="val">${r.temperatura_min||'—'}</span> · Media: <span class="val">${r.temperatura_media||'—'}</span> · ΔT: <span class="val alta">${r.delta_T||'—'}</span></p>
+<h2>ANOMALÍAS (${(r.anomalias||[]).length})</h2>
+${(r.anomalias||[]).map(a=>`<p class="${a.severidad.toLowerCase().replace('í','i')}">● [${a.severidad}] ${a.descripcion} — ${a.temperatura_local||'—'}<br><small style="color:#4a7a8a">${a.causa_probable||''}</small></p>`).join('')||'<p>Sin anomalías detectadas</p>'}
+<h2>DIAGNÓSTICO FINAL</h2><p>${r.diagnostico_final||'—'}</p>
+<h2>RECOMENDACIONES</h2><ol>${(r.recomendaciones||[]).map(rec=>`<li>${rec}</li>`).join('')}</ol>
+<h2>PRIORIDAD: <span class="crit">${r.prioridad_intervencion||'—'}</span></h2>
+<pre>${buildReportText()}</pre>
+</body></html>`;
+  const blob = new Blob([html], { type:'text/html' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `informe_termografia_${Date.now()}.html`;
+  a.click();
+}
+
+// ══════════════════════════════════════════════════════
+//  MULTI-PROVIDER AI — CONFIG
+// ══════════════════════════════════════════════════════
+let currentProvider = 'gemini';
+
+const PROVIDERS = {
+  gemini: {
+    name: 'Gemini (Google)',
+    keyTitle: 'API Key — Gemini (Google)',
+    placeholder: 'AIzaSy…',
+    link: 'https://aistudio.google.com',
+    linkText: 'Obtener clave gratis →',
+    lsKey: 'thermovision_key_gemini',
+    validate: k => k.startsWith('AIza'),
+    models: [
+      { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (recomendado)' },
+      { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+      { id: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro' },
+    ],
+    defaultModel: 'gemini-2.0-flash',
+    hint: '🔑 Clave desde <a href="https://aistudio.google.com" target="_blank" style="color:var(--accent)">aistudio.google.com</a> (empieza con <code>AIzaSy</code>). Si obtenés "permission denied", usá Groq.',
+  },
+  groq: {
+    name: 'Groq',
+    keyTitle: 'API Key — Groq',
+    placeholder: 'gsk_…',
+    link: 'https://console.groq.com',
+    linkText: 'Obtener clave gratis →',
+    lsKey: 'thermovision_key_groq',
+    validate: k => k.startsWith('gsk_'),
+    models: [
+      { id: 'meta-llama/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout 17B Vision (recomendado)' },
+      { id: 'llava-v1.5-7b-4096-preview',                label: 'LLaVA 1.5 7B Vision' },
+    ],
+    defaultModel: 'meta-llama/llama-4-scout-17b-16e-instruct',
+    hint: '🔑 Clave desde <a href="https://console.groq.com" target="_blank" style="color:var(--accent)">console.groq.com</a> (empieza con <code>gsk_</code>). Funciona bien desde <code>file://</code>.',
+  },
+  openrouter: {
+    name: 'OpenRouter',
+    keyTitle: 'API Key — OpenRouter',
+    placeholder: 'sk-or-v1-…',
+    link: 'https://openrouter.ai/keys',
+    linkText: 'Obtener clave gratis →',
+    lsKey: 'thermovision_key_openrouter',
+    validate: k => k.startsWith('sk-or'),
+    models: [
+      { id: 'google/gemini-2.0-flash-exp:free',   label: 'Gemini 2.0 Flash (gratis)' },
+      { id: 'meta-llama/llama-4-scout:free',       label: 'Llama 4 Scout (gratis)' },
+      { id: 'qwen/qwen2-vl-7b-instruct:free',      label: 'Qwen2 VL 7B Vision (gratis)' },
+      { id: 'anthropic/claude-3.5-sonnet',         label: 'Claude 3.5 Sonnet (pago)' },
+    ],
+    defaultModel: 'google/gemini-2.0-flash-exp:free',
+    hint: '🔑 Clave desde <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent)">openrouter.ai/keys</a>. Los modelos con <code>:free</code> son gratuitos.',
+  },
+  claude: {
+    name: 'Claude (Anthropic)',
+    keyTitle: 'API Key — Claude (Anthropic)',
+    placeholder: 'sk-ant-api03-…',
+    link: 'https://console.anthropic.com',
+    linkText: 'Obtener clave ($5 bienvenida) →',
+    lsKey: 'thermovision_key_claude',
+    validate: k => k.startsWith('sk-ant'),
+    models: [
+      { id: 'claude-sonnet-4-20250514',   label: 'Claude Sonnet 4 (recomendado)' },
+      { id: 'claude-haiku-4-5-20251001',  label: 'Claude Haiku 4.5 (rápido)' },
+    ],
+    defaultModel: 'claude-sonnet-4-20250514',
+    hint: '🔑 Clave desde <a href="https://console.anthropic.com" target="_blank" style="color:var(--accent)">console.anthropic.com</a> (empieza con <code>sk-ant</code>). Anthropic da $5 USD al registrarse.',
+  },
+};
+
+const PROVIDER_ERRORS = {
+  gemini: [
+    ['does not have permission', '👉 La clave no tiene permisos. Usá una clave de <a href="https://aistudio.google.com" target="_blank">AI Studio</a>, no de Google Cloud Console. Si estás en <code>file://</code>, probá con Groq.'],
+    ['api_key_invalid',          '👉 Clave inválida. Generá una nueva en aistudio.google.com.'],
+    ['quota',                    '👉 Límite de cuota alcanzado. Esperá unos minutos o cambiá de modelo.'],
+  ],
+  groq: [
+    ['invalid_api_key',  '👉 Clave inválida. Generá una nueva en console.groq.com → API Keys.'],
+    ['rate_limit',       '👉 Límite de requests alcanzado. Esperá 1 minuto e intentá de nuevo.'],
+    ['model_not_found',  '👉 Modelo no disponible. Seleccioná otro de la lista.'],
+  ],
+  openrouter: [
+    ['402',          '👉 Sin crédito. Elegí un modelo con <code>:free</code> al final.'],
+    ['403',          '👉 Verificá que la API key sea válida.'],
+    ['model',        '👉 Modelo no disponible. Probá con Gemini 2.0 Flash (gratis).'],
+  ],
+  claude: [
+    ['authentication', '👉 Clave inválida o expirada. Revisá en console.anthropic.com.'],
+    ['credit',         '👉 Sin crédito disponible. Recargá en console.anthropic.com.'],
+  ],
+};
+
+function getProviderErrorHint(msg) {
+  const hints = PROVIDER_ERRORS[currentProvider] || [];
+  const lower = msg.toLowerCase();
+  for (const [key, hint] of hints) if (lower.includes(key)) return hint;
+  return '';
+}
+
+// ── Provider selector UI ───────────────────────────────
+
+function selectProvider(prov) {
+  currentProvider = prov;
+  localStorage.setItem('thermovision_provider', prov);
+  const cfg = PROVIDERS[prov];
+
+  document.querySelectorAll('.prov-card').forEach(c =>
+    c.classList.toggle('active', c.dataset.prov === prov));
+
+  document.getElementById('prov-key-title').textContent = cfg.keyTitle;
+  document.getElementById('api-key-input').placeholder  = cfg.placeholder;
+  const link = document.getElementById('prov-key-link');
+  link.href = cfg.link; link.textContent = cfg.linkText;
+
+  // Populate model select
+  const ms = document.getElementById('prov-model-sel');
+  const saved = localStorage.getItem('thermovision_model_' + prov) || cfg.defaultModel;
+  ms.innerHTML = cfg.models.map(m =>
+    `<option value="${m.id}" ${m.id === saved ? 'selected' : ''}>${m.label}</option>`).join('');
+  ms.onchange = () => localStorage.setItem('thermovision_model_' + prov, ms.value);
+
+  // Load saved key
+  const key = localStorage.getItem(cfg.lsKey) || '';
+  document.getElementById('api-key-input').value = key;
+  const st = document.getElementById('api-key-status');
+  if (key) { st.textContent = '✅ Guardada'; st.style.color = 'var(--accent)'; }
+  else      { st.textContent = ''; }
+
+  document.getElementById('prov-hint').innerHTML = cfg.hint;
+
+  // Show file:// warning for Gemini
+  const warn = document.getElementById('file-proto-warn');
+  if (warn) warn.style.display = (location.protocol === 'file:' && prov === 'gemini') ? 'block' : 'none';
+}
+
+// ── Provider API call helpers ──────────────────────────
+
+async function callGeminiVision(apiKey, model, images, textPrompt) {
+  const parts = images.map(img => ({
+    inlineData: { mimeType: img.mime, data: img.b64 }
+  }));
+  parts.push({ text: textPrompt });
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
+    })
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+async function callOpenAIVision(apiKey, model, images, textPrompt, baseUrl, extraHeaders = {}) {
+  const content = images.map(img => ({
+    type: 'image_url',
+    image_url: { url: `data:${img.mime};base64,${img.b64}` }
+  }));
+  content.push({ type: 'text', text: textPrompt });
+
+  const res = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      ...extraHeaders
+    },
+    body: JSON.stringify({
+      model, max_tokens: 4096, temperature: 0.2,
+      messages: [{ role: 'user', content }]
+    })
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function callClaudeVision(apiKey, model, images, textPrompt) {
+  const content = images.map(img => ({
+    type: 'image', source: { type: 'base64', media_type: img.mime, data: img.b64 }
+  }));
+  content.push({ type: 'text', text: textPrompt });
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({ model, max_tokens: 4096, messages: [{ role: 'user', content }] })
+  });
+  if (!res.ok) {
+    const e = await res.json().catch(() => ({}));
+    throw new Error(e?.error?.message || `HTTP ${res.status}`);
+  }
+  const data = await res.json();
+  return data.content.map(b => b.text || '').join('');
+}
+
+// ── Main dispatcher ────────────────────────────────────
+
+async function callAI(images, textPrompt) {
+  const cfg    = PROVIDERS[currentProvider];
+  const apiKey = localStorage.getItem(cfg.lsKey) || document.getElementById('api-key-input').value.trim();
+  const model  = document.getElementById('prov-model-sel').value || cfg.defaultModel;
+
+  if (!apiKey) {
+    throw new Error(`No configuraste tu API key de ${cfg.name}. Andá a ⚙️ Ajustes e ingresá tu clave.`);
+  }
+
+  if (currentProvider === 'gemini') {
+    return callGeminiVision(apiKey, model, images, textPrompt);
+  } else if (currentProvider === 'groq') {
+    return callOpenAIVision(apiKey, model, images, textPrompt, 'https://api.groq.com/openai/v1');
+  } else if (currentProvider === 'openrouter') {
+    return callOpenAIVision(apiKey, model, images, textPrompt, 'https://openrouter.ai/api/v1', {
+      'HTTP-Referer': 'https://thermovision.app',
+      'X-Title': 'ThermoVision Pro'
+    });
+  } else {
+    return callClaudeVision(apiKey, model, images, textPrompt);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+//  SETTINGS — API KEY FUNCTIONS
+// ══════════════════════════════════════════════════════
+function saveApiKeySetting() {
+  const k   = document.getElementById('api-key-input').value.trim();
+  const st  = document.getElementById('api-key-status');
+  const cfg = PROVIDERS[currentProvider];
+  if (!k) { st.textContent = '⚠ Ingresá una clave'; st.style.color = 'var(--hot)'; return; }
+  if (!cfg.validate(k)) {
+    st.textContent = `⚠ Formato inválido (debe empezar con ${cfg.placeholder.split('…')[0]})`;
+    st.style.color = 'var(--hot)'; return;
+  }
+  localStorage.setItem(cfg.lsKey, k);
+  st.textContent = '✅ Clave guardada'; st.style.color = 'var(--accent)';
+}
+
+function clearApiKeySetting() {
+  localStorage.removeItem(PROVIDERS[currentProvider].lsKey);
+  document.getElementById('api-key-input').value = '';
+  const st = document.getElementById('api-key-status');
+  st.textContent = 'Clave eliminada'; st.style.color = 'var(--muted)';
+}
+
+function toggleKeyVisibility() {
+  const inp = document.getElementById('api-key-input');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
+function loadSavedKey() {
+  const lastProv = localStorage.getItem('thermovision_provider') || 'gemini';
+  selectProvider(lastProv);
+  // Show file:// banner
+  const warn = document.getElementById('file-proto-warn');
+  if (warn && location.protocol === 'file:' && lastProv === 'gemini')
+    warn.style.display = 'block';
+}
+
+function parseJSON(text) {
+  try {
+    const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    // Try direct parse first
+    try { return JSON.parse(cleaned); } catch {}
+    // Extract first JSON object block
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return null;
+  } catch { return null; }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══════════════════════════════════════════════════════
+//  UI HELPERS
+// ══════════════════════════════════════════════════════
+function setAnalyzingUI(on) {
+  state.analyzing = on;
+  document.getElementById('scan-line').style.display      = on ? 'block' : 'none';
+  document.getElementById('analyze-btn').disabled         = on;
+  document.getElementById('analyzing-overlay').style.display = on ? 'flex' : 'none';
+  const sb = document.getElementById('status-bar');
+  sb.style.display = on ? 'flex' : 'none';
+  document.getElementById('analyze-btn').innerHTML =
+    on ? '<div class="spinner"></div> PROCESANDO...' : '🔬 ANALIZAR CON IA';
+}
+
+function showError(msg) {
+  const provHint = getProviderErrorHint(msg);
+  const keyHint  = msg.includes('API key') || msg.includes('401') || msg.includes('authen') || msg.includes('Ajuste')
+    ? `<div style="margin-top:8px;font-size:12px;color:var(--muted)">💡 Andá a <button onclick="switchTab('settings')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-family:var(--mono);font-size:12px;text-decoration:underline">⚙️ Ajustes</button> e ingresá tu clave API.</div>`
+    : '';
+  const extra = provHint
+    ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(200,50,50,.2);font-size:12px;color:var(--muted)">${provHint}</div>`
+    : keyHint;
+  document.getElementById('results-content').innerHTML =
+    `<div style="background:rgba(40,0,0,.6);border:1px solid rgba(200,50,50,.4);border-radius:8px;padding:16px;color:var(--hot);font-size:13px">
+      ⚠️ <strong>${escHtml(PROVIDERS[currentProvider]?.name || 'Error')}:</strong> ${escHtml(msg)}${extra}
+    </div>`;
+  document.getElementById('results-content').style.display = 'block';
+  document.getElementById('empty-main').style.display = 'none';
+}
+
+function updateSettingsUI() {
+  document.getElementById('hist-count').textContent = `${state.history.length} análisis`;
+}
+
+// ══════════════════════════════════════════════════════
+//  PWA
+// ══════════════════════════════════════════════════════
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  state.deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'block';
+  document.getElementById('install-btn').style.display = 'inline-block';
+  document.getElementById('pwa-status').textContent = 'Disponible para instalar';
+});
+
+function installPWA() {
+  if (!state.deferredPrompt) return;
+  state.deferredPrompt.prompt();
+  state.deferredPrompt.userChoice.then(() => {
+    state.deferredPrompt = null;
+    document.getElementById('install-banner').style.display = 'none';
+  });
+}
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+  document.getElementById('pwa-status').textContent = '✅ Instalada';
+});
+
+// ══════════════════════════════════════════════════════
+//  SERVICE WORKER (PWA offline)
+// ══════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE='thermovision-v2';
+const ASSETS=['/'];
+self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+self.addEventListener('fetch',e=>{
+  if(e.request.url.includes('anthropic.com'))return;
+  e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/'))));
+});`;
+  const blob = new Blob([swCode], { type:'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(()=>{});
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+loadSavedKey();
+updateSettingsUI();
+// Initialize compare panel
+setCmpMode('puntos');
+// Initialize measurement point selector for default equipment type
+onEquipTypeChange();
+</script>
+</body>
+</html>

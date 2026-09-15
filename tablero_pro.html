@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANTEC – Tablero Pro V1.0 · Análisis Predictivo de Tableros Eléctricos</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --card: #111827;
+  --card2: #141d2e;
+  --border: #1e2d45;
+  --border2: #263548;
+  --text: #cdd9f0;
+  --muted: #5e7a9a;
+  --good: #10c98a;
+  --elevated: #f0b429;
+  --warning: #f97316;
+  --critical: #ef4444;
+  --good-bg: rgba(16,201,138,.12);
+  --elevated-bg: rgba(240,180,41,.12);
+  --warning-bg: rgba(249,115,22,.12);
+  --critical-bg: rgba(239,68,68,.12);
+  --accent: #3b82f6;
+  --accent2: #60a5fa;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
+code,.mono{font-family:'Share Tech Mono',monospace;}
+button,select,input{font-family:'Rajdhani',sans-serif;}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#0d1117 0%,#111d30 100%);
+  border-bottom:1px solid var(--border);
+  padding:16px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;}
+.logo-title{font-size:1.4rem;font-weight:700;letter-spacing:1px;color:#fff;}
+.logo-sub{font-size:.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:20px;}
+.hstat{text-align:center;}
+.hstat-val{font-size:1.3rem;font-weight:700;}
+.hstat-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+/* ── UPLOAD BAR ── */
+.upload-bar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.file-label{
+  background:var(--accent);color:#fff;padding:7px 20px;border-radius:30px;
+  cursor:pointer;font-weight:600;font-size:.9rem;
+  transition:background .2s;letter-spacing:.5px;
+}
+.file-label:hover{background:#2563eb;}
+.file-label input{display:none;}
+.load-status{font-size:.85rem;color:var(--muted);}
+.load-status.ok{color:var(--good);}
+.load-status.err{color:var(--critical);}
+.btn-small{
+  background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.83rem;cursor:pointer;transition:all .2s;
+}
+.btn-small:hover{border-color:var(--accent);color:var(--accent);}
+.btn-small.danger:hover{border-color:var(--critical);color:var(--critical);}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:2px;background:var(--surface);
+  border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;
+}
+.tab-btn{
+  padding:12px 22px;background:transparent;border:none;cursor:pointer;
+  font-weight:600;font-size:1rem;white-space:nowrap;
+  color:var(--muted);transition:.2s;border-bottom:3px solid transparent;
+}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.tab-content{display:none;padding:24px;max-width:1500px;margin:0 auto;}
+.tab-content.active{display:block;}
+
+/* ── SUMMARY BAR ── */
+.summary-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;
+}
+.sum-card{
+  background:var(--card);border-radius:10px;padding:14px 18px;
+  border:1px solid var(--border);position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s;
+}
+.sum-card:hover{border-color:var(--border2);}
+.sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sum-card.good::before{background:var(--good);}
+.sum-card.elevated::before{background:var(--elevated);}
+.sum-card.warning::before{background:var(--warning);}
+.sum-card.critical::before{background:var(--critical);}
+.sum-icon{font-size:1.5rem;}
+.sum-num{font-size:1.8rem;font-weight:700;}
+.sum-lbl{font-size:.78rem;color:var(--muted);margin-top:2px;}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.filter-btn{
+  background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;cursor:pointer;transition:all .2s;
+}
+.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.1);}
+.filter-btn.f-good.active{border-color:var(--good);color:var(--good);background:var(--good-bg);}
+.filter-btn.f-elevated.active{border-color:var(--elevated);color:var(--elevated);background:var(--elevated-bg);}
+.filter-btn.f-warning.active{border-color:var(--warning);color:var(--warning);background:var(--warning-bg);}
+.filter-btn.f-critical.active{border-color:var(--critical);color:var(--critical);background:var(--critical-bg);}
+.search-box{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.92rem;outline:none;min-width:200px;
+}
+.search-box:focus{border-color:var(--accent);}
+.sort-sel{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;outline:none;cursor:pointer;
+}
+.sep{flex:1;}
+
+/* ── GRID / CARD ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;}
+.mcard{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:all .2s;overflow:hidden;position:relative;
+}
+.mcard:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.mcard-header{
+  padding:12px 16px 9px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.mname{font-size:.98rem;font-weight:700;color:#fff;letter-spacing:.5px;}
+.mpoint{font-size:.73rem;color:var(--muted);margin-top:1px;}
+.mpoint-badge{
+  display:inline-block;background:rgba(59,130,246,.15);color:var(--accent2);
+  border:1px solid rgba(59,130,246,.25);padding:1px 7px;border-radius:4px;
+  font-size:.66rem;font-family:'Share Tech Mono';letter-spacing:.5px;margin-top:3px;
+}
+.mbadge{
+  font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:1px;white-space:nowrap;
+}
+.badge-good{background:var(--good-bg);color:var(--good);border:1px solid rgba(16,201,138,.3);}
+.badge-elevated{background:var(--elevated-bg);color:var(--elevated);border:1px solid rgba(240,180,41,.3);}
+.badge-warning{background:var(--warning-bg);color:var(--warning);border:1px solid rgba(249,115,22,.3);}
+.badge-critical{background:var(--critical-bg);color:var(--critical);border:1px solid rgba(239,68,68,.3);animation:pulse-border .8s ease-in-out infinite alternate;}
+@keyframes pulse-border{from{border-color:rgba(239,68,68,.3);}to{border-color:rgba(239,68,68,.8);}}
+
+.mcard-body{padding:12px 16px;display:flex;gap:12px;align-items:center;}
+.health-ring-wrap{flex-shrink:0;}
+.health-ring{transform:rotate(-90deg);}
+.health-ring circle{fill:none;stroke-width:4;}
+.health-num{font-size:1rem;font-weight:700;}
+.mmetrics{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+.mm-item{display:flex;flex-direction:column;}
+.mm-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mm-val{font-size:.86rem;font-weight:700;font-family:'Share Tech Mono';}
+.mm-val.good{color:var(--good);}
+.mm-val.elevated{color:var(--elevated);}
+.mm-val.warning{color:var(--warning);}
+.mm-val.critical{color:var(--critical);}
+.mcard-footer{padding:7px 16px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .ei{font-size:3rem;margin-bottom:12px;}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(3,5,10,.75);
+  z-index:1000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:40px 16px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border2);border-radius:16px;
+  max-width:920px;width:100%;overflow:hidden;
+}
+.modal-head{
+  padding:18px 26px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,#0d1117 0%,#111d30 100%);
+}
+.modal-title{font-size:1.2rem;font-weight:700;color:#fff;}
+.modal-sub{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:22px 26px;}
+.modal-section-title{font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:20px 0 10px;}
+.modal-section-title:first-child{margin-top:0;}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.mstat{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+.mstat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mstat-val{font-size:1.15rem;font-weight:700;font-family:'Share Tech Mono';margin-top:2px;}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;height:260px;}
+.diag-box{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;padding:12px 16px;margin-bottom:8px;}
+.diag-box.warning{border-left-color:var(--warning);}
+.diag-box.critical{border-left-color:var(--critical);}
+.diag-box.elevated{border-left-color:var(--elevated);}
+.diag-title{font-weight:700;font-size:.9rem;margin-bottom:3px;}
+.diag-action{font-size:.82rem;color:var(--muted);}
+.rtable{width:100%;border-collapse:collapse;}
+.rtable th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border2);}
+.rtable td{padding:6px 10px;border-bottom:1px solid var(--border);font-size:.82rem;font-family:'Share Tech Mono';}
+
+/* ── FORMS / CONFIG ── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
+.fld{display:flex;flex-direction:column;gap:4px;}
+.fld label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.fld input,.fld select{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:8px;font-size:.92rem;outline:none;
+}
+.fld input:focus,.fld select:focus{border-color:var(--accent);}
+.panel-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.panel-box-title{font-weight:700;color:#fff;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.th-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.th-item-lbl{font-size:.78rem;font-weight:700;color:#fff;margin-bottom:8px;}
+.th-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:.78rem;}
+.th-row label{flex:1;color:var(--muted);}
+.th-row input{width:70px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:5px;font-family:'Share Tech Mono';font-size:.8rem;}
+
+/* ── REPORT TAB ── */
+.fleet-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+.fleet-box-title{font-size:.85rem;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.fleet-text{font-size:.95rem;line-height:1.6;}
+.section-divider{border:none;border-top:1px solid var(--border);margin:26px 0 16px;position:relative;}
+.section-divider[data-label]::after{
+  content:attr(data-label);position:absolute;top:-11px;left:0;background:var(--bg);
+  padding:0 10px;font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;font-weight:700;
+}
+.plan-table{width:100%;border-collapse:collapse;}
+.plan-table th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--border2);}
+.plan-table td{padding:8px 10px;border-bottom:1px solid var(--border);font-size:.84rem;}
+.prio-badge{font-family:'Share Tech Mono';font-weight:700;padding:2px 8px;border-radius:5px;font-size:.75rem;}
+.prio-critical{background:var(--critical-bg);color:var(--critical);}
+.prio-warning{background:var(--warning-bg);color:var(--warning);}
+.prio-elevated{background:var(--elevated-bg);color:var(--elevated);}
+.action-bar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.note-box{margin-top:16px;padding:12px 18px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:.8rem;color:var(--muted);}
+
+/* ── MISC ── */
+.hidden{display:none !important;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-title">TABLERO PRO</div>
+      <div class="logo-sub">MANTEC · Análisis Predictivo Eléctrico</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hstat"><div class="hstat-val" id="hsTableros">0</div><div class="hstat-lbl">Tableros</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsCircuitos">0</div><div class="hstat-lbl">Circuitos</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsSalud" style="color:var(--good);">—</div><div class="hstat-lbl">Salud Flota</div></div>
+  </div>
+</header>
+
+<div class="upload-bar">
+  <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
+  <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar medición manual</button>
+  <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
+  <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
+  <span class="load-status" id="loadStatus"></span>
+  <div class="sep"></div>
+  <button class="btn-small danger" onclick="clearAllData()">🗑️ Borrar todos los datos</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="tableros" onclick="switchTab('tableros')">🗄️ Tableros y Circuitos</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Umbrales</button>
+  <button class="tab-btn" data-tab="informe" onclick="switchTab('informe')">📋 Informe</button>
+</div>
+
+<!-- ═══ DASHBOARD TAB ═══ -->
+<div class="tab-content active" id="tab-dashboard">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="toolbar">
+    <button class="filter-btn active" data-f="all" onclick="setStatusFilter('all')">Todos</button>
+    <button class="filter-btn f-good" data-f="good" onclick="setStatusFilter('good')">🟢 Normal</button>
+    <button class="filter-btn f-elevated" data-f="elevated" onclick="setStatusFilter('elevated')">🟡 Elevado</button>
+    <button class="filter-btn f-warning" data-f="warning" onclick="setStatusFilter('warning')">🟠 Alerta</button>
+    <button class="filter-btn f-critical" data-f="critical" onclick="setStatusFilter('critical')">🔴 Crítico</button>
+    <input class="search-box" id="searchBox" placeholder="🔎 Buscar tablero o circuito…" oninput="renderGrid()">
+    <select class="sort-sel" id="sortSel" onchange="renderGrid()">
+      <option value="health_asc">Salud (peor primero)</option>
+      <option value="name_asc">Nombre A-Z</option>
+      <option value="deltaT_desc">ΔT (mayor primero)</option>
+      <option value="date_desc">Última medición</option>
+    </select>
+    <div class="sep"></div>
+  </div>
+  <div class="grid" id="cardGrid"></div>
+</div>
+
+<!-- ═══ TABLEROS TAB ═══ -->
+<div class="tab-content" id="tab-tableros">
+  <div class="panel-box">
+    <div class="panel-box-title">➕ Registrar tablero</div>
+    <div class="form-grid">
+      <div class="fld"><label>Nombre del tablero</label><input id="newPanelName" placeholder="Ej: TAB-GENERAL-PLANTA"></div>
+      <div class="fld"><label>Tipo</label>
+        <select id="newPanelType"></select>
+      </div>
+      <div class="fld"><label>Ubicación</label><input id="newPanelLoc" placeholder="Ej: Sala eléctrica"></div>
+      <div class="fld"><label>Corriente nominal (A)</label><input id="newPanelAmp" type="number" placeholder="Ej: 400"></div>
+    </div>
+    <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="createPanel()">Crear tablero</button>
+  </div>
+  <div id="panelsRegistryList"></div>
+</div>
+
+<!-- ═══ CONFIG TAB ═══ -->
+<div class="tab-content" id="tab-config">
+  <div class="panel-box">
+    <div class="panel-box-title">⚙️ Umbrales de diagnóstico (editables)</div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">
+      Valores orientativos basados en criterios generales de termografía industrial (NETA/IEEE), desbalance NEMA MG-1, factor de potencia y THD (IEEE 519), y resistencia de aislación (IEEE 43). Ajustalos a tu norma o política interna.
+    </p>
+    <div class="th-grid" id="thresholdGrid"></div>
+    <button class="btn-small" style="margin-top:14px;background:var(--accent);color:#fff;border:none;" onclick="saveThresholdsFromUI()">💾 Guardar umbrales</button>
+    <button class="btn-small" style="margin-top:14px;" onclick="resetThresholds()">↺ Restaurar por defecto</button>
+  </div>
+</div>
+
+<!-- ═══ INFORME TAB ═══ -->
+<div class="tab-content" id="tab-informe">
+  <div class="action-bar">
+    <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="generateOfflineReport()">🔄 Generar informe</button>
+    <button class="btn-small" onclick="copyReport()">📋 Copiar como texto</button>
+  </div>
+  <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de tableros.</div></div>
+</div>
+
+<!-- ═══ MODAL CARGA MANUAL ═══ -->
+<div class="modal-overlay" id="manualOverlay" onclick="if(event.target===this)closeManualEntry()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">✍️ Cargar medición manual</div>
+        <div class="modal-sub">Registrá una lectura puntual sin necesidad de Excel</div>
+      </div>
+      <button class="modal-close" onclick="closeManualEntry()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Tablero y circuito</div>
+      <div class="form-grid">
+        <div class="fld">
+          <label>Tablero</label>
+          <select id="me_panelSel" onchange="onManualPanelChange()"></select>
+        </div>
+        <div class="fld hidden" id="me_newPanelNameWrap">
+          <label>Nombre del nuevo tablero</label>
+          <input id="me_newPanelName" placeholder="Ej: TAB-GENERAL-PLANTA">
+        </div>
+        <div class="fld hidden" id="me_newPanelTypeWrap">
+          <label>Tipo de tablero</label>
+          <select id="me_newPanelType"></select>
+        </div>
+        <div class="fld">
+          <label>Circuito</label>
+          <select id="me_circuitSel" onchange="onManualCircuitChange()"></select>
+        </div>
+        <div class="fld hidden" id="me_newCircuitNameWrap">
+          <label>Nombre del nuevo circuito</label>
+          <input id="me_newCircuitName" placeholder="Ej: Salida Motor Bomba 1">
+        </div>
+        <div class="fld hidden" id="me_newCircuitTypeWrap">
+          <label>Tipo de circuito</label>
+          <select id="me_newCircuitType"></select>
+        </div>
+        <div class="fld hidden" id="me_newCircuitSystemWrap">
+          <label>Sistema eléctrico</label>
+          <select id="me_newCircuitSystem"></select>
+        </div>
+        <div class="fld">
+          <label>Fecha de medición</label>
+          <input type="date" id="me_fecha">
+        </div>
+      </div>
+
+      <div class="modal-section-title">🌡️ Termografía</div>
+      <div class="form-grid">
+        <div class="fld"><label>Temp. ambiente (°C)</label><input type="number" step="0.1" id="me_tempAmb"></div>
+        <div class="fld"><label>Temp. máxima medida (°C)</label><input type="number" step="0.1" id="me_tempMax"></div>
+        <div class="fld"><label>Fase con temperatura máxima</label>
+          <select id="me_faseMax"><option value="">—</option><option value="R">R</option><option value="S">S</option><option value="T">T</option><option value="N">Neutro</option></select>
+        </div>
+      </div>
+
+      <div class="modal-section-title">⚡ Corriente (A) y Tensión (V)</div>
+      <div class="form-grid">
+        <div class="fld"><label>Corriente R (A)</label><input type="number" step="0.1" id="me_iR"></div>
+        <div class="fld"><label>Corriente S (A)</label><input type="number" step="0.1" id="me_iS"></div>
+        <div class="fld"><label>Corriente T (A)</label><input type="number" step="0.1" id="me_iT"></div>
+        <div class="fld"><label>Tensión R (V)</label><input type="number" step="0.1" id="me_vR"></div>
+        <div class="fld"><label>Tensión S (V)</label><input type="number" step="0.1" id="me_vS"></div>
+        <div class="fld"><label>Tensión T (V)</label><input type="number" step="0.1" id="me_vT"></div>
+      </div>
+
+      <div class="modal-section-title">📊 Calidad de energía y aislación</div>
+      <div class="form-grid">
+        <div class="fld"><label>Factor de potencia</label><input type="number" step="0.01" min="0" max="1" id="me_fp"></div>
+        <div class="fld"><label>THD tensión (%)</label><input type="number" step="0.1" id="me_thdV"></div>
+        <div class="fld"><label>Resistencia de aislación (MΩ)</label><input type="number" step="0.1" id="me_rAisl"></div>
+      </div>
+
+      <div class="modal-section-title">Observaciones</div>
+      <div class="fld"><textarea id="me_obs" rows="2" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;resize:vertical;" placeholder="Opcional"></textarea></div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn-small" style="background:var(--accent);color:#fff;border:none;padding:8px 20px;" onclick="saveManualReading()">💾 Guardar medición</button>
+        <button class="btn-small" onclick="closeManualEntry()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL DETALLE ═══ -->
+<div class="modal-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">—</div>
+        <div class="modal-sub" id="modalSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  1. CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const PANEL_TYPES = ['Tablero General (TGBT)','Tablero de Distribución','Tablero de Control','CCM (Centro Control Motores)','Banco de Capacitores','Tablero de Transferencia (ATS)','Otro'];
+const CIRCUIT_TYPES = ['Alimentador Principal','Salida / Circuito derivado','Transformador','Motor / Bomba','Iluminación','Capacitores','Variador de Frecuencia','Otro'];
+const CIRCUIT_SYSTEMS = ['Trifásico','Bifásico','Monofásico'];
+
+const STATUS        = ['good','elevated','warning','critical'];
+const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
+const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
+const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
+
+// Umbrales por defecto (editables desde la pestaña Umbrales)
+// deltaT (°C sobre ambiente), desbV/desbI (%), thdV (%): mayor = peor
+// fp, rAisl (MΩ): menor = peor (se evalúan invertidos)
+const DEFAULT_THRESHOLDS = {
+  deltaT: [3, 15, 40],
+  desbV:  [1, 2, 3.5],
+  desbI:  [10, 20, 30],
+  thdV:   [3, 5, 8],
+  fp:     [0.95, 0.90, 0.85],   // inverso
+  rAisl:  [100, 10, 1]          // inverso (MΩ)
+};
+const THRESHOLD_META = {
+  deltaT: {label:'ΔT Termografía (°C sobre ambiente)', unit:'°C', inverse:false},
+  desbV:  {label:'Desbalance de Tensión', unit:'%', inverse:false},
+  desbI:  {label:'Desbalance de Corriente', unit:'%', inverse:false},
+  thdV:   {label:'THD de Tensión', unit:'%', inverse:false},
+  fp:     {label:'Factor de Potencia', unit:'', inverse:true},
+  rAisl:  {label:'Resistencia de Aislación', unit:'MΩ', inverse:true}
+};
+
+// ═══════════════════════════════════════════════════════════
+//  2. STATE
+// ═══════════════════════════════════════════════════════════
+let panelsRegistry = new Map();   // panelId -> {name, type, location, ampNominal}
+let circuitsMeta    = new Map();  // key(panelId/circuitId) -> {name, type}
+let readingsData    = new Map();  // key -> {dates:[], params:{...}, obs:[]}
+let thresholds      = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+let statusFilter    = 'all';
+let currentKey      = null;
+let detailChart      = null;
+
+// ═══════════════════════════════════════════════════════════
+//  3. PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+function loadState() {
+  try {
+    const c = JSON.parse(localStorage.getItem('tablero_pro_cfg') || '{}');
+    if (c.thresholds) thresholds = {...DEFAULT_THRESHOLDS, ...c.thresholds};
+    if (c.panelsRegistry) for (const [k,v] of Object.entries(c.panelsRegistry)) panelsRegistry.set(k,v);
+    if (c.circuitsMeta) for (const [k,v] of Object.entries(c.circuitsMeta)) circuitsMeta.set(k,v);
+    if (c.readingsData) {
+      for (const [k,v] of Object.entries(c.readingsData)) {
+        readingsData.set(k, { dates: v.dates.map(d => new Date(d)), params: v.params, obs: v.obs || [] });
+      }
+    }
+  } catch(e){ console.warn('loadState error', e); }
+}
+function saveState() {
+  const rdSerial = {};
+  for (const [k,v] of readingsData.entries()) {
+    rdSerial[k] = { dates: v.dates.map(d=>d.toISOString()), params: v.params, obs: v.obs || [] };
+  }
+  localStorage.setItem('tablero_pro_cfg', JSON.stringify({
+    thresholds,
+    panelsRegistry: Object.fromEntries(panelsRegistry),
+    circuitsMeta: Object.fromEntries(circuitsMeta),
+    readingsData: rdSerial
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  4. HELPERS
+// ═══════════════════════════════════════════════════════════
+function genId(){ return 'P'+Date.now().toString(36).toUpperCase().slice(-5)+Math.random().toString(36).slice(-3).toUpperCase(); }
+function escHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escJs(s){ return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function fmt(v,d=1){ return (v===undefined||v===null||isNaN(v)) ? '—' : Number(v).toFixed(d); }
+function fmtDate(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmtDateTime(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function getPanelId(k){ return k.split('/')[0]; }
+function getCircuitId(k){ return k.split('/')[1] || ''; }
+function getPanelName(id){ return panelsRegistry.get(id)?.name || id; }
+function getCircuitName(k){ return circuitsMeta.get(k)?.name || getCircuitId(k); }
+function getDisplayName(k){ return `${getPanelName(getPanelId(k))} · ${getCircuitName(k)}`; }
+
+function levelOf(value, band, inverse){
+  if (value===undefined||value===null||isNaN(value)) return -1; // sin dato
+  if (!inverse){
+    if (value <= band[0]) return 0;
+    if (value <= band[1]) return 1;
+    if (value <= band[2]) return 2;
+    return 3;
+  } else {
+    if (value >= band[0]) return 0;
+    if (value >= band[1]) return 1;
+    if (value >= band[2]) return 2;
+    return 3;
+  }
+}
+
+// Calcula los sub-niveles y nivel global para una lectura puntual (índice n de una serie)
+function evalReading(params, n){
+  const p = params;
+  const deltaT = (p.TempMax?.[n] - p.TempAmb?.[n]);
+  const desbV  = p.DesbV?.[n];
+  const desbI  = p.DesbI?.[n];
+  const thdV   = p.THD_V?.[n];
+  const fp     = p.FP?.[n];
+  const rAisl  = p.R_Aisl?.[n];
+  const faseMax = p.FaseMax?.[n] || '';
+
+  const subs = {
+    deltaT: levelOf(deltaT, thresholds.deltaT, false),
+    desbV:  levelOf(desbV,  thresholds.desbV,  false),
+    desbI:  levelOf(desbI,  thresholds.desbI,  false),
+    thdV:   levelOf(thdV,   thresholds.thdV,   false),
+    fp:     levelOf(fp,     thresholds.fp,     true),
+    rAisl:  levelOf(rAisl,  thresholds.rAisl,  true)
+  };
+  let overall = 0;
+  for (const k in subs) if (subs[k] > overall) overall = subs[k];
+  return { subs, overall, deltaT, desbV, desbI, thdV, fp, rAisl, faseMax };
+}
+
+function computeDesbalance(a,b,c){
+  const vals = [a,b,c].filter(v=>v!==undefined && v!==null && !isNaN(v));
+  if (vals.length < 2) return NaN;
+  const avg = vals.reduce((x,y)=>x+y,0)/vals.length;
+  if (avg === 0) return NaN;
+  const maxDev = Math.max(...vals.map(v=>Math.abs(v-avg)));
+  return (maxDev/avg)*100;
+}
+// El desbalance R/S/T sólo tiene sentido en un sistema trifásico. Circuitos sin
+// "sistema" definido (datos previos a este campo) se tratan como trifásicos por
+// compatibilidad. Para mono/bifásicos, no se calcula (evita un % de "desbalance"
+// espurio entre 2 fases que no forman un sistema trifásico real).
+function isTrifasico(key){
+  const c = circuitsMeta.get(key);
+  return !c || !c.sistema || c.sistema === 'Trifásico';
+}
+
+function healthScoreFromLevel(overall, subs){
+  if (overall < 0) return null;
+  // 100 -> 0 según nivel, con matiz por cantidad de sub-parámetros en alerta
+  const base = [100, 78, 50, 20][overall];
+  const worseCount = Object.values(subs).filter(s=>s===overall).length;
+  return Math.max(3, base - (worseCount-1)*4);
+}
+
+function lastValidIdx(d){ return d.dates.length - 1; }
+
+function diagnoseCircuit(k){
+  const d = readingsData.get(k);
+  if (!d || !d.dates.length) return null;
+  const n = lastValidIdx(d);
+  const ev = evalReading(d.params, n);
+  return { ...ev, date: d.dates[n] };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  5. IMPORT (Excel / CSV)
+// ═══════════════════════════════════════════════════════════
+const TEMPLATE_HEADERS = ['Tablero','TipoTablero','Circuito','TipoCircuito','Sistema','Fecha','Temp_Ambiente_C','Temp_Max_C','Fase_Max','I_R_A','I_S_A','I_T_A','V_R_V','V_S_V','V_T_V','FP','THD_V_%','R_Aislacion_MOhm','Observaciones'];
+
+function downloadTemplate(){
+  const sample = [
+    TEMPLATE_HEADERS,
+    ['TAB-GENERAL-PLANTA','Tablero General (TGBT)','Alimentador Principal','Alimentador Principal','Trifásico','2026-08-01',32,38,'R',180,175,182,221,220,222,0.94,3.2,250,'Ejemplo de fila — Sistema: Trifásico/Bifásico/Monofásico (si se omite, se asume Trifásico)'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sample);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Mediciones');
+  XLSX.writeFile(wb, 'plantilla_tablero_pro.xlsx');
+}
+
+function handleFileUpload(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status';
+  status.textContent = 'Procesando…';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true, defval:''});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      const result = importRows(rows);
+      status.className = 'load-status ok';
+      status.textContent = `✅ ${result.rows} lectura(s) · ${result.panels} tablero(s) · ${result.circuits} circuito(s)`;
+      saveState();
+      renderAll();
+    } catch(err){
+      console.error(err);
+      status.className = 'load-status err';
+      status.textContent = '❌ Error al procesar el archivo: ' + err.message;
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findCol(row, names){
+  for (const n of names){
+    for (const key of Object.keys(row)){
+      if (key.trim().toLowerCase() === n.toLowerCase()) return row[key];
+    }
+  }
+  return '';
+}
+function numOrNaN(v){ if (v==='' || v===undefined || v===null) return NaN; const n = parseFloat(v); return isNaN(n) ? NaN : n; }
+
+function importRows(rows){
+  let panelsCreated = 0, circuitsCreated = 0, rowsImported = 0;
+  const touched = new Map(); // key -> {dates:[],params:{}}
+
+  for (const row of rows){
+    const panelName   = String(findCol(row,['Tablero']) || '').trim();
+    const circuitName = String(findCol(row,['Circuito']) || '').trim();
+    if (!panelName || !circuitName) continue;
+    const panelType   = String(findCol(row,['TipoTablero']) || PANEL_TYPES[0]).trim();
+    const circuitType = String(findCol(row,['TipoCircuito']) || CIRCUIT_TYPES[0]).trim();
+    const circuitSystemRaw = String(findCol(row,['Sistema']) || '').trim();
+    const circuitSystem = CIRCUIT_SYSTEMS.find(s=>s.toLowerCase()===circuitSystemRaw.toLowerCase()) || 'Trifásico';
+    let fechaRaw = findCol(row,['Fecha']);
+    let fecha;
+    if (fechaRaw instanceof Date) fecha = fechaRaw;
+    else if (typeof fechaRaw === 'number') { const p = XLSX.SSF.parse_date_code(fechaRaw); fecha = new Date(p.y,p.m-1,p.d,p.H||0,p.M||0,p.S||0); }
+    else fecha = new Date(fechaRaw);
+    if (isNaN(fecha)) continue;
+
+    // localizar o crear tablero
+    let panelId = null;
+    for (const [id, pv] of panelsRegistry.entries()){
+      if (pv.name.toLowerCase() === panelName.toLowerCase()) { panelId = id; break; }
+    }
+    if (!panelId){
+      panelId = genId();
+      panelsRegistry.set(panelId, {name: panelName, type: panelType, location:'', ampNominal: 0});
+      panelsCreated++;
+    }
+    const circuitId = 'C_' + circuitName.toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,40);
+    const key = `${panelId}/${circuitId}`;
+    if (!circuitsMeta.has(key)){
+      circuitsMeta.set(key, {name: circuitName, type: circuitType, sistema: circuitSystem});
+      circuitsCreated++;
+    }
+
+    const tempAmb = numOrNaN(findCol(row,['Temp_Ambiente_C','TempAmbiente']));
+    const tempMax = numOrNaN(findCol(row,['Temp_Max_C','TempMax']));
+    const faseMax = String(findCol(row,['Fase_Max']) || '');
+    const iR = numOrNaN(findCol(row,['I_R_A']));
+    const iS = numOrNaN(findCol(row,['I_S_A']));
+    const iT = numOrNaN(findCol(row,['I_T_A']));
+    const vR = numOrNaN(findCol(row,['V_R_V']));
+    const vS = numOrNaN(findCol(row,['V_S_V']));
+    const vT = numOrNaN(findCol(row,['V_T_V']));
+    const fp = numOrNaN(findCol(row,['FP']));
+    const thdV = numOrNaN(findCol(row,['THD_V_%','THD_V']));
+    const rAisl = numOrNaN(findCol(row,['R_Aislacion_MOhm']));
+    const obs = String(findCol(row,['Observaciones']) || '');
+
+    const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
+    const desbV = isTrifasico(key) ? computeDesbalance(vR,vS,vT) : NaN;
+
+    if (!touched.has(key)) touched.set(key, {dates:[], params:{TempAmb:[],TempMax:[],FaseMax:[],I_R:[],I_S:[],I_T:[],V_R:[],V_S:[],V_T:[],DesbI:[],DesbV:[],FP:[],THD_V:[],R_Aisl:[]}, obs:[]});
+    const t = touched.get(key);
+    t.dates.push(fecha);
+    t.params.TempAmb.push(tempAmb); t.params.TempMax.push(tempMax); t.params.FaseMax.push(faseMax);
+    t.params.I_R.push(iR); t.params.I_S.push(iS); t.params.I_T.push(iT);
+    t.params.V_R.push(vR); t.params.V_S.push(vS); t.params.V_T.push(vT);
+    t.params.DesbI.push(desbI); t.params.DesbV.push(desbV);
+    t.params.FP.push(fp); t.params.THD_V.push(thdV); t.params.R_Aisl.push(rAisl);
+    t.obs.push(obs);
+    rowsImported++;
+  }
+
+  for (const [key, incoming] of touched.entries()){
+    const existing = readingsData.get(key);
+    if (!existing){ readingsData.set(key, incoming); continue; }
+    readingsData.set(key, mergeReadings(existing, incoming));
+  }
+  return { rows: rowsImported, panels: panelsCreated, circuits: circuitsCreated };
+}
+
+function mergeReadings(existing, incoming){
+  const keyOf = d => { try { return new Date(d).toISOString().slice(0,19); } catch { return String(d).slice(0,19); } };
+  const existKeys = new Set(existing.dates.map(keyOf));
+  const allDates = [...existing.dates];
+  const allObs = [...(existing.obs||[])];
+  const allParams = {};
+  const paramKeys = new Set([...Object.keys(existing.params), ...Object.keys(incoming.params)]);
+  for (const pk of paramKeys) allParams[pk] = [...(existing.params[pk]||new Array(existing.dates.length).fill(NaN))];
+
+  for (let i=0;i<incoming.dates.length;i++){
+    if (!existKeys.has(keyOf(incoming.dates[i]))){
+      allDates.push(incoming.dates[i]);
+      allObs.push(incoming.obs?.[i] || '');
+      for (const pk of paramKeys) allParams[pk].push(incoming.params[pk]?.[i] ?? NaN);
+    }
+  }
+  const idx = allDates.map((_,i)=>i).sort((a,b)=>allDates[a]-allDates[b]);
+  return {
+    dates: idx.map(i=>allDates[i]),
+    obs: idx.map(i=>allObs[i]),
+    params: Object.fromEntries(Object.entries(allParams).map(([k,v])=>[k, idx.map(i=>v[i])]))
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6. MANUAL ENTRY
+// ═══════════════════════════════════════════════════════════
+function openManualEntry(){
+  const panelSel = document.getElementById('me_panelSel');
+  panelSel.innerHTML = `<option value="__new">➕ Crear nuevo tablero…</option>` +
+    Array.from(panelsRegistry.entries()).map(([id,p])=>`<option value="${id}">${escHtml(p.name)}</option>`).join('');
+  const newPanelType = document.getElementById('me_newPanelType');
+  if (!newPanelType.dataset.filled){ newPanelType.innerHTML = PANEL_TYPES.map(t=>`<option value="${t}">${t}</option>`).join(''); newPanelType.dataset.filled='1'; }
+  const newCircuitType = document.getElementById('me_newCircuitType');
+  if (!newCircuitType.dataset.filled){ newCircuitType.innerHTML = CIRCUIT_TYPES.map(t=>`<option value="${t}">${t}</option>`).join(''); newCircuitType.dataset.filled='1'; }
+  const newCircuitSystem = document.getElementById('me_newCircuitSystem');
+  if (!newCircuitSystem.dataset.filled){ newCircuitSystem.innerHTML = CIRCUIT_SYSTEMS.map(t=>`<option value="${t}">${t}</option>`).join(''); newCircuitSystem.dataset.filled='1'; }
+
+  // limpiar campos
+  ['me_tempAmb','me_tempMax','me_iR','me_iS','me_iT','me_vR','me_vS','me_vT','me_fp','me_thdV','me_rAisl','me_newPanelName','me_newCircuitName','me_obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('me_faseMax').value = '';
+  document.getElementById('me_fecha').value = new Date().toISOString().slice(0,10);
+
+  onManualPanelChange();
+  document.getElementById('manualOverlay').classList.add('open');
+}
+function closeManualEntry(){ document.getElementById('manualOverlay').classList.remove('open'); }
+
+function onManualPanelChange(){
+  const sel = document.getElementById('me_panelSel');
+  const isNew = sel.value === '__new';
+  document.getElementById('me_newPanelNameWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newPanelTypeWrap').classList.toggle('hidden', !isNew);
+  const circuitSel = document.getElementById('me_circuitSel');
+  circuitSel.innerHTML = `<option value="__new">➕ Crear nuevo circuito…</option>`;
+  if (!isNew){
+    const circuits = Array.from(circuitsMeta.entries()).filter(([k])=>getPanelId(k)===sel.value);
+    circuitSel.innerHTML += circuits.map(([k,c])=>`<option value="${escJs(k)}">${escHtml(c.name)}</option>`).join('');
+  }
+  onManualCircuitChange();
+}
+function onManualCircuitChange(){
+  const sel = document.getElementById('me_circuitSel');
+  const isNew = sel.value === '__new';
+  document.getElementById('me_newCircuitNameWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newCircuitTypeWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newCircuitSystemWrap').classList.toggle('hidden', !isNew);
+}
+
+function numOrUndef(id){
+  const v = document.getElementById(id).value;
+  if (v==='') return NaN;
+  const n = parseFloat(v);
+  return isNaN(n) ? NaN : n;
+}
+
+function saveManualReading(){
+  const panelSel = document.getElementById('me_panelSel').value;
+  const fechaStr = document.getElementById('me_fecha').value;
+  if (!fechaStr){ alert('Ingresá la fecha de la medición.'); return; }
+  const fecha = new Date(fechaStr + 'T12:00:00');
+  if (isNaN(fecha)){ alert('Fecha inválida.'); return; }
+
+  let panelId = panelSel;
+  if (panelSel === '__new'){
+    const name = document.getElementById('me_newPanelName').value.trim();
+    if (!name){ alert('Ingresá el nombre del nuevo tablero.'); return; }
+    const type = document.getElementById('me_newPanelType').value;
+    // reutilizar si ya existe uno con el mismo nombre
+    panelId = null;
+    for (const [id, pv] of panelsRegistry.entries()) if (pv.name.toLowerCase()===name.toLowerCase()) { panelId = id; break; }
+    if (!panelId){ panelId = genId(); panelsRegistry.set(panelId, {name, type, location:'', ampNominal:0}); }
+  }
+
+  const circuitSelVal = document.getElementById('me_circuitSel').value;
+  let key;
+  if (circuitSelVal === '__new'){
+    const cname = document.getElementById('me_newCircuitName').value.trim();
+    if (!cname){ alert('Ingresá el nombre del nuevo circuito.'); return; }
+    const ctype = document.getElementById('me_newCircuitType').value;
+    const csistema = document.getElementById('me_newCircuitSystem').value;
+    const circuitId = 'C_' + cname.toUpperCase().replace(/[^A-Z0-9]+/g,'_').slice(0,40);
+    key = `${panelId}/${circuitId}`;
+    if (!circuitsMeta.has(key)) circuitsMeta.set(key, {name:cname, type:ctype, sistema:csistema});
+  } else {
+    key = circuitSelVal;
+  }
+
+  const tempAmb = numOrUndef('me_tempAmb');
+  const tempMax = numOrUndef('me_tempMax');
+  const faseMax = document.getElementById('me_faseMax').value;
+  const iR = numOrUndef('me_iR'), iS = numOrUndef('me_iS'), iT = numOrUndef('me_iT');
+  const vR = numOrUndef('me_vR'), vS = numOrUndef('me_vS'), vT = numOrUndef('me_vT');
+  const fp = numOrUndef('me_fp'), thdV = numOrUndef('me_thdV'), rAisl = numOrUndef('me_rAisl');
+  const obs = document.getElementById('me_obs').value.trim();
+  const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
+  const desbV = isTrifasico(key) ? computeDesbalance(vR,vS,vT) : NaN;
+
+  const incoming = {
+    dates:[fecha],
+    params:{ TempAmb:[tempAmb], TempMax:[tempMax], FaseMax:[faseMax], I_R:[iR], I_S:[iS], I_T:[iT], V_R:[vR], V_S:[vS], V_T:[vT], DesbI:[desbI], DesbV:[desbV], FP:[fp], THD_V:[thdV], R_Aisl:[rAisl] },
+    obs:[obs]
+  };
+  const existing = readingsData.get(key);
+  readingsData.set(key, existing ? mergeReadings(existing, incoming) : incoming);
+
+  saveState();
+  closeManualEntry();
+  renderAll();
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `✅ Medición guardada: ${getDisplayName(key)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6b. RENDER — DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderAll(){
+  renderHeaderStats();
+  renderSummaryBar();
+  renderGrid();
+  renderPanelsList();
+  renderThresholdGrid();
+  populatePanelTypeSelect();
+}
+
+function fleetHealth(){
+  let sum=0,count=0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseCircuit(k);
+    if (!diag || diag.overall < 0) continue;
+    const hs = healthScoreFromLevel(diag.overall, diag.subs);
+    if (hs!==null){ sum+=hs; count++; }
+  }
+  return count ? Math.round(sum/count) : null;
+}
+
+function renderHeaderStats(){
+  document.getElementById('hsTableros').textContent = panelsRegistry.size;
+  document.getElementById('hsCircuitos').textContent = readingsData.size;
+  const fh = fleetHealth();
+  const el = document.getElementById('hsSalud');
+  el.textContent = fh===null ? '—' : fh+'%';
+  el.style.color = fh===null ? 'var(--muted)' : fh>=85?'var(--good)':fh>=60?'var(--elevated)':fh>=35?'var(--warning)':'var(--critical)';
+}
+
+function statusDistribution(){
+  const dist = {good:0, elevated:0, warning:0, critical:0};
+  for (const k of readingsData.keys()){
+    const diag = diagnoseCircuit(k);
+    if (!diag || diag.overall < 0) continue;
+    dist[STATUS[diag.overall]]++;
+  }
+  return dist;
+}
+
+function renderSummaryBar(){
+  const dist = statusDistribution();
+  const bar = document.getElementById('summaryBar');
+  bar.innerHTML = `
+    <div class="sum-card good" onclick="setStatusFilter('good')"><div class="sum-icon">🟢</div><div><div class="sum-num">${dist.good}</div><div class="sum-lbl">Normal</div></div></div>
+    <div class="sum-card elevated" onclick="setStatusFilter('elevated')"><div class="sum-icon">🟡</div><div><div class="sum-num">${dist.elevated}</div><div class="sum-lbl">Elevado</div></div></div>
+    <div class="sum-card warning" onclick="setStatusFilter('warning')"><div class="sum-icon">🟠</div><div><div class="sum-num">${dist.warning}</div><div class="sum-lbl">Alerta</div></div></div>
+    <div class="sum-card critical" onclick="setStatusFilter('critical')"><div class="sum-icon">🔴</div><div><div class="sum-num">${dist.critical}</div><div class="sum-lbl">Crítico</div></div></div>
+  `;
+}
+
+function setStatusFilter(f){
+  statusFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.f===f));
+  switchTab('dashboard');
+  renderGrid();
+}
+
+function healthRingSVG(health, level){
+  const color = level<0 ? 'var(--muted)' : STATUS_COLORS[level];
+  const r = 20, c = 2*Math.PI*r;
+  const pct = health===null ? 0 : health/100;
+  const dash = c*pct;
+  return `<div style="position:relative;width:52px;height:52px;">
+    <svg class="health-ring" width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="${r}" stroke="var(--border2)"></circle>
+      <circle cx="26" cy="26" r="${r}" stroke="${color}" stroke-dasharray="${dash} ${c}" stroke-linecap="round"></circle>
+    </svg>
+    <div class="health-num" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:${color};">${health===null?'—':health+'%'}</div>
+  </div>`;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('cardGrid');
+  const search = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  const sortMode = document.getElementById('sortSel')?.value || 'health_asc';
+
+  let items = [];
+  for (const k of readingsData.keys()){
+    const diag = diagnoseCircuit(k);
+    if (!diag) continue;
+    const level = diag.overall;
+    if (statusFilter !== 'all' && (level<0 || STATUS[level] !== statusFilter)) continue;
+    const displayName = getDisplayName(k).toLowerCase();
+    if (search && !displayName.includes(search)) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    items.push({k, diag, level, health});
+  }
+
+  if (sortMode==='health_asc') items.sort((a,b)=>(a.health??999)-(b.health??999));
+  else if (sortMode==='name_asc') items.sort((a,b)=>getDisplayName(a.k).localeCompare(getDisplayName(b.k)));
+  else if (sortMode==='deltaT_desc') items.sort((a,b)=>(b.diag.deltaT||-999)-(a.diag.deltaT||-999));
+  else if (sortMode==='date_desc') items.sort((a,b)=>b.diag.date-a.diag.date);
+
+  if (!items.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="ei">⚡</div>${readingsData.size?'Sin resultados para el filtro actual.':'Importá un Excel con mediciones para comenzar.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(({k, diag, level, health})=>{
+    const badgeClass = level<0 ? '' : `badge-${STATUS[level]}`;
+    const badgeLabel = level<0 ? 'Sin datos' : STATUS_LABELS[level];
+    const panelId = getPanelId(k);
+    const panel = panelsRegistry.get(panelId) || {};
+    const mmClass = (v)=> v<0?'':STATUS.includes(STATUS[v])?'':''; // placeholder no-op
+    const subDeltaClass = diag.subs.deltaT>=0?STATUS[diag.subs.deltaT]:'';
+    const subDesbIClass = diag.subs.desbI>=0?STATUS[diag.subs.desbI]:'';
+    const subFPClass = diag.subs.fp>=0?STATUS[diag.subs.fp]:'';
+    const subRAislClass = diag.subs.rAisl>=0?STATUS[diag.subs.rAisl]:'';
+    return `
+    <div class="mcard" onclick="openDetail('${escJs(k)}')">
+      <div class="mcard-header">
+        <div>
+          <div class="mname">${escHtml(getCircuitName(k))}</div>
+          <div class="mpoint">${escHtml(panel.name||panelId)}</div>
+          <div class="mpoint-badge">${escHtml(panel.type||'')}</div>
+        </div>
+        <span class="mbadge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="mcard-body">
+        <div class="health-ring-wrap">${healthRingSVG(health, level)}</div>
+        <div class="mmetrics">
+          <div class="mm-item"><div class="mm-lbl">ΔT</div><div class="mm-val ${subDeltaClass}">${fmt(diag.deltaT,1)}°C</div></div>
+          <div class="mm-item"><div class="mm-lbl">Desb. I</div><div class="mm-val ${subDesbIClass}">${diag.desbI!==undefined&&!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">FP</div><div class="mm-val ${subFPClass}">${diag.fp!==undefined&&!isNaN(diag.fp)?fmt(diag.fp,2):'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">R. Aisl.</div><div class="mm-val ${subRAislClass}">${diag.rAisl!==undefined&&!isNaN(diag.rAisl)?fmt(diag.rAisl,0)+'MΩ':'—'}</div></div>
+        </div>
+      </div>
+      <div class="mcard-footer"><span>Última: ${fmtDate(diag.date)}</span><span>${readingsData.get(k).dates.length} lectura(s)</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  7. DETAIL MODAL
+// ═══════════════════════════════════════════════════════════
+function diagnosisMessages(diag){
+  const msgs = [];
+  const push = (sev, title, action) => msgs.push({sev, title, action});
+
+  if (diag.subs.deltaT >= 2){
+    push(diag.subs.deltaT===3?'critical':'warning', '🔥 Punto caliente detectado por termografía',
+      `ΔT de ${fmt(diag.deltaT,1)}°C sobre ambiente${diag.subs.desbI>=1?' coincidiendo con desbalance de corriente':''}.${diag.faseMax?` Punto caliente en fase ${escHtml(diag.faseMax)}.`:''} Probable conexión floja, terminal oxidado o sobrecarga${diag.faseMax?` en dicha fase`:''}. Revisar torque de bornes y estado del contacto; si es crítico, intervenir antes de la próxima ronda.`);
+  } else if (diag.subs.deltaT === 1){
+    push('elevated', '🌡️ ΔT levemente elevada', 'Deficiencia incipiente. Monitorear en la próxima medición programada; no requiere intervención inmediata.');
+  }
+
+  if (diag.subs.desbI >= 2){
+    push(diag.subs.desbI===3?'critical':'warning', '⚖️ Desbalance de corriente significativo',
+      `${fmt(diag.desbI,1)}% de desbalance entre fases. Revisar cargas monofásicas mal distribuidas, conexión floja o fase con mayor impedancia de contacto. Puede acelerar el calentamiento y reducir la vida útil de motores aguas abajo.`);
+  }
+  if (diag.subs.desbV >= 2){
+    push(diag.subs.desbV===3?'critical':'warning', '⚖️ Desbalance de tensión significativo',
+      `${fmt(diag.desbV,1)}% de desbalance de tensión. Verificar el alimentador aguas arriba y la distribución de cargas monofásicas; el desbalance de tensión afecta especialmente a motores trifásicos (sobrecalentamiento del rotor).`);
+  }
+  if (diag.subs.fp >= 2){
+    push(diag.subs.fp===3?'critical':'warning', '📉 Factor de potencia bajo',
+      `FP de ${fmt(diag.fp,2)}. Revisar banco de capacitores (posible etapa desconectada o dañada) o exceso de carga inductiva sin compensar. Riesgo de penalización tarifaria y mayores pérdidas por efecto Joule.`);
+  }
+  if (diag.subs.thdV >= 2){
+    push(diag.subs.thdV===3?'critical':'warning', '〰️ Distorsión armónica elevada',
+      `THD de tensión de ${fmt(diag.thdV,1)}%. Revisar cargas no lineales (variadores de frecuencia, UPS, rectificadores). Considerar filtros de armónicos si persiste, especialmente si hay banco de capacitores (riesgo de resonancia).`);
+  }
+  if (diag.subs.rAisl >= 2){
+    push(diag.subs.rAisl===3?'critical':'warning', '🧯 Resistencia de aislación degradada',
+      `${fmt(diag.rAisl,0)} MΩ medidos. Riesgo de fuga o falla dieléctrica. Revisar humedad/condensación dentro del tablero, estado de cables y sellado IP. Priorizar según tensión de operación.`);
+  }
+
+  if (!msgs.length){
+    push('good', '✅ Sin hallazgos relevantes', 'Todos los parámetros dentro de rango normal. Continuar con el plan de monitoreo establecido.');
+  }
+  return msgs;
+}
+
+function openDetail(k){
+  currentKey = k;
+  const d = readingsData.get(k);
+  const diag = diagnoseCircuit(k);
+  if (!d || !diag) return;
+  const panel = panelsRegistry.get(getPanelId(k)) || {};
+
+  document.getElementById('modalTitle').textContent = getCircuitName(k);
+  document.getElementById('modalSub').textContent = `${panel.name||''} · ${panel.type||''} · Última medición: ${fmtDateTime(diag.date)}`;
+
+  const level = diag.overall;
+  const badgeClass = level<0?'':`badge-${STATUS[level]}`;
+  const health = healthScoreFromLevel(diag.overall, diag.subs);
+
+  let html = `
+  <div class="modal-section-title">Estado actual</div>
+  <div class="mgrid">
+    <div class="mstat"><div class="mstat-lbl">Estado</div><div class="mstat-val"><span class="mbadge ${badgeClass}">${level<0?'Sin datos':STATUS_LABELS[level]}</span></div></div>
+    <div class="mstat"><div class="mstat-lbl">Salud</div><div class="mstat-val">${health===null?'—':health+'%'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">ΔT</div><div class="mstat-val">${fmt(diag.deltaT,1)}°C</div></div>
+    <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Desb. Tensión</div><div class="mstat-val">${!isNaN(diag.desbV)?fmt(diag.desbV,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Factor de Potencia</div><div class="mstat-val">${!isNaN(diag.fp)?fmt(diag.fp,2):'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">THD Tensión</div><div class="mstat-val">${!isNaN(diag.thdV)?fmt(diag.thdV,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">R. Aislación</div><div class="mstat-val">${!isNaN(diag.rAisl)?fmt(diag.rAisl,0)+' MΩ':'—'}</div></div>
+  </div>
+
+  <div class="modal-section-title">Diagnóstico</div>
+  <div id="modalDiagBox"></div>
+
+  <div class="modal-section-title">Tendencia (ΔT y Corriente)</div>
+  <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
+
+  <div class="modal-section-title">Historial reciente</div>
+  <div style="overflow-x:auto;">
+    <table class="rtable">
+      <thead><tr><th>Fecha</th><th>ΔT (°C)</th><th>Fase Máx.</th><th>Desb.I (%)</th><th>FP</th><th>THD_V (%)</th><th>R.Aisl (MΩ)</th></tr></thead>
+      <tbody>${d.dates.map((dt,i)=>{
+        const ev = evalReading(d.params, i);
+        return `<tr><td>${fmtDate(dt)}</td><td>${fmt(ev.deltaT,1)}</td><td>${escHtml(ev.faseMax||'—')}</td><td>${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td><td>${!isNaN(ev.fp)?fmt(ev.fp,2):'—'}</td><td>${!isNaN(ev.thdV)?fmt(ev.thdV,1):'—'}</td><td>${!isNaN(ev.rAisl)?fmt(ev.rAisl,0):'—'}</td></tr>`;
+      }).reverse().slice(0,15).join('')}</tbody>
+    </table>
+  </div>`;
+
+  document.getElementById('modalBody').innerHTML = html;
+
+  const diagBox = document.getElementById('modalDiagBox');
+  diagBox.innerHTML = diagnosisMessages(diag).map(m=>`
+    <div class="diag-box ${m.sev==='good'?'':m.sev}">
+      <div class="diag-title">${m.title}</div>
+      <div class="diag-action">${m.action}</div>
+    </div>`).join('');
+
+  document.getElementById('detailOverlay').classList.add('open');
+
+  setTimeout(()=>{
+    const ctx = document.getElementById('modalChart');
+    if (!ctx) return;
+    if (detailChart) detailChart.destroy();
+    const labels = d.dates.map(fmtDate);
+    const deltaTSeries = d.dates.map((_,i)=> (d.params.TempMax[i] - d.params.TempAmb[i]));
+    const iRSeries = d.params.I_R;
+    detailChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'ΔT (°C)', data:deltaTSeries, borderColor:'#f97316', backgroundColor:'rgba(249,115,22,.1)', yAxisID:'y', tension:.3 },
+        { label:'Corriente R (A)', data:iRSeries, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', yAxisID:'y1', tension:.3 }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{labels:{color:'#cdd9f0'}}},
+        scales:{
+          x:{ticks:{color:'#5e7a9a'}, grid:{color:'#1e2d45'}},
+          y:{position:'left', ticks:{color:'#f97316'}, grid:{color:'#1e2d45'}},
+          y1:{position:'right', ticks:{color:'#3b82f6'}, grid:{display:false}}
+        }
+      }
+    });
+  }, 30);
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════
+//  8. TABLEROS / CIRCUITOS TAB
+// ═══════════════════════════════════════════════════════════
+function populatePanelTypeSelect(){
+  const sel = document.getElementById('newPanelType');
+  if (sel && !sel.dataset.filled){
+    sel.innerHTML = PANEL_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+    sel.dataset.filled = '1';
+  }
+}
+function createPanel(){
+  const name = document.getElementById('newPanelName').value.trim();
+  if (!name){ alert('Ingresá un nombre de tablero.'); return; }
+  const type = document.getElementById('newPanelType').value;
+  const loc  = document.getElementById('newPanelLoc').value.trim();
+  const amp  = parseFloat(document.getElementById('newPanelAmp').value) || 0;
+  const id = genId();
+  panelsRegistry.set(id, {name, type, location:loc, ampNominal:amp});
+  document.getElementById('newPanelName').value='';
+  document.getElementById('newPanelLoc').value='';
+  document.getElementById('newPanelAmp').value='';
+  saveState();
+  renderAll();
+}
+function deletePanel(id){
+  if (!confirm('¿Eliminar este tablero y todos sus circuitos y lecturas asociadas?')) return;
+  panelsRegistry.delete(id);
+  for (const k of Array.from(readingsData.keys())){
+    if (getPanelId(k)===id){ readingsData.delete(k); circuitsMeta.delete(k); }
+  }
+  saveState();
+  renderAll();
+}
+function renderPanelsList(){
+  const el = document.getElementById('panelsRegistryList');
+  if (!el) return;
+  if (!panelsRegistry.size){
+    el.innerHTML = `<div class="empty-state"><div class="ei">🗄️</div>Sin tableros registrados. Creá uno arriba o importá un Excel (se crean automáticamente).</div>`;
+    return;
+  }
+  el.innerHTML = Array.from(panelsRegistry.entries()).map(([id, p])=>{
+    const circuits = Array.from(circuitsMeta.entries()).filter(([k])=>getPanelId(k)===id);
+    return `<div class="panel-box">
+      <div class="panel-box-title"><span>🗄️ ${escHtml(p.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— ${escHtml(p.type||'')}${p.location?' · '+escHtml(p.location):''}</span></span>
+        <button class="btn-small danger" onclick="deletePanel('${escJs(id)}')">Eliminar</button>
+      </div>
+      <div style="font-size:.82rem;color:var(--muted);">
+        ${circuits.length ? circuits.map(([k,c])=>`<div class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${escHtml(c.name)} — ${escHtml(c.type||'')} (${readingsData.get(k)?.dates.length||0} lecturas)</div>`).join('') : 'Sin circuitos con datos aún.'}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  9. THRESHOLDS TAB
+// ═══════════════════════════════════════════════════════════
+function renderThresholdGrid(){
+  const el = document.getElementById('thresholdGrid');
+  if (!el) return;
+  el.innerHTML = Object.keys(THRESHOLD_META).map(key=>{
+    const meta = THRESHOLD_META[key];
+    const band = thresholds[key];
+    const labels = meta.inverse ? ['Normal (≥)','Elevado (≥)','Alerta (≥)'] : ['Normal (≤)','Elevado (≤)','Alerta (≤)'];
+    return `<div class="th-item">
+      <div class="th-item-lbl">${meta.label}${meta.unit?' ('+meta.unit+')':''}</div>
+      ${band.map((v,i)=>`<div class="th-row"><label>${labels[i]}</label><input type="number" step="0.01" id="th_${key}_${i}" value="${v}"></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+function saveThresholdsFromUI(){
+  for (const key of Object.keys(THRESHOLD_META)){
+    for (let i=0;i<3;i++){
+      const input = document.getElementById(`th_${key}_${i}`);
+      if (input){ const v = parseFloat(input.value); if (!isNaN(v)) thresholds[key][i] = v; }
+    }
+  }
+  saveState();
+  renderAll();
+  alert('Umbrales guardados.');
+}
+function resetThresholds(){
+  if (!confirm('¿Restaurar los umbrales por defecto?')) return;
+  thresholds = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  10. TABS
+// ═══════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  11. OFFLINE REPORT
+// ═══════════════════════════════════════════════════════════
+function generateOfflineReport(){
+  if (!readingsData.size){ alert('Sin datos para generar el informe.'); return; }
+  const dist = statusDistribution();
+  const fh = fleetHealth();
+  const totalCircuits = readingsData.size;
+  const totalPanels = panelsRegistry.size;
+
+  let html = '';
+  html += `<div class="fleet-box">
+    <div class="fleet-box-title">🏭 Resumen de flota</div>
+    <div class="mgrid">
+      <div class="mstat"><div class="mstat-lbl">Tableros</div><div class="mstat-val">${totalPanels}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Circuitos</div><div class="mstat-val">${totalCircuits}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Salud de flota</div><div class="mstat-val">${fh===null?'—':fh+'%'}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Críticos</div><div class="mstat-val" style="color:var(--critical);">${dist.critical}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Alerta</div><div class="mstat-val" style="color:var(--warning);">${dist.warning}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Elevado</div><div class="mstat-val" style="color:var(--elevated);">${dist.elevated}</div></div>
+    </div>
+  </div>`;
+
+  // Plan de acción
+  const actionItems = [];
+  const panelWorst = new Map();
+  for (const k of readingsData.keys()){
+    const diag = diagnoseCircuit(k);
+    if (!diag || diag.overall < 1) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const msgs = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const accion = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Revisar parámetros fuera de rango';
+    const plazo = diag.overall===3?'Inmediato':diag.overall===2?'7 días':'30 días';
+    actionItems.push({
+      prio: diag.overall===3?'critical':diag.overall===2?'warning':'elevated',
+      panel: getPanelName(getPanelId(k)),
+      circuito: getCircuitName(k),
+      accion, plazo, health, nivel: STATUS[diag.overall]
+    });
+    const pid = getPanelId(k);
+    if (!panelWorst.has(pid) || diag.overall > panelWorst.get(pid).overall) panelWorst.set(pid, {overall:diag.overall, health});
+  }
+  actionItems.sort((a,b)=> ({critical:0,warning:1,elevated:2}[a.prio]) - ({critical:0,warning:1,elevated:2}[b.prio]));
+
+  if (actionItems.length){
+    html += `<hr class="section-divider" data-label="Plan de Acción Priorizado">`;
+    html += `<div style="overflow-x:auto;"><table class="plan-table">
+      <thead><tr><th>Prioridad</th><th>Tablero</th><th>Circuito</th><th>Hallazgo</th><th>Plazo</th><th>Salud</th></tr></thead>
+      <tbody>${actionItems.map(a=>`
+        <tr>
+          <td><span class="prio-badge prio-${a.prio}">${a.prio.toUpperCase()}</span></td>
+          <td style="font-weight:700;">${escHtml(a.panel)}</td>
+          <td>${escHtml(a.circuito)}</td>
+          <td style="font-size:.82rem;">${escHtml(a.accion)}</td>
+          <td style="font-weight:700;color:${STATUS_COLORS[STATUS.indexOf(a.nivel)]};">${a.plazo}</td>
+          <td style="font-family:'Share Tech Mono';">${a.health}%</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  // Conclusiones
+  html += `<hr class="section-divider" data-label="Conclusiones y Próximos Pasos">`;
+  let conc = `El análisis de <strong>${totalCircuits} circuito(s)</strong> en <strong>${totalPanels} tablero(s)</strong> arroja una salud de flota de <strong>${fh===null?'—':fh+'%'}</strong>. `;
+  if (dist.critical > 0){
+    conc += `Se requieren <strong>intervenciones inmediatas</strong> en ${dist.critical} circuito(s) crítico(s), principalmente por puntos calientes o degradación de aislación. `;
+  } else if (dist.warning > 0){
+    conc += `Se recomienda programar ${dist.warning} intervención(es) dentro de los próximos 7 días. `;
+  } else if (dist.elevated > 0){
+    conc += `Varios circuitos muestran deficiencias incipientes; se recomienda mantener el intervalo de monitoreo actual. `;
+  } else {
+    conc += `La flota no presenta alarmas activas. Continuar con el plan de inspección termográfica y eléctrica establecido. `;
+  }
+  const proxima = dist.critical>0?'dentro de 7 días':dist.warning>0?'dentro de 14 días':dist.elevated>0?'dentro de 30 días':'según plan habitual';
+  conc += `Próxima ronda de mediciones recomendada: <strong>${proxima}</strong>.`;
+
+  html += `<div class="fleet-box" style="margin-bottom:0;">
+    <div class="fleet-box-title">📝 Conclusiones</div>
+    <div class="fleet-text">${conc}</div>
+  </div>
+  <div class="note-box">
+    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Tablero Pro</strong>, basado en criterios generales de termografía industrial, desbalance NEMA MG-1, factor de potencia, THD (IEEE 519) y resistencia de aislación (IEEE 43). Los umbrales son orientativos y ajustables en la pestaña Umbrales; validá contra tu norma o política interna antes de usar el informe para decisiones críticas.
+  </div>`;
+
+  document.getElementById('reportSections').innerHTML = html;
+}
+
+function copyReport(){
+  const el = document.getElementById('reportSections');
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('Informe copiado al portapapeles.');
+  }).catch(()=>alert('No se pudo copiar. Seleccioná el texto manualmente.'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  12. CSV EXPORT
+// ═══════════════════════════════════════════════════════════
+function exportCSV(){
+  if (!readingsData.size){ alert('Sin datos.'); return; }
+  let rows = ['Tablero,TipoTablero,Circuito,TipoCircuito,Fecha,Estado,DeltaT_C,DesbI_%,DesbV_%,FP,THD_V_%,R_Aisl_MOhm,Observaciones'];
+  for (const [k, d] of readingsData.entries()){
+    const panel = panelsRegistry.get(getPanelId(k)) || {};
+    const circuit = circuitsMeta.get(k) || {};
+    for (let n=0;n<d.dates.length;n++){
+      const ev = evalReading(d.params, n);
+      const estado = ev.overall>=0 ? STATUS_LABELS[ev.overall] : '—';
+      const dt = d.dates[n];
+      const fecha = (dt instanceof Date && !isNaN(dt)) ? dt.toISOString().slice(0,10) : '';
+      rows.push([
+        `"${panel.name||''}"`, `"${panel.type||''}"`, `"${circuit.name||''}"`, `"${circuit.type||''}"`,
+        fecha, estado, fmt(ev.deltaT,2), !isNaN(ev.desbI)?fmt(ev.desbI,2):'', !isNaN(ev.desbV)?fmt(ev.desbV,2):'',
+        !isNaN(ev.fp)?fmt(ev.fp,2):'', !isNaN(ev.thdV)?fmt(ev.thdV,2):'', !isNaN(ev.rAisl)?fmt(ev.rAisl,1):'',
+        `"${(d.obs&&d.obs[n])||''}"`
+      ].join(','));
+    }
+  }
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tablero_pro_historial_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function clearAllData(){
+  if (!confirm('¿Borrar TODOS los tableros, circuitos y lecturas? Esta acción no se puede deshacer.')) return;
+  panelsRegistry.clear(); circuitsMeta.clear(); readingsData.clear();
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  13. INIT
+// ═══════════════════════════════════════════════════════════
+loadState();
+populatePanelTypeSelect();
+renderAll();
+
+</script>
+</body>
+</html>

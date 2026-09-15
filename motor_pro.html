@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANTEC – Motor Pro V1.0 · Análisis Predictivo de Motores Eléctricos</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --card: #111827;
+  --card2: #141d2e;
+  --border: #1e2d45;
+  --border2: #263548;
+  --text: #cdd9f0;
+  --muted: #5e7a9a;
+  --good: #10c98a;
+  --elevated: #f0b429;
+  --warning: #f97316;
+  --critical: #ef4444;
+  --good-bg: rgba(16,201,138,.12);
+  --elevated-bg: rgba(240,180,41,.12);
+  --warning-bg: rgba(249,115,22,.12);
+  --critical-bg: rgba(239,68,68,.12);
+  --accent: #3b82f6;
+  --accent2: #60a5fa;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
+code,.mono{font-family:'Share Tech Mono',monospace;}
+button,select,input{font-family:'Rajdhani',sans-serif;}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#0d1117 0%,#111d30 100%);
+  border-bottom:1px solid var(--border);
+  padding:16px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;}
+.logo-title{font-size:1.4rem;font-weight:700;letter-spacing:1px;color:#fff;}
+.logo-sub{font-size:.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:20px;}
+.hstat{text-align:center;}
+.hstat-val{font-size:1.3rem;font-weight:700;}
+.hstat-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+/* ── UPLOAD BAR ── */
+.upload-bar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.file-label{
+  background:var(--accent);color:#fff;padding:7px 20px;border-radius:30px;
+  cursor:pointer;font-weight:600;font-size:.9rem;
+  transition:background .2s;letter-spacing:.5px;
+}
+.file-label:hover{background:#2563eb;}
+.file-label input{display:none;}
+.load-status{font-size:.85rem;color:var(--muted);}
+.load-status.ok{color:var(--good);}
+.load-status.err{color:var(--critical);}
+.btn-small{
+  background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.83rem;cursor:pointer;transition:all .2s;
+}
+.btn-small:hover{border-color:var(--accent);color:var(--accent);}
+.btn-small.danger:hover{border-color:var(--critical);color:var(--critical);}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:2px;background:var(--surface);
+  border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;
+}
+.tab-btn{
+  padding:12px 22px;background:transparent;border:none;cursor:pointer;
+  font-weight:600;font-size:1rem;white-space:nowrap;
+  color:var(--muted);transition:.2s;border-bottom:3px solid transparent;
+}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.tab-content{display:none;padding:24px;max-width:1500px;margin:0 auto;}
+.tab-content.active{display:block;}
+
+/* ── SUMMARY BAR ── */
+.summary-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;
+}
+.sum-card{
+  background:var(--card);border-radius:10px;padding:14px 18px;
+  border:1px solid var(--border);position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s;
+}
+.sum-card:hover{border-color:var(--border2);}
+.sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sum-card.good::before{background:var(--good);}
+.sum-card.elevated::before{background:var(--elevated);}
+.sum-card.warning::before{background:var(--warning);}
+.sum-card.critical::before{background:var(--critical);}
+.sum-icon{font-size:1.5rem;}
+.sum-num{font-size:1.8rem;font-weight:700;}
+.sum-lbl{font-size:.78rem;color:var(--muted);margin-top:2px;}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.filter-btn{
+  background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;cursor:pointer;transition:all .2s;
+}
+.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent);background:rgba(59,130,246,.1);}
+.filter-btn.f-good.active{border-color:var(--good);color:var(--good);background:var(--good-bg);}
+.filter-btn.f-elevated.active{border-color:var(--elevated);color:var(--elevated);background:var(--elevated-bg);}
+.filter-btn.f-warning.active{border-color:var(--warning);color:var(--warning);background:var(--warning-bg);}
+.filter-btn.f-critical.active{border-color:var(--critical);color:var(--critical);background:var(--critical-bg);}
+.search-box{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.92rem;outline:none;min-width:200px;
+}
+.search-box:focus{border-color:var(--accent);}
+.sort-sel{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;outline:none;cursor:pointer;
+}
+.sep{flex:1;}
+
+/* ── GRID / CARD ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;}
+.mcard{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:all .2s;overflow:hidden;position:relative;
+}
+.mcard:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.mcard-header{
+  padding:12px 16px 9px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.mname{font-size:.98rem;font-weight:700;color:#fff;letter-spacing:.5px;}
+.mpoint{font-size:.73rem;color:var(--muted);margin-top:1px;}
+.mpoint-badge{
+  display:inline-block;background:rgba(59,130,246,.15);color:var(--accent2);
+  border:1px solid rgba(59,130,246,.25);padding:1px 7px;border-radius:4px;
+  font-size:.66rem;font-family:'Share Tech Mono';letter-spacing:.5px;margin-top:3px;
+}
+.mbadge{
+  font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:1px;white-space:nowrap;
+}
+.badge-good{background:var(--good-bg);color:var(--good);border:1px solid rgba(16,201,138,.3);}
+.badge-elevated{background:var(--elevated-bg);color:var(--elevated);border:1px solid rgba(240,180,41,.3);}
+.badge-warning{background:var(--warning-bg);color:var(--warning);border:1px solid rgba(249,115,22,.3);}
+.badge-critical{background:var(--critical-bg);color:var(--critical);border:1px solid rgba(239,68,68,.3);animation:pulse-border .8s ease-in-out infinite alternate;}
+@keyframes pulse-border{from{border-color:rgba(239,68,68,.3);}to{border-color:rgba(239,68,68,.8);}}
+
+.mcard-body{padding:12px 16px;display:flex;gap:12px;align-items:center;}
+.health-ring-wrap{flex-shrink:0;}
+.health-ring{transform:rotate(-90deg);}
+.health-ring circle{fill:none;stroke-width:4;}
+.health-num{font-size:1rem;font-weight:700;}
+.mmetrics{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+.mm-item{display:flex;flex-direction:column;}
+.mm-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mm-val{font-size:.86rem;font-weight:700;font-family:'Share Tech Mono';}
+.mm-val.good{color:var(--good);}
+.mm-val.elevated{color:var(--elevated);}
+.mm-val.warning{color:var(--warning);}
+.mm-val.critical{color:var(--critical);}
+.mcard-footer{padding:7px 16px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .ei{font-size:3rem;margin-bottom:12px;}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(3,5,10,.75);
+  z-index:1000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:40px 16px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border2);border-radius:16px;
+  max-width:920px;width:100%;overflow:hidden;
+}
+.modal-head{
+  padding:18px 26px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,#0d1117 0%,#111d30 100%);
+}
+.modal-title{font-size:1.2rem;font-weight:700;color:#fff;}
+.modal-sub{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:22px 26px;}
+.modal-section-title{font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:20px 0 10px;}
+.modal-section-title:first-child{margin-top:0;}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.mstat{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+.mstat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mstat-val{font-size:1.15rem;font-weight:700;font-family:'Share Tech Mono';margin-top:2px;}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;height:260px;}
+.diag-box{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;padding:12px 16px;margin-bottom:8px;}
+.diag-box.warning{border-left-color:var(--warning);}
+.diag-box.critical{border-left-color:var(--critical);}
+.diag-box.elevated{border-left-color:var(--elevated);}
+.diag-title{font-weight:700;font-size:.9rem;margin-bottom:3px;}
+.diag-action{font-size:.82rem;color:var(--muted);}
+.rtable{width:100%;border-collapse:collapse;}
+.rtable th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border2);}
+.rtable td{padding:6px 10px;border-bottom:1px solid var(--border);font-size:.82rem;font-family:'Share Tech Mono';}
+
+/* ── FORMS / CONFIG ── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
+.fld{display:flex;flex-direction:column;gap:4px;}
+.fld label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.fld input,.fld select{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:8px;font-size:.92rem;outline:none;
+}
+.fld input:focus,.fld select:focus{border-color:var(--accent);}
+.fld .hint{font-size:.68rem;color:var(--muted);margin-top:2px;}
+.panel-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.panel-box-title{font-weight:700;color:#fff;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.th-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.th-item-lbl{font-size:.78rem;font-weight:700;color:#fff;margin-bottom:8px;}
+.th-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:.78rem;}
+.th-row label{flex:1;color:var(--muted);}
+.th-row input{width:70px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:5px;font-family:'Share Tech Mono';font-size:.8rem;}
+
+/* ── REPORT TAB ── */
+.fleet-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+.fleet-box-title{font-size:.85rem;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.fleet-text{font-size:.95rem;line-height:1.6;}
+.section-divider{border:none;border-top:1px solid var(--border);margin:26px 0 16px;position:relative;}
+.section-divider[data-label]::after{
+  content:attr(data-label);position:absolute;top:-11px;left:0;background:var(--bg);
+  padding:0 10px;font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;font-weight:700;
+}
+.plan-table{width:100%;border-collapse:collapse;}
+.plan-table th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--border2);}
+.plan-table td{padding:8px 10px;border-bottom:1px solid var(--border);font-size:.84rem;}
+.prio-badge{font-family:'Share Tech Mono';font-weight:700;padding:2px 8px;border-radius:5px;font-size:.75rem;}
+.prio-critical{background:var(--critical-bg);color:var(--critical);}
+.prio-warning{background:var(--warning-bg);color:var(--warning);}
+.prio-elevated{background:var(--elevated-bg);color:var(--elevated);}
+.action-bar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.note-box{margin-top:16px;padding:12px 18px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:.8rem;color:var(--muted);}
+
+/* ── MISC ── */
+.hidden{display:none !important;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔩</div>
+    <div>
+      <div class="logo-title">MOTOR PRO</div>
+      <div class="logo-sub">MANTEC · Análisis Predictivo de Motores</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hstat"><div class="hstat-val" id="hsMotores">0</div><div class="hstat-lbl">Motores</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsEnsayos">0</div><div class="hstat-lbl">Con ensayos</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsSalud" style="color:var(--good);">—</div><div class="hstat-lbl">Salud Flota</div></div>
+  </div>
+</header>
+
+<div class="upload-bar">
+  <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
+  <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar ensayo manual</button>
+  <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
+  <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
+  <span class="load-status" id="loadStatus"></span>
+  <div class="sep"></div>
+  <button class="btn-small danger" onclick="clearAllData()">🗑️ Borrar todos los datos</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="motores" onclick="switchTab('motores')">🔩 Motores</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Umbrales</button>
+  <button class="tab-btn" data-tab="informe" onclick="switchTab('informe')">📋 Informe</button>
+</div>
+
+<!-- ═══ DASHBOARD TAB ═══ -->
+<div class="tab-content active" id="tab-dashboard">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="toolbar">
+    <button class="filter-btn active" data-f="all" onclick="setStatusFilter('all')">Todos</button>
+    <button class="filter-btn f-good" data-f="good" onclick="setStatusFilter('good')">🟢 Normal</button>
+    <button class="filter-btn f-elevated" data-f="elevated" onclick="setStatusFilter('elevated')">🟡 Elevado</button>
+    <button class="filter-btn f-warning" data-f="warning" onclick="setStatusFilter('warning')">🟠 Alerta</button>
+    <button class="filter-btn f-critical" data-f="critical" onclick="setStatusFilter('critical')">🔴 Crítico</button>
+    <input class="search-box" id="searchBox" placeholder="🔎 Buscar motor o TAG…" oninput="renderGrid()">
+    <select class="sort-sel" id="sortSel" onchange="renderGrid()">
+      <option value="health_asc">Salud (peor primero)</option>
+      <option value="name_asc">Nombre A-Z</option>
+      <option value="ip_asc">IP (menor primero)</option>
+      <option value="date_desc">Último ensayo</option>
+    </select>
+    <div class="sep"></div>
+  </div>
+  <div class="grid" id="cardGrid"></div>
+</div>
+
+<!-- ═══ MOTORES TAB ═══ -->
+<div class="tab-content" id="tab-motores">
+  <div class="panel-box">
+    <div class="panel-box-title">➕ Registrar motor</div>
+    <div class="form-grid">
+      <div class="fld"><label>TAG / Nombre del motor</label><input id="newMotorName" placeholder="Ej: MOT-BOMBA-01"></div>
+      <div class="fld"><label>Tipo</label>
+        <select id="newMotorType"></select>
+      </div>
+      <div class="fld"><label>Sistema eléctrico</label>
+        <select id="newMotorSystem"></select>
+      </div>
+      <div class="fld"><label>Conexionado de bornes</label>
+        <select id="newMotorHilos">
+          <option value="6" selected>6 hilos (U1-U2,V1-V2,W1-W2 — estrella accesible)</option>
+          <option value="3">3 hilos (U,V,W — estrella/triángulo cerrado interno)</option>
+        </select>
+      </div>
+      <div class="fld"><label>Ubicación</label><input id="newMotorLoc" placeholder="Ej: Sala de bombas 2"></div>
+      <div class="fld"><label>Potencia (kW)</label><input id="newMotorKW" type="number" step="0.1" placeholder="Ej: 15"></div>
+      <div class="fld"><label>Tensión nominal (V)</label><input id="newMotorVnom" type="number" placeholder="Ej: 380"></div>
+      <div class="fld"><label>Corriente nominal (A)</label><input id="newMotorInom" type="number" step="0.1" placeholder="Ej: 28"></div>
+      <div class="fld"><label>RPM nominal</label><input id="newMotorRPM" type="number" placeholder="Ej: 1450"></div>
+    </div>
+    <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="createMotor()">Crear motor</button>
+  </div>
+  <div id="motorsRegistryList"></div>
+</div>
+
+<!-- ═══ CONFIG TAB ═══ -->
+<div class="tab-content" id="tab-config">
+  <div class="panel-box">
+    <div class="panel-box-title">⚙️ Umbrales de diagnóstico (editables)</div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">
+      Valores orientativos basados en el Índice de Polarización según IEEE 43 (R10min/R1min), resistencia de aislación absoluta a 1 minuto (corregida a 40°C con K<sub>T</sub>=0.5^((40−T)/10) cuando se carga la temperatura ambiente del ensayo — si no se carga, se evalúa con el valor crudo), desbalance de resistencia óhmica de bobinado (criterio general de taller, sin norma única) y desbalance de corriente de línea según NEMA MG-1. Ajustalos a tu norma o política interna. El IP no se corrige por temperatura: al tomarse R1 y R10 en el mismo ensayo, la relación ya es comparable entre mediciones.
+    </p>
+    <div class="th-grid" id="thresholdGrid"></div>
+    <button class="btn-small" style="margin-top:14px;background:var(--accent);color:#fff;border:none;" onclick="saveThresholdsFromUI()">💾 Guardar umbrales</button>
+    <button class="btn-small" style="margin-top:14px;" onclick="resetThresholds()">↺ Restaurar por defecto</button>
+  </div>
+</div>
+
+<!-- ═══ INFORME TAB ═══ -->
+<div class="tab-content" id="tab-informe">
+  <div class="action-bar">
+    <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="generateOfflineReport()">🔄 Generar informe</button>
+    <button class="btn-small" onclick="copyReport()">📋 Copiar como texto</button>
+  </div>
+  <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de motores.</div></div>
+</div>
+
+<!-- ═══ MODAL CARGA MANUAL ═══ -->
+<div class="modal-overlay" id="manualOverlay" onclick="if(event.target===this)closeManualEntry()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">✍️ Cargar ensayo manual</div>
+        <div class="modal-sub">Registrá una medición de megóhmetro / bobinado sin necesidad de Excel</div>
+      </div>
+      <button class="modal-close" onclick="closeManualEntry()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Motor</div>
+      <div class="form-grid">
+        <div class="fld">
+          <label>Motor</label>
+          <select id="me_motorSel" onchange="onManualMotorChange()"></select>
+        </div>
+        <div class="fld hidden" id="me_newMotorNameWrap">
+          <label>TAG del nuevo motor</label>
+          <input id="me_newMotorName" placeholder="Ej: MOT-BOMBA-01">
+        </div>
+        <div class="fld hidden" id="me_newMotorTypeWrap">
+          <label>Tipo</label>
+          <select id="me_newMotorType"></select>
+        </div>
+        <div class="fld hidden" id="me_newMotorSystemWrap">
+          <label>Sistema eléctrico</label>
+          <select id="me_newMotorSystem"></select>
+        </div>
+        <div class="fld hidden" id="me_newMotorHilosWrap">
+          <label>Conexionado de bornes</label>
+          <select id="me_newMotorHilos" onchange="onManualHilosContextChange()">
+            <option value="6" selected>6 hilos (estrella accesible)</option>
+            <option value="3">3 hilos (U,V,W)</option>
+          </select>
+        </div>
+        <div class="fld">
+          <label>Fecha del ensayo</label>
+          <input type="date" id="me_fecha">
+        </div>
+        <div class="fld">
+          <label>Tensión de ensayo megóhmetro (V)</label>
+          <select id="me_vEnsayo">
+            <option value="250">250 V</option>
+            <option value="500" selected>500 V</option>
+            <option value="1000">1000 V</option>
+            <option value="2500">2500 V</option>
+            <option value="5000">5000 V</option>
+          </select>
+        </div>
+        <div class="fld"><label>Temp. ambiente al ensayo (°C)</label><input type="number" step="0.1" id="me_tempAmb" oninput="updateIPPreview()"></div>
+      </div>
+
+      <div class="modal-section-title">🧪 Aislación (Megóhmetro)</div>
+      <div id="me_aislacionSimple">
+        <div class="form-grid">
+          <div class="fld"><label>Resistencia de aislación 1 min (MΩ)</label><input type="number" step="0.01" id="me_r1" oninput="updateIPPreview()"></div>
+          <div class="fld"><label>Resistencia de aislación 10 min (MΩ)</label><input type="number" step="0.01" id="me_r10" oninput="updateIPPreview()"></div>
+          <div class="fld"><label>IP calculado (R10/R1)</label><input type="text" id="me_ipPreview" disabled placeholder="—"></div>
+          <div class="fld"><label>R1 corregido a 40°C (vista previa)</label><input type="text" id="me_r1CorrPreview" disabled placeholder="Cargá R1 y temp. ambiente"></div>
+        </div>
+        <div class="note-box" style="margin-top:6px;">Motor de 3 hilos: el punto estrella está cerrado dentro de la carcasa, así que los tres devanados quedan en paralelo entre sí. Solo es posible medir el bobinado completo contra tierra — no hay forma de aislar un devanado del otro sin desarmar el motor.</div>
+      </div>
+      <div id="me_aislacionExtendida" class="hidden">
+        <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">Motor de 6 hilos: cada devanado se mide aislado del resto (los otros dos a tierra). Con estrella accesible, también se puede medir devanado contra devanado.</div>
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);">
+          <div class="fld"><label>Devanado</label></div>
+          <div class="fld" style="grid-column:span 2;"><label>R1 (1 min, MΩ)</label></div>
+          <div class="fld" style="grid-column:span 2;"><label>R10 (10 min, MΩ)</label></div>
+        </div>
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
+          <div class="fld"><label style="margin:0;">U — GND</label></div>
+          <input type="number" step="0.01" id="me_r1_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <div class="fld"><label style="margin:0;">V — GND</label></div>
+          <input type="number" step="0.01" id="me_r1_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <div class="fld"><label style="margin:0;">W — GND</label></div>
+          <input type="number" step="0.01" id="me_r1_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+        </div>
+        <div style="font-size:.8rem;color:var(--muted);margin:10px 0 4px;">Devanado contra devanado (opcional, con estrella abierta):</div>
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
+          <div class="fld"><label style="margin:0;">U — V</label></div>
+          <input type="number" step="0.01" id="me_r1_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <div class="fld"><label style="margin:0;">V — W</label></div>
+          <input type="number" step="0.01" id="me_r1_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <div class="fld"><label style="margin:0;">W — U</label></div>
+          <input type="number" step="0.01" id="me_r1_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" id="me_r10_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+        </div>
+        <div class="form-grid" style="margin-top:8px;">
+          <div class="fld"><label>Devanado más débil (gobierna el diagnóstico)</label><input type="text" id="me_governingPreview" disabled placeholder="—"></div>
+          <div class="fld"><label>IP de ese devanado (R10/R1)</label><input type="text" id="me_ipPreviewExt" disabled placeholder="—"></div>
+          <div class="fld"><label>R1 corregido a 40°C (vista previa)</label><input type="text" id="me_r1CorrPreviewExt" disabled placeholder="Cargá datos y temp. ambiente"></div>
+        </div>
+      </div>
+
+      <div class="modal-section-title">🔧 Resistencia óhmica de bobinado</div>
+      <div class="form-grid">
+        <div class="fld"><label>R U-V (Ω)</label><input type="number" step="0.001" id="me_rUV"></div>
+        <div class="fld"><label>R V-W (Ω)</label><input type="number" step="0.001" id="me_rVW"></div>
+        <div class="fld"><label>R W-U (Ω)</label><input type="number" step="0.001" id="me_rWU"></div>
+      </div>
+
+      <div class="modal-section-title">⚡ Corriente de línea (opcional)</div>
+      <div class="form-grid">
+        <div class="fld"><label>Corriente R (A)</label><input type="number" step="0.1" id="me_iR"></div>
+        <div class="fld"><label>Corriente S (A)</label><input type="number" step="0.1" id="me_iS"></div>
+        <div class="fld"><label>Corriente T (A)</label><input type="number" step="0.1" id="me_iT"></div>
+      </div>
+
+      <div class="modal-section-title">Observaciones</div>
+      <div class="fld"><textarea id="me_obs" rows="2" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;resize:vertical;" placeholder="Opcional"></textarea></div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn-small" style="background:var(--accent);color:#fff;border:none;padding:8px 20px;" onclick="saveManualReading()">💾 Guardar ensayo</button>
+        <button class="btn-small" onclick="closeManualEntry()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL DETALLE ═══ -->
+<div class="modal-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">—</div>
+        <div class="modal-sub" id="modalSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  1. CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const MOTOR_TYPES = ['Inducción Jaula de Ardilla','Inducción Rotor Bobinado','Sincrónico','Corriente Continua (CC)','Otro'];
+const MOTOR_SYSTEMS = ['Trifásico','Monofásico'];
+
+const STATUS        = ['good','elevated','warning','critical'];
+const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
+const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
+const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
+
+// Umbrales por defecto (editables desde la pestaña Umbrales)
+// ip, rAisl: menor = peor (se evalúan invertidos). desbR, desbI: mayor = peor.
+const DEFAULT_THRESHOLDS = {
+  ip:     [2.0, 1.5, 1.0],   // inverso — IEEE 43 (bueno ≥2, dudoso 1–2, malo <1)
+  rAisl:  [100, 10, 1],      // inverso (MΩ, R a 1 min)
+  desbR:  [1, 2, 5],         // % desbalance de resistencia de bobinado
+  desbI:  [5, 10, 15]        // % desbalance de corriente de línea (NEMA MG-1)
+};
+const THRESHOLD_META = {
+  ip:    {label:'Índice de Polarización (R10min/R1min)', unit:'', inverse:true},
+  rAisl: {label:'Resistencia de Aislación (1 min)', unit:'MΩ', inverse:true},
+  desbR: {label:'Desbalance de Resistencia de Bobinado', unit:'%', inverse:false},
+  desbI: {label:'Desbalance de Corriente de Línea', unit:'%', inverse:false}
+};
+
+// ═══════════════════════════════════════════════════════════
+//  2. STATE
+// ═══════════════════════════════════════════════════════════
+let motorsRegistry = new Map();   // motorId -> {name, type, sistema, location, kw, vNom, iNom, rpm}
+let readingsData   = new Map();   // motorId -> {dates:[], params:{...}, obs:[]}
+let thresholds     = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+let statusFilter   = 'all';
+let currentKey     = null;
+let detailChart    = null;
+
+// ═══════════════════════════════════════════════════════════
+//  3. PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+function loadState() {
+  try {
+    const c = JSON.parse(localStorage.getItem('motor_pro_cfg') || '{}');
+    if (c.thresholds) thresholds = {...DEFAULT_THRESHOLDS, ...c.thresholds};
+    if (c.motorsRegistry) for (const [k,v] of Object.entries(c.motorsRegistry)) motorsRegistry.set(k,v);
+    if (c.readingsData) {
+      for (const [k,v] of Object.entries(c.readingsData)) {
+        readingsData.set(k, { dates: v.dates.map(d => new Date(d)), params: v.params, obs: v.obs || [] });
+      }
+    }
+  } catch(e){ console.warn('loadState error', e); }
+}
+function saveState() {
+  const rdSerial = {};
+  for (const [k,v] of readingsData.entries()) {
+    rdSerial[k] = { dates: v.dates.map(d=>d.toISOString()), params: v.params, obs: v.obs || [] };
+  }
+  localStorage.setItem('motor_pro_cfg', JSON.stringify({
+    thresholds,
+    motorsRegistry: Object.fromEntries(motorsRegistry),
+    readingsData: rdSerial
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  4. HELPERS
+// ═══════════════════════════════════════════════════════════
+function genId(){ return 'M'+Date.now().toString(36).toUpperCase().slice(-5)+Math.random().toString(36).slice(-3).toUpperCase(); }
+function escHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escJs(s){ return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function fmt(v,d=1){ return (v===undefined||v===null||isNaN(v)) ? '—' : Number(v).toFixed(d); }
+function fmtDate(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmtDateTime(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function getMotorName(id){ return motorsRegistry.get(id)?.name || id; }
+function getDisplayName(k){ return getMotorName(k); }
+function isTrifasico(key){
+  const m = motorsRegistry.get(key);
+  return !m || !m.sistema || m.sistema === 'Trifásico';
+}
+
+// Corrección de resistencia de aislación a 40°C de referencia (IEEE 43 §8.3 / IEEE 43-2013)
+// KT = 0.5^((40-T)/10)  ·  R40 = KT × R_medido
+// El IP (R10/R1) NO se corrige: al tomarse ambas lecturas en el mismo ensayo, a la misma
+// temperatura del bobinado, la relación ya es prácticamente independiente de la temperatura.
+function polarizationKT(tempC){
+  if (tempC===undefined || tempC===null || isNaN(tempC)) return NaN;
+  return Math.pow(0.5, (40 - tempC) / 10);
+}
+function correctInsulationTo40C(rValue, tempC){
+  const kt = polarizationKT(tempC);
+  if (isNaN(rValue) || isNaN(kt)) return NaN;
+  return rValue * kt;
+}
+
+function levelOf(value, band, inverse){
+  if (value===undefined||value===null||isNaN(value)) return -1; // sin dato
+  if (!inverse){
+    if (value <= band[0]) return 0;
+    if (value <= band[1]) return 1;
+    if (value <= band[2]) return 2;
+    return 3;
+  } else {
+    if (value >= band[0]) return 0;
+    if (value >= band[1]) return 1;
+    if (value >= band[2]) return 2;
+    return 3;
+  }
+}
+
+// Calcula los sub-niveles y nivel global para una lectura puntual (índice n de una serie)
+function evalReading(params, n){
+  const p = params;
+  const r1  = p.R1?.[n];
+  const r10 = p.R10?.[n];
+  const ip  = (!isNaN(r1) && !isNaN(r10) && r1 > 0) ? (r10/r1) : NaN;
+  const rAisl = r1; // valor medido, sin corregir (se conserva para trazabilidad)
+  const desbR = p.DesbR?.[n];
+  const desbI = p.DesbI?.[n];
+  const vEnsayo = p.VEnsayo?.[n];
+  const tempAmb = p.TempAmb?.[n];
+
+  // Corregido a 40°C para el diagnóstico. Si no hay temperatura ambiente cargada,
+  // se evalúa con el valor crudo (sin corrección) — no se puede corregir sin ese dato.
+  const rAislCorr = !isNaN(tempAmb) ? correctInsulationTo40C(rAisl, tempAmb) : NaN;
+  const rAislEval = !isNaN(rAislCorr) ? rAislCorr : rAisl;
+  const rAislCorregida = !isNaN(rAislCorr); // flag: ¿se pudo corregir este dato?
+
+  const subs = {
+    ip:     levelOf(ip,       thresholds.ip,    true),
+    rAisl:  levelOf(rAislEval, thresholds.rAisl, true),
+    desbR:  levelOf(desbR,    thresholds.desbR, false),
+    desbI:  levelOf(desbI,    thresholds.desbI, false)
+  };
+  let overall = 0;
+  for (const k in subs) if (subs[k] > overall) overall = subs[k];
+  return { subs, overall, ip, rAisl, rAislCorr, rAislEval, rAislCorregida, r1, r10, desbR, desbI, vEnsayo, tempAmb };
+}
+
+function computeDesbalance(a,b,c){
+  const vals = [a,b,c].filter(v=>v!==undefined && v!==null && !isNaN(v));
+  if (vals.length < 2) return NaN;
+  const avg = vals.reduce((x,y)=>x+y,0)/vals.length;
+  if (avg === 0) return NaN;
+  const maxDev = Math.max(...vals.map(v=>Math.abs(v-avg)));
+  return (maxDev/avg)*100;
+}
+
+function healthScoreFromLevel(overall, subs){
+  if (overall < 0) return null;
+  const base = [100, 78, 50, 20][overall];
+  const worseCount = Object.values(subs).filter(s=>s===overall).length;
+  return Math.max(3, base - (worseCount-1)*4);
+}
+
+function lastValidIdx(d){ return d.dates.length - 1; }
+
+function diagnoseMotor(k){
+  const d = readingsData.get(k);
+  if (!d || !d.dates.length) return null;
+  const n = lastValidIdx(d);
+  const ev = evalReading(d.params, n);
+  return { ...ev, date: d.dates[n] };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  5. IMPORT (Excel / CSV)
+// ═══════════════════════════════════════════════════════════
+const TEMPLATE_HEADERS = ['Motor','Tipo','Sistema','Hilos','Potencia_kW','Tension_Nominal_V','Corriente_Nominal_A','RPM','Fecha','Tension_Ensayo_V','Temp_Ambiente_C',
+  'R1min_MOhm','R10min_MOhm',
+  'R1_U_MOhm','R10_U_MOhm','R1_V_MOhm','R10_V_MOhm','R1_W_MOhm','R10_W_MOhm',
+  'R1_UV_MOhm','R10_UV_MOhm','R1_VW_MOhm','R10_VW_MOhm','R1_WU_MOhm','R10_WU_MOhm',
+  'R_UV_Ohm','R_VW_Ohm','R_WU_Ohm','I_R_A','I_S_A','I_T_A','Observaciones'];
+
+// Construye cada fila de ejemplo como objeto {header:valor} y la vuelca en el
+// orden de TEMPLATE_HEADERS — evita que una fila quede con menos valores que
+// columnas (y por lo tanto desalineada) si la plantilla se amplía a futuro.
+function rowFromMap(map){
+  return TEMPLATE_HEADERS.map(h => (h in map) ? map[h] : '');
+}
+
+function downloadTemplate(){
+  const row3Hilos = rowFromMap({
+    Motor:'MOT-BOMBA-01', Tipo:'Inducción Jaula de Ardilla', Sistema:'Trifásico', Hilos:'3',
+    Potencia_kW:15, Tension_Nominal_V:380, Corriente_Nominal_A:28, RPM:1450,
+    Fecha:'2026-08-01', Tension_Ensayo_V:500, Temp_Ambiente_C:28,
+    R1min_MOhm:850, R10min_MOhm:2400,
+    R_UV_Ohm:4.12, R_VW_Ohm:4.15, R_WU_Ohm:4.10,
+    I_R_A:26.8, I_S_A:27.1, I_T_A:26.9,
+    Observaciones:'Motor de 3 hilos: usar solo R1min/R10min (bobinado completo vs tierra)'
+  });
+  const row6Hilos = rowFromMap({
+    Motor:'MOT-VENT-02', Tipo:'Inducción Jaula de Ardilla', Sistema:'Trifásico', Hilos:'6',
+    Potencia_kW:22, Tension_Nominal_V:380, Corriente_Nominal_A:40, RPM:2900,
+    Fecha:'2026-08-01', Tension_Ensayo_V:500, Temp_Ambiente_C:27,
+    R1_U_MOhm:720, R10_U_MOhm:2350, R1_V_MOhm:690, R10_V_MOhm:2280, R1_W_MOhm:610, R10_W_MOhm:1980,
+    R_UV_Ohm:3.05, R_VW_Ohm:3.02, R_WU_Ohm:3.08,
+    I_R_A:41.2, I_S_A:41.0, I_T_A:41.5,
+    Observaciones:'Motor de 6 hilos: cargar R1/R10 por devanado a tierra (U,V,W); UV/VW/WU son opcionales'
+  });
+  const sample = [TEMPLATE_HEADERS, row3Hilos, row6Hilos];
+  const ws = XLSX.utils.aoa_to_sheet(sample);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Ensayos');
+  XLSX.writeFile(wb, 'plantilla_motor_pro.xlsx');
+}
+
+function handleFileUpload(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status';
+  status.textContent = 'Procesando…';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true, defval:''});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      const result = importRows(rows);
+      status.className = 'load-status ok';
+      status.textContent = `✅ ${result.rows} ensayo(s) · ${result.motors} motor(es)`;
+      saveState();
+      renderAll();
+    } catch(err){
+      console.error(err);
+      status.className = 'load-status err';
+      status.textContent = '❌ Error al procesar el archivo: ' + err.message;
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findCol(row, names){
+  for (const n of names){
+    for (const key of Object.keys(row)){
+      if (key.trim().toLowerCase() === n.toLowerCase()) return row[key];
+    }
+  }
+  return '';
+}
+function numOrNaN(v){ if (v==='' || v===undefined || v===null) return NaN; const n = parseFloat(v); return isNaN(n) ? NaN : n; }
+
+function importRows(rows){
+  let motorsCreated = 0, rowsImported = 0;
+  const touched = new Map(); // key -> {dates:[],params:{}}
+
+  for (const row of rows){
+    const motorName = String(findCol(row,['Motor']) || '').trim();
+    if (!motorName) continue;
+    const motorType = String(findCol(row,['Tipo']) || MOTOR_TYPES[0]).trim();
+    const sistemaRaw = String(findCol(row,['Sistema']) || '').trim();
+    const sistema = MOTOR_SYSTEMS.find(s=>s.toLowerCase()===sistemaRaw.toLowerCase()) || 'Trifásico';
+    const hilosRaw = String(findCol(row,['Hilos']) || '').trim();
+    const hilos = hilosRaw === '6' ? '6' : '3';
+    const kw = numOrNaN(findCol(row,['Potencia_kW']));
+    const vNom = numOrNaN(findCol(row,['Tension_Nominal_V']));
+    const iNom = numOrNaN(findCol(row,['Corriente_Nominal_A']));
+    const rpm = numOrNaN(findCol(row,['RPM']));
+
+    let fechaRaw = findCol(row,['Fecha']);
+    let fecha;
+    if (fechaRaw instanceof Date) fecha = fechaRaw;
+    else if (typeof fechaRaw === 'number') { const p = XLSX.SSF.parse_date_code(fechaRaw); fecha = new Date(p.y,p.m-1,p.d,p.H||0,p.M||0,p.S||0); }
+    else fecha = new Date(fechaRaw);
+    if (isNaN(fecha)) continue;
+
+    // localizar o crear motor
+    let motorId = null;
+    for (const [id, mv] of motorsRegistry.entries()){
+      if (mv.name.toLowerCase() === motorName.toLowerCase()) { motorId = id; break; }
+    }
+    if (!motorId){
+      motorId = genId();
+      motorsRegistry.set(motorId, {name:motorName, type:motorType, sistema, hilos, location:'',
+        kw: isNaN(kw)?0:kw, vNom: isNaN(vNom)?0:vNom, iNom: isNaN(iNom)?0:iNom, rpm: isNaN(rpm)?0:rpm});
+      motorsCreated++;
+    } else {
+      // Motor ya existente creado antes de tener el campo "hilos" (o sin valor):
+      // completar con lo que traiga la fila en vez de dejarlo forzado a 3 hilos.
+      const mv = motorsRegistry.get(motorId);
+      if (!mv.hilos && hilosRaw) mv.hilos = hilos;
+    }
+    const key = motorId;
+    const hilosMotor = motorsRegistry.get(key)?.hilos || '3';
+
+    const vEnsayo = numOrNaN(findCol(row,['Tension_Ensayo_V']));
+    const tempAmb = numOrNaN(findCol(row,['Temp_Ambiente_C']));
+    const r1min = numOrNaN(findCol(row,['R1min_MOhm']));
+    const r10min = numOrNaN(findCol(row,['R10min_MOhm']));
+    const r1u = numOrNaN(findCol(row,['R1_U_MOhm'])), r10u = numOrNaN(findCol(row,['R10_U_MOhm']));
+    const r1v = numOrNaN(findCol(row,['R1_V_MOhm'])), r10v = numOrNaN(findCol(row,['R10_V_MOhm']));
+    const r1w = numOrNaN(findCol(row,['R1_W_MOhm'])), r10w = numOrNaN(findCol(row,['R10_W_MOhm']));
+    const r1uv = numOrNaN(findCol(row,['R1_UV_MOhm'])), r10uv = numOrNaN(findCol(row,['R10_UV_MOhm']));
+    const r1vw = numOrNaN(findCol(row,['R1_VW_MOhm'])), r10vw = numOrNaN(findCol(row,['R10_VW_MOhm']));
+    const r1wu = numOrNaN(findCol(row,['R1_WU_MOhm'])), r10wu = numOrNaN(findCol(row,['R10_WU_MOhm']));
+
+    // Para motores de 6 hilos, el R1/R10 que gobierna el diagnóstico es el del
+    // devanado más débil (mismo criterio que saveManualReading/pickGoverning).
+    // Si la fila no trae mediciones por devanado (planilla vieja o parcial),
+    // se usa R1min/R10min como respaldo.
+    let r1 = r1min, r10 = r10min;
+    if (hilosMotor === '6'){
+      const gov = pickGoverning([{name:'U',r1:r1u,r10:r10u},{name:'V',r1:r1v,r10:r10v},{name:'W',r1:r1w,r10:r10w}]);
+      if (!isNaN(gov.r1)) { r1 = gov.r1; r10 = gov.r10; }
+    }
+
+    const rUV = numOrNaN(findCol(row,['R_UV_Ohm']));
+    const rVW = numOrNaN(findCol(row,['R_VW_Ohm']));
+    const rWU = numOrNaN(findCol(row,['R_WU_Ohm']));
+    const iR = numOrNaN(findCol(row,['I_R_A']));
+    const iS = numOrNaN(findCol(row,['I_S_A']));
+    const iT = numOrNaN(findCol(row,['I_T_A']));
+    const obs = String(findCol(row,['Observaciones']) || '');
+
+    const desbR = computeDesbalance(rUV, rVW, rWU);
+    const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
+
+    if (!touched.has(key)) touched.set(key, {dates:[], params:{VEnsayo:[],TempAmb:[],R1:[],R10:[],
+      R1_U:[],R10_U:[],R1_V:[],R10_V:[],R1_W:[],R10_W:[],R1_UV:[],R10_UV:[],R1_VW:[],R10_VW:[],R1_WU:[],R10_WU:[],
+      R_UV:[],R_VW:[],R_WU:[],DesbR:[],I_R:[],I_S:[],I_T:[],DesbI:[]}, obs:[]});
+    const t = touched.get(key);
+    t.dates.push(fecha);
+    t.params.VEnsayo.push(vEnsayo); t.params.TempAmb.push(tempAmb);
+    t.params.R1.push(r1); t.params.R10.push(r10);
+    t.params.R1_U.push(r1u); t.params.R10_U.push(r10u);
+    t.params.R1_V.push(r1v); t.params.R10_V.push(r10v);
+    t.params.R1_W.push(r1w); t.params.R10_W.push(r10w);
+    t.params.R1_UV.push(r1uv); t.params.R10_UV.push(r10uv);
+    t.params.R1_VW.push(r1vw); t.params.R10_VW.push(r10vw);
+    t.params.R1_WU.push(r1wu); t.params.R10_WU.push(r10wu);
+    t.params.R_UV.push(rUV); t.params.R_VW.push(rVW); t.params.R_WU.push(rWU); t.params.DesbR.push(desbR);
+    t.params.I_R.push(iR); t.params.I_S.push(iS); t.params.I_T.push(iT); t.params.DesbI.push(desbI);
+    t.obs.push(obs);
+    rowsImported++;
+  }
+
+  for (const [key, incoming] of touched.entries()){
+    const existing = readingsData.get(key);
+    if (!existing){ readingsData.set(key, incoming); continue; }
+    readingsData.set(key, mergeReadings(existing, incoming));
+  }
+  return { rows: rowsImported, motors: motorsCreated };
+}
+
+function mergeReadings(existing, incoming){
+  const keyOf = d => { try { return new Date(d).toISOString().slice(0,19); } catch { return String(d).slice(0,19); } };
+  const existKeys = new Set(existing.dates.map(keyOf));
+  const allDates = [...existing.dates];
+  const allObs = [...(existing.obs||[])];
+  const allParams = {};
+  const paramKeys = new Set([...Object.keys(existing.params), ...Object.keys(incoming.params)]);
+  for (const pk of paramKeys) allParams[pk] = [...(existing.params[pk]||new Array(existing.dates.length).fill(NaN))];
+
+  for (let i=0;i<incoming.dates.length;i++){
+    if (!existKeys.has(keyOf(incoming.dates[i]))){
+      allDates.push(incoming.dates[i]);
+      allObs.push(incoming.obs?.[i] || '');
+      for (const pk of paramKeys) allParams[pk].push(incoming.params[pk]?.[i] ?? NaN);
+    }
+  }
+  const idx = allDates.map((_,i)=>i).sort((a,b)=>allDates[a]-allDates[b]);
+  return {
+    dates: idx.map(i=>allDates[i]),
+    obs: idx.map(i=>allObs[i]),
+    params: Object.fromEntries(Object.entries(allParams).map(([k,v])=>[k, idx.map(i=>v[i])]))
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6. MANUAL ENTRY
+// ═══════════════════════════════════════════════════════════
+function updateIPPreview(){
+  const r1 = parseFloat(document.getElementById('me_r1').value);
+  const r10 = parseFloat(document.getElementById('me_r10').value);
+  const tempAmb = parseFloat(document.getElementById('me_tempAmb').value);
+  const out = document.getElementById('me_ipPreview');
+  if (!isNaN(r1) && !isNaN(r10) && r1 > 0) out.value = (r10/r1).toFixed(2);
+  else out.value = '';
+
+  const outCorr = document.getElementById('me_r1CorrPreview');
+  if (!isNaN(r1) && !isNaN(tempAmb)){
+    outCorr.value = correctInsulationTo40C(r1, tempAmb).toFixed(1) + ' MΩ';
+  } else {
+    outCorr.value = '';
+  }
+}
+
+// Entre los devanados con dato válido a tierra, el "gobernante" es el de menor R1:
+// un devanado degradado no debe diluirse en un promedio con los otros dos sanos.
+function pickGoverning(windings){
+  const valid = windings.filter(w=>!isNaN(w.r1) && w.r1 !== undefined);
+  if (!valid.length) return {r1:NaN, r10:NaN, ip:NaN, winding:null};
+  valid.sort((a,b)=>a.r1-b.r1);
+  const w = valid[0];
+  const ip = (!isNaN(w.r10) && w.r1 > 0) ? (w.r10/w.r1) : NaN;
+  return {r1:w.r1, r10:w.r10, ip, winding:w.name};
+}
+
+function updateIPPreviewExt(){
+  const r1u=numOrUndef('me_r1_u'), r10u=numOrUndef('me_r10_u');
+  const r1v=numOrUndef('me_r1_v'), r10v=numOrUndef('me_r10_v');
+  const r1w=numOrUndef('me_r1_w'), r10w=numOrUndef('me_r10_w');
+  const tempAmb = parseFloat(document.getElementById('me_tempAmb').value);
+  const gov = pickGoverning([
+    {name:'U', r1:r1u, r10:r10u}, {name:'V', r1:r1v, r10:r10v}, {name:'W', r1:r1w, r10:r10w}
+  ]);
+  document.getElementById('me_governingPreview').value = gov.winding ? `Devanado ${gov.winding} (R1 = ${fmt(gov.r1,1)} MΩ)` : '';
+  document.getElementById('me_ipPreviewExt').value = !isNaN(gov.ip) ? gov.ip.toFixed(2) : '';
+  const outCorr = document.getElementById('me_r1CorrPreviewExt');
+  if (!isNaN(gov.r1) && !isNaN(tempAmb)) outCorr.value = correctInsulationTo40C(gov.r1, tempAmb).toFixed(1) + ' MΩ';
+  else outCorr.value = '';
+}
+
+function getEffectiveHilos(){
+  const sel = document.getElementById('me_motorSel');
+  if (!sel) return '3';
+  if (sel.value === '__new') return document.getElementById('me_newMotorHilos').value;
+  return motorsRegistry.get(sel.value)?.hilos || '3';
+}
+
+function openManualEntry(){
+  const motorSel = document.getElementById('me_motorSel');
+  motorSel.innerHTML = `<option value="__new">➕ Crear nuevo motor…</option>` +
+    Array.from(motorsRegistry.entries()).map(([id,m])=>`<option value="${id}">${escHtml(m.name)}</option>`).join('');
+  const newMotorType = document.getElementById('me_newMotorType');
+  if (!newMotorType.dataset.filled){ newMotorType.innerHTML = MOTOR_TYPES.map(t=>`<option value="${t}">${t}</option>`).join(''); newMotorType.dataset.filled='1'; }
+  const newMotorSystem = document.getElementById('me_newMotorSystem');
+  if (!newMotorSystem.dataset.filled){ newMotorSystem.innerHTML = MOTOR_SYSTEMS.map(t=>`<option value="${t}">${t}</option>`).join(''); newMotorSystem.dataset.filled='1'; }
+
+  ['me_tempAmb','me_r1','me_r10','me_r1_u','me_r10_u','me_r1_v','me_r10_v','me_r1_w','me_r10_w',
+   'me_r1_uv','me_r10_uv','me_r1_vw','me_r10_vw','me_r1_wu','me_r10_wu',
+   'me_rUV','me_rVW','me_rWU','me_iR','me_iS','me_iT','me_newMotorName','me_obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('me_ipPreview').value = '';
+  document.getElementById('me_newMotorHilos').value = '6';
+  document.getElementById('me_vEnsayo').value = '500';
+  document.getElementById('me_fecha').value = new Date().toISOString().slice(0,10);
+
+  onManualMotorChange();
+  document.getElementById('manualOverlay').classList.add('open');
+}
+function closeManualEntry(){ document.getElementById('manualOverlay').classList.remove('open'); }
+
+function onManualHilosContextChange(){ toggleAislacionMode(); }
+
+function toggleAislacionMode(){
+  const hilos = getEffectiveHilos();
+  document.getElementById('me_aislacionSimple').classList.toggle('hidden', hilos === '6');
+  document.getElementById('me_aislacionExtendida').classList.toggle('hidden', hilos !== '6');
+}
+
+function onManualMotorChange(){
+  const sel = document.getElementById('me_motorSel');
+  const isNew = sel.value === '__new';
+  document.getElementById('me_newMotorNameWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newMotorTypeWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newMotorSystemWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newMotorHilosWrap').classList.toggle('hidden', !isNew);
+  toggleAislacionMode();
+}
+
+function numOrUndef(id){
+  const v = document.getElementById(id).value;
+  if (v==='') return NaN;
+  const n = parseFloat(v);
+  return isNaN(n) ? NaN : n;
+}
+
+function saveManualReading(){
+  const motorSel = document.getElementById('me_motorSel').value;
+  const fechaStr = document.getElementById('me_fecha').value;
+  if (!fechaStr){ alert('Ingresá la fecha del ensayo.'); return; }
+  const fecha = new Date(fechaStr + 'T12:00:00');
+  if (isNaN(fecha)){ alert('Fecha inválida.'); return; }
+
+  let motorId = motorSel;
+  if (motorSel === '__new'){
+    const name = document.getElementById('me_newMotorName').value.trim();
+    if (!name){ alert('Ingresá el TAG del nuevo motor.'); return; }
+    const type = document.getElementById('me_newMotorType').value;
+    const sistema = document.getElementById('me_newMotorSystem').value;
+    const hilos = document.getElementById('me_newMotorHilos').value;
+    motorId = null;
+    for (const [id, mv] of motorsRegistry.entries()) if (mv.name.toLowerCase()===name.toLowerCase()) { motorId = id; break; }
+    if (!motorId){ motorId = genId(); motorsRegistry.set(motorId, {name, type, sistema, hilos, location:'', kw:0, vNom:0, iNom:0, rpm:0}); }
+  }
+  const key = motorId;
+  const hilosMotor = motorsRegistry.get(key)?.hilos || '3';
+
+  const vEnsayo = numOrUndef('me_vEnsayo');
+  const tempAmb = numOrUndef('me_tempAmb');
+  let r1, r10, r1u=NaN,r10u=NaN,r1v=NaN,r10v=NaN,r1w=NaN,r10w=NaN,r1uv=NaN,r10uv=NaN,r1vw=NaN,r10vw=NaN,r1wu=NaN,r10wu=NaN, governingWinding=null;
+  if (hilosMotor === '6'){
+    r1u=numOrUndef('me_r1_u'); r10u=numOrUndef('me_r10_u');
+    r1v=numOrUndef('me_r1_v'); r10v=numOrUndef('me_r10_v');
+    r1w=numOrUndef('me_r1_w'); r10w=numOrUndef('me_r10_w');
+    r1uv=numOrUndef('me_r1_uv'); r10uv=numOrUndef('me_r10_uv');
+    r1vw=numOrUndef('me_r1_vw'); r10vw=numOrUndef('me_r10_vw');
+    r1wu=numOrUndef('me_r1_wu'); r10wu=numOrUndef('me_r10_wu');
+    const gov = pickGoverning([{name:'U',r1:r1u,r10:r10u},{name:'V',r1:r1v,r10:r10v},{name:'W',r1:r1w,r10:r10w}]);
+    r1 = gov.r1; r10 = gov.r10; governingWinding = gov.winding;
+  } else {
+    r1 = numOrUndef('me_r1'); r10 = numOrUndef('me_r10');
+  }
+  const rUV = numOrUndef('me_rUV'), rVW = numOrUndef('me_rVW'), rWU = numOrUndef('me_rWU');
+  const iR = numOrUndef('me_iR'), iS = numOrUndef('me_iS'), iT = numOrUndef('me_iT');
+  const obs = document.getElementById('me_obs').value.trim();
+  const desbR = computeDesbalance(rUV, rVW, rWU);
+  const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
+
+  const incoming = {
+    dates:[fecha],
+    params:{ VEnsayo:[vEnsayo], TempAmb:[tempAmb], R1:[r1], R10:[r10],
+      R1_U:[r1u], R10_U:[r10u], R1_V:[r1v], R10_V:[r10v], R1_W:[r1w], R10_W:[r10w],
+      R1_UV:[r1uv], R10_UV:[r10uv], R1_VW:[r1vw], R10_VW:[r10vw], R1_WU:[r1wu], R10_WU:[r10wu],
+      R_UV:[rUV], R_VW:[rVW], R_WU:[rWU], DesbR:[desbR], I_R:[iR], I_S:[iS], I_T:[iT], DesbI:[desbI] },
+    obs:[obs]
+  };
+  const existing = readingsData.get(key);
+  readingsData.set(key, existing ? mergeReadings(existing, incoming) : incoming);
+
+  saveState();
+  closeManualEntry();
+  renderAll();
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `✅ Ensayo guardado: ${getDisplayName(key)}` + (governingWinding ? ` (devanado ${governingWinding} gobierna el diagnóstico)` : '');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6b. RENDER — DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderAll(){
+  renderHeaderStats();
+  renderSummaryBar();
+  renderGrid();
+  renderMotorsList();
+  renderThresholdGrid();
+}
+
+function fleetHealth(){
+  let sum=0,count=0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseMotor(k);
+    if (!diag || diag.overall < 0) continue;
+    const hs = healthScoreFromLevel(diag.overall, diag.subs);
+    if (hs!==null){ sum+=hs; count++; }
+  }
+  return count ? Math.round(sum/count) : null;
+}
+
+function renderHeaderStats(){
+  document.getElementById('hsMotores').textContent = motorsRegistry.size;
+  document.getElementById('hsEnsayos').textContent = readingsData.size;
+  const fh = fleetHealth();
+  const el = document.getElementById('hsSalud');
+  el.textContent = fh===null ? '—' : fh+'%';
+  el.style.color = fh===null ? 'var(--muted)' : fh>=85?'var(--good)':fh>=60?'var(--elevated)':fh>=35?'var(--warning)':'var(--critical)';
+}
+
+function statusDistribution(){
+  const dist = {good:0, elevated:0, warning:0, critical:0};
+  for (const k of readingsData.keys()){
+    const diag = diagnoseMotor(k);
+    if (!diag || diag.overall < 0) continue;
+    dist[STATUS[diag.overall]]++;
+  }
+  return dist;
+}
+
+function renderSummaryBar(){
+  const dist = statusDistribution();
+  const bar = document.getElementById('summaryBar');
+  bar.innerHTML = `
+    <div class="sum-card good" onclick="setStatusFilter('good')"><div class="sum-icon">🟢</div><div><div class="sum-num">${dist.good}</div><div class="sum-lbl">Normal</div></div></div>
+    <div class="sum-card elevated" onclick="setStatusFilter('elevated')"><div class="sum-icon">🟡</div><div><div class="sum-num">${dist.elevated}</div><div class="sum-lbl">Elevado</div></div></div>
+    <div class="sum-card warning" onclick="setStatusFilter('warning')"><div class="sum-icon">🟠</div><div><div class="sum-num">${dist.warning}</div><div class="sum-lbl">Alerta</div></div></div>
+    <div class="sum-card critical" onclick="setStatusFilter('critical')"><div class="sum-icon">🔴</div><div><div class="sum-num">${dist.critical}</div><div class="sum-lbl">Crítico</div></div></div>
+  `;
+}
+
+function setStatusFilter(f){
+  statusFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.f===f));
+  switchTab('dashboard');
+  renderGrid();
+}
+
+function healthRingSVG(health, level){
+  const color = level<0 ? 'var(--muted)' : STATUS_COLORS[level];
+  const r = 20, c = 2*Math.PI*r;
+  const pct = health===null ? 0 : health/100;
+  const dash = c*pct;
+  return `<div style="position:relative;width:52px;height:52px;">
+    <svg class="health-ring" width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="${r}" stroke="var(--border2)"></circle>
+      <circle cx="26" cy="26" r="${r}" stroke="${color}" stroke-dasharray="${dash} ${c}" stroke-linecap="round"></circle>
+    </svg>
+    <div class="health-num" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:${color};">${health===null?'—':health+'%'}</div>
+  </div>`;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('cardGrid');
+  const search = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  const sortMode = document.getElementById('sortSel')?.value || 'health_asc';
+
+  let items = [];
+  for (const k of readingsData.keys()){
+    const diag = diagnoseMotor(k);
+    if (!diag) continue;
+    const level = diag.overall;
+    if (statusFilter !== 'all' && (level<0 || STATUS[level] !== statusFilter)) continue;
+    const displayName = getDisplayName(k).toLowerCase();
+    if (search && !displayName.includes(search)) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    items.push({k, diag, level, health});
+  }
+
+  if (sortMode==='health_asc') items.sort((a,b)=>(a.health??999)-(b.health??999));
+  else if (sortMode==='name_asc') items.sort((a,b)=>getDisplayName(a.k).localeCompare(getDisplayName(b.k)));
+  else if (sortMode==='ip_asc') items.sort((a,b)=>(isNaN(a.diag.ip)?999:a.diag.ip)-(isNaN(b.diag.ip)?999:b.diag.ip));
+  else if (sortMode==='date_desc') items.sort((a,b)=>b.diag.date-a.diag.date);
+
+  if (!items.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="ei">🔩</div>${readingsData.size?'Sin resultados para el filtro actual.':'Importá un Excel o cargá un ensayo manual para comenzar.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(({k, diag, level, health})=>{
+    const badgeClass = level<0 ? '' : `badge-${STATUS[level]}`;
+    const badgeLabel = level<0 ? 'Sin datos' : STATUS_LABELS[level];
+    const motor = motorsRegistry.get(k) || {};
+    const subIpClass = diag.subs.ip>=0?STATUS[diag.subs.ip]:'';
+    const subRAislClass = diag.subs.rAisl>=0?STATUS[diag.subs.rAisl]:'';
+    const subDesbRClass = diag.subs.desbR>=0?STATUS[diag.subs.desbR]:'';
+    const subDesbIClass = diag.subs.desbI>=0?STATUS[diag.subs.desbI]:'';
+    return `
+    <div class="mcard" onclick="openDetail('${escJs(k)}')">
+      <div class="mcard-header">
+        <div>
+          <div class="mname">${escHtml(motor.name||k)}</div>
+          <div class="mpoint">${escHtml(motor.location||'')}</div>
+          <div class="mpoint-badge">${escHtml(motor.type||'')}${motor.kw?' · '+motor.kw+' kW':''}</div>
+        </div>
+        <span class="mbadge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="mcard-body">
+        <div class="health-ring-wrap">${healthRingSVG(health, level)}</div>
+        <div class="mmetrics">
+          <div class="mm-item"><div class="mm-lbl">IP</div><div class="mm-val ${subIpClass}">${diag.ip!==undefined&&!isNaN(diag.ip)?fmt(diag.ip,2):'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">R. Aisl.</div><div class="mm-val ${subRAislClass}">${diag.rAisl!==undefined&&!isNaN(diag.rAisl)?fmt(diag.rAisl,0)+'MΩ':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">Desb. Bobinado</div><div class="mm-val ${subDesbRClass}">${diag.desbR!==undefined&&!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">Desb. Corriente</div><div class="mm-val ${subDesbIClass}">${diag.desbI!==undefined&&!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+        </div>
+      </div>
+      <div class="mcard-footer"><span>Última: ${fmtDate(diag.date)}</span><span>${readingsData.get(k).dates.length} ensayo(s)</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  7. DETAIL MODAL
+// ═══════════════════════════════════════════════════════════
+function diagnosisMessages(diag){
+  const msgs = [];
+  const push = (sev, title, action) => msgs.push({sev, title, action});
+
+  if (diag.subs.ip >= 1){
+    push(diag.subs.ip===3?'critical':diag.subs.ip===2?'warning':'elevated', '🧪 Índice de Polarización bajo',
+      `IP de ${fmt(diag.ip,2)} (R10/R1). Según guía IEEE 43, valores por debajo de 2 son cuestionables y por debajo de 1 indican aislamiento en riesgo de falla. Sugiere contaminación superficial, humedad o suciedad conductiva sobre el bobinado, más que un deterioro uniforme del dieléctrico. Limpiar/secar el motor y repetir el ensayo antes de decidir una intervención mayor.`);
+  }
+  if (diag.subs.rAisl >= 2){
+    const valTxt = diag.rAislCorregida
+      ? `${fmt(diag.rAislCorr,0)} MΩ corregidos a 40°C (medido: ${fmt(diag.rAisl,0)} MΩ a ${fmt(diag.tempAmb,1)}°C)`
+      : `${fmt(diag.rAisl,0)} MΩ medidos a 1 minuto, sin corregir por temperatura (no se cargó temp. ambiente del ensayo)`;
+    push(diag.subs.rAisl===3?'critical':'warning', '🧯 Resistencia de aislación absoluta baja',
+      `${valTxt}${diag.vEnsayo?` (ensayo a ${fmt(diag.vEnsayo,0)}V)`:''}. A diferencia de un IP bajo con R1 aceptable, este valor sugiere degradación distribuida del aislamiento (envejecimiento térmico, humedad absorbida en el bobinado), no solo suciedad superficial. Evaluar según tensión nominal del motor y programar barniz/secado o reemplazo si persiste.`);
+  }
+  if (diag.subs.desbR >= 2){
+    push(diag.subs.desbR===3?'critical':'warning', '⚖️ Desbalance de resistencia de bobinado',
+      `${fmt(diag.desbR,1)}% de desbalance entre fases del bobinado. Puede indicar espiras en cortocircuito, conexión floja en el terminal o daño térmico localizado en una fase. Si se confirma en una segunda medición, no arrancar el motor sin antes verificar con puente de Wheatstone o similar.`);
+  } else if (diag.subs.desbR === 1){
+    push('elevated', '⚖️ Desbalance de bobinado levemente elevado', 'Deficiencia incipiente. Monitorear en el próximo ensayo programado; no requiere intervención inmediata.');
+  }
+  if (diag.subs.desbI >= 2){
+    push(diag.subs.desbI===3?'critical':'warning', '⚡ Desbalance de corriente de línea',
+      `${fmt(diag.desbI,1)}% de desbalance entre fases. Según NEMA MG-1, revisar alimentación aguas arriba (tensión desbalanceada), rodamientos, entrehierro no uniforme o alineación mecánica del acoplamiento. El desbalance de corriente eleva el calentamiento del bobinado y acorta su vida útil.`);
+  }
+
+  if (!msgs.length){
+    push('good', '✅ Sin hallazgos relevantes', 'Aislamiento y bobinado dentro de rango normal. Continuar con el plan de ensayos establecido.');
+  }
+  return msgs;
+}
+
+function openDetail(k){
+  currentKey = k;
+  const d = readingsData.get(k);
+  const diag = diagnoseMotor(k);
+  if (!d || !diag) return;
+  const motor = motorsRegistry.get(k) || {};
+
+  document.getElementById('modalTitle').textContent = motor.name || k;
+  document.getElementById('modalSub').textContent = `${motor.type||''}${motor.location?' · '+motor.location:''} · Último ensayo: ${fmtDateTime(diag.date)}`;
+
+  const level = diag.overall;
+  const badgeClass = level<0?'':`badge-${STATUS[level]}`;
+  const health = healthScoreFromLevel(diag.overall, diag.subs);
+
+  let html = `
+  <div class="modal-section-title">Estado actual</div>
+  <div class="mgrid">
+    <div class="mstat"><div class="mstat-lbl">Estado</div><div class="mstat-val"><span class="mbadge ${badgeClass}">${level<0?'Sin datos':STATUS_LABELS[level]}</span></div></div>
+    <div class="mstat"><div class="mstat-lbl">Salud</div><div class="mstat-val">${health===null?'—':health+'%'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">R1 min (medido)</div><div class="mstat-val">${!isNaN(diag.r1)?fmt(diag.r1,0)+' MΩ':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">R1 corregido a 40°C</div><div class="mstat-val">${diag.rAislCorregida?fmt(diag.rAislCorr,0)+' MΩ':'— (sin temp.)'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">R10 min</div><div class="mstat-val">${!isNaN(diag.r10)?fmt(diag.r10,0)+' MΩ':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Índice Polarización</div><div class="mstat-val">${!isNaN(diag.ip)?fmt(diag.ip,2):'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Desb. Bobinado</div><div class="mstat-val">${!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Temp. ensayo</div><div class="mstat-val">${!isNaN(diag.tempAmb)?fmt(diag.tempAmb,1)+'°C':'—'}</div></div>
+  </div>
+  ${!diag.rAislCorregida?`<div class="note-box" style="margin-top:10px;">⚠️ No se cargó temperatura ambiente en este ensayo: el diagnóstico de aislación se está evaluando con el valor <strong>medido, sin corregir</strong>. Cargá la temperatura para normalizar a 40°C y evitar falsos positivos/negativos por clima.</div>`:''}
+
+  <div class="modal-section-title">Diagnóstico</div>
+  <div id="modalDiagBox"></div>
+
+  <div class="modal-section-title">Tendencia (IP y Resistencia de Aislación)</div>
+  <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
+
+  <div class="modal-section-title">Historial reciente</div>
+  <div style="overflow-x:auto;">
+    <table class="rtable">
+      <thead><tr><th>Fecha</th><th>R1 (MΩ)</th><th>R1 @40°C</th><th>R10 (MΩ)</th><th>IP</th><th>Desb.Bob (%)</th><th>Desb.I (%)</th></tr></thead>
+      <tbody>${d.dates.map((dt,i)=>{
+        const ev = evalReading(d.params, i);
+        return `<tr><td>${fmtDate(dt)}</td><td>${!isNaN(ev.r1)?fmt(ev.r1,0):'—'}</td><td>${ev.rAislCorregida?fmt(ev.rAislCorr,0):'—'}</td><td>${!isNaN(ev.r10)?fmt(ev.r10,0):'—'}</td><td>${!isNaN(ev.ip)?fmt(ev.ip,2):'—'}</td><td>${!isNaN(ev.desbR)?fmt(ev.desbR,1):'—'}</td><td>${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td></tr>`;
+      }).reverse().slice(0,15).join('')}</tbody>
+    </table>
+  </div>`;
+
+  document.getElementById('modalBody').innerHTML = html;
+
+  const diagBox = document.getElementById('modalDiagBox');
+  diagBox.innerHTML = diagnosisMessages(diag).map(m=>`
+    <div class="diag-box ${m.sev==='good'?'':m.sev}">
+      <div class="diag-title">${m.title}</div>
+      <div class="diag-action">${m.action}</div>
+    </div>`).join('');
+
+  document.getElementById('detailOverlay').classList.add('open');
+
+  setTimeout(()=>{
+    const ctx = document.getElementById('modalChart');
+    if (!ctx) return;
+    if (detailChart) detailChart.destroy();
+    const labels = d.dates.map(fmtDate);
+    const ipSeries = d.dates.map((_,i)=>{ const ev = evalReading(d.params,i); return ev.ip; });
+    const r1CorrSeries = d.dates.map((_,i)=>{ const ev = evalReading(d.params,i); return ev.rAislEval; });
+    detailChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'IP (R10/R1)', data:ipSeries, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', yAxisID:'y', tension:.3 },
+        { label:'R1 @40°C (MΩ)', data:r1CorrSeries, borderColor:'#f0b429', backgroundColor:'rgba(240,180,41,.1)', yAxisID:'y1', tension:.3 }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{labels:{color:'#cdd9f0'}}},
+        scales:{
+          x:{ticks:{color:'#5e7a9a'}, grid:{color:'#1e2d45'}},
+          y:{position:'left', ticks:{color:'#3b82f6'}, grid:{color:'#1e2d45'}},
+          y1:{position:'right', ticks:{color:'#f0b429'}, grid:{display:false}}
+        }
+      }
+    });
+  }, 30);
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════
+//  8. MOTORES TAB
+// ═══════════════════════════════════════════════════════════
+function populateMotorTypeSelect(){
+  const sel = document.getElementById('newMotorType');
+  if (sel && !sel.dataset.filled){
+    sel.innerHTML = MOTOR_TYPES.map(t=>`<option value="${t}">${t}</option>`).join('');
+    sel.dataset.filled = '1';
+  }
+  const sysSel = document.getElementById('newMotorSystem');
+  if (sysSel && !sysSel.dataset.filled){
+    sysSel.innerHTML = MOTOR_SYSTEMS.map(t=>`<option value="${t}">${t}</option>`).join('');
+    sysSel.dataset.filled = '1';
+  }
+}
+function createMotor(){
+  const name = document.getElementById('newMotorName').value.trim();
+  if (!name){ alert('Ingresá un TAG de motor.'); return; }
+  const type = document.getElementById('newMotorType').value;
+  const sistema = document.getElementById('newMotorSystem').value;
+  const hilos = document.getElementById('newMotorHilos').value;
+  const loc  = document.getElementById('newMotorLoc').value.trim();
+  const kw   = parseFloat(document.getElementById('newMotorKW').value) || 0;
+  const vNom = parseFloat(document.getElementById('newMotorVnom').value) || 0;
+  const iNom = parseFloat(document.getElementById('newMotorInom').value) || 0;
+  const rpm  = parseFloat(document.getElementById('newMotorRPM').value) || 0;
+  const id = genId();
+  motorsRegistry.set(id, {name, type, sistema, hilos, location:loc, kw, vNom, iNom, rpm});
+  ['newMotorName','newMotorLoc','newMotorKW','newMotorVnom','newMotorInom','newMotorRPM'].forEach(i=>document.getElementById(i).value='');
+  saveState();
+  renderAll();
+}
+function updateMotorHilos(id, val){
+  const m = motorsRegistry.get(id);
+  if (!m) return;
+  m.hilos = val;
+  saveState();
+  renderAll();
+}
+function deleteMotor(id){
+  if (!confirm('¿Eliminar este motor y todos sus ensayos asociados?')) return;
+  motorsRegistry.delete(id);
+  readingsData.delete(id);
+  saveState();
+  renderAll();
+}
+function renderMotorsList(){
+  const el = document.getElementById('motorsRegistryList');
+  if (!el) return;
+  if (!motorsRegistry.size){
+    el.innerHTML = `<div class="empty-state"><div class="ei">🔩</div>Sin motores registrados. Creá uno arriba o importá un Excel (se crean automáticamente).</div>`;
+    return;
+  }
+  el.innerHTML = Array.from(motorsRegistry.entries()).map(([id, m])=>{
+    const ensayos = readingsData.get(id)?.dates.length || 0;
+    const hilos = m.hilos || '3';
+    return `<div class="panel-box">
+      <div class="panel-box-title"><span>🔩 ${escHtml(m.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— ${escHtml(m.type||'')}${m.location?' · '+escHtml(m.location):''}</span></span>
+        <button class="btn-small danger" onclick="deleteMotor('${escJs(id)}')">Eliminar</button>
+      </div>
+      <div style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
+        ${m.kw?`<span class="mpoint-badge" style="display:inline-block;">${m.kw} kW</span>`:''}
+        ${m.vNom?`<span class="mpoint-badge" style="display:inline-block;">${m.vNom} V</span>`:''}
+        ${m.iNom?`<span class="mpoint-badge" style="display:inline-block;">${m.iNom} A</span>`:''}
+        ${m.rpm?`<span class="mpoint-badge" style="display:inline-block;">${m.rpm} RPM</span>`:''}
+        <span class="mpoint-badge" style="display:inline-block;">${escHtml(m.sistema||'Trifásico')}</span>
+        <label style="margin-left:6px;">Bornes:</label>
+        <select style="font-size:.8rem;padding:2px 6px;" onchange="updateMotorHilos('${escJs(id)}', this.value)">
+          <option value="6" ${hilos==='6'?'selected':''}>6 hilos</option>
+          <option value="3" ${hilos==='3'?'selected':''}>3 hilos</option>
+        </select>
+        <span style="margin-left:6px;">${ensayos} ensayo(s) registrado(s)</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  9. THRESHOLDS TAB
+// ═══════════════════════════════════════════════════════════
+function renderThresholdGrid(){
+  const el = document.getElementById('thresholdGrid');
+  if (!el) return;
+  el.innerHTML = Object.keys(THRESHOLD_META).map(key=>{
+    const meta = THRESHOLD_META[key];
+    const band = thresholds[key];
+    const labels = meta.inverse ? ['Normal (≥)','Elevado (≥)','Alerta (≥)'] : ['Normal (≤)','Elevado (≤)','Alerta (≤)'];
+    return `<div class="th-item">
+      <div class="th-item-lbl">${meta.label}${meta.unit?' ('+meta.unit+')':''}</div>
+      ${band.map((v,i)=>`<div class="th-row"><label>${labels[i]}</label><input type="number" step="0.01" id="th_${key}_${i}" value="${v}"></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+function saveThresholdsFromUI(){
+  for (const key of Object.keys(THRESHOLD_META)){
+    for (let i=0;i<3;i++){
+      const input = document.getElementById(`th_${key}_${i}`);
+      if (input){ const v = parseFloat(input.value); if (!isNaN(v)) thresholds[key][i] = v; }
+    }
+  }
+  saveState();
+  renderAll();
+  alert('Umbrales guardados.');
+}
+function resetThresholds(){
+  if (!confirm('¿Restaurar los umbrales por defecto?')) return;
+  thresholds = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  10. TABS
+// ═══════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  11. OFFLINE REPORT
+// ═══════════════════════════════════════════════════════════
+function generateOfflineReport(){
+  if (!readingsData.size){ alert('Sin datos para generar el informe.'); return; }
+  const dist = statusDistribution();
+  const fh = fleetHealth();
+  const totalMotores = motorsRegistry.size;
+  const totalEnsayados = readingsData.size;
+
+  let html = '';
+  html += `<div class="fleet-box">
+    <div class="fleet-box-title">🔩 Resumen de flota</div>
+    <div class="mgrid">
+      <div class="mstat"><div class="mstat-lbl">Motores registrados</div><div class="mstat-val">${totalMotores}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Con ensayos</div><div class="mstat-val">${totalEnsayados}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Salud de flota</div><div class="mstat-val">${fh===null?'—':fh+'%'}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Críticos</div><div class="mstat-val" style="color:var(--critical);">${dist.critical}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Alerta</div><div class="mstat-val" style="color:var(--warning);">${dist.warning}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Elevado</div><div class="mstat-val" style="color:var(--elevated);">${dist.elevated}</div></div>
+    </div>
+  </div>`;
+
+  // Plan de acción
+  const actionItems = [];
+  for (const k of readingsData.keys()){
+    const diag = diagnoseMotor(k);
+    if (!diag || diag.overall < 1) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const msgs = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const accion = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Revisar parámetros fuera de rango';
+    const plazo = diag.overall===3?'Inmediato':diag.overall===2?'7 días':'30 días';
+    actionItems.push({
+      prio: diag.overall===3?'critical':diag.overall===2?'warning':'elevated',
+      motor: getMotorName(k),
+      accion, plazo, health, nivel: STATUS[diag.overall]
+    });
+  }
+  actionItems.sort((a,b)=> ({critical:0,warning:1,elevated:2}[a.prio]) - ({critical:0,warning:1,elevated:2}[b.prio]));
+
+  if (actionItems.length){
+    html += `<hr class="section-divider" data-label="Plan de Acción Priorizado">`;
+    html += `<div style="overflow-x:auto;"><table class="plan-table">
+      <thead><tr><th>Prioridad</th><th>Motor</th><th>Hallazgo</th><th>Plazo</th><th>Salud</th></tr></thead>
+      <tbody>${actionItems.map(a=>`
+        <tr>
+          <td><span class="prio-badge prio-${a.prio}">${a.prio.toUpperCase()}</span></td>
+          <td style="font-weight:700;">${escHtml(a.motor)}</td>
+          <td style="font-size:.82rem;">${escHtml(a.accion)}</td>
+          <td style="font-weight:700;color:${STATUS_COLORS[STATUS.indexOf(a.nivel)]};">${a.plazo}</td>
+          <td style="font-family:'Share Tech Mono';">${a.health}%</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  // Conclusiones
+  html += `<hr class="section-divider" data-label="Conclusiones y Próximos Pasos">`;
+  let conc = `El análisis de <strong>${totalEnsayados} motor(es) ensayado(s)</strong> de un total de <strong>${totalMotores} registrado(s)</strong> arroja una salud de flota de <strong>${fh===null?'—':fh+'%'}</strong>. `;
+  if (dist.critical > 0){
+    conc += `Se requieren <strong>intervenciones inmediatas</strong> en ${dist.critical} motor(es) crítico(s), principalmente por índice de polarización bajo o degradación de aislación. `;
+  } else if (dist.warning > 0){
+    conc += `Se recomienda programar ${dist.warning} intervención(es) dentro de los próximos 7 días. `;
+  } else if (dist.elevated > 0){
+    conc += `Varios motores muestran deficiencias incipientes; se recomienda mantener el intervalo de ensayo actual. `;
+  } else {
+    conc += `La flota no presenta alarmas activas. Continuar con el plan de ensayos de aislación establecido. `;
+  }
+  const proxima = dist.critical>0?'dentro de 7 días':dist.warning>0?'dentro de 14 días':dist.elevated>0?'dentro de 30 días':'según plan habitual';
+  conc += `Próxima ronda de ensayos recomendada: <strong>${proxima}</strong>.`;
+
+  html += `<div class="fleet-box" style="margin-bottom:0;">
+    <div class="fleet-box-title">📝 Conclusiones</div>
+    <div class="fleet-text">${conc}</div>
+  </div>
+  <div class="note-box">
+    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Motor Pro</strong>, basado en el Índice de Polarización según IEEE 43, resistencia de aislación absoluta corregida a 40°C (IEEE 43, K<sub>T</sub>=0.5^((40−T)/10); si un ensayo no tiene temperatura ambiente cargada, se evaluó con el valor crudo, sin corregir), desbalance de resistencia de bobinado (criterio general de taller) y desbalance de corriente de línea según NEMA MG-1. Los umbrales son orientativos y ajustables en la pestaña Umbrales; validá contra tu norma o política interna antes de usar el informe para decisiones críticas.
+  </div>`;
+
+  document.getElementById('reportSections').innerHTML = html;
+}
+
+function copyReport(){
+  const el = document.getElementById('reportSections');
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('Informe copiado al portapapeles.');
+  }).catch(()=>alert('No se pudo copiar. Seleccioná el texto manualmente.'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  12. CSV EXPORT
+// ═══════════════════════════════════════════════════════════
+function exportCSV(){
+  if (!readingsData.size){ alert('Sin datos.'); return; }
+  let rows = ['Motor,Tipo,Sistema,Fecha,Estado,Temp_Ambiente_C,Tension_Ensayo_V,R1_MOhm,R1_Corregido_40C_MOhm,R10_MOhm,IP,Desb_Bobinado_%,Desb_Corriente_%,Observaciones'];
+  for (const [k, d] of readingsData.entries()){
+    const motor = motorsRegistry.get(k) || {};
+    for (let n=0;n<d.dates.length;n++){
+      const ev = evalReading(d.params, n);
+      const estado = ev.overall>=0 ? STATUS_LABELS[ev.overall] : '—';
+      const dt = d.dates[n];
+      const fecha = (dt instanceof Date && !isNaN(dt)) ? dt.toISOString().slice(0,10) : '';
+      rows.push([
+        `"${motor.name||''}"`, `"${motor.type||''}"`, `"${motor.sistema||''}"`,
+        fecha, estado, !isNaN(ev.tempAmb)?fmt(ev.tempAmb,1):'', !isNaN(ev.vEnsayo)?fmt(ev.vEnsayo,0):'',
+        !isNaN(ev.r1)?fmt(ev.r1,2):'', ev.rAislCorregida?fmt(ev.rAislCorr,2):'', !isNaN(ev.r10)?fmt(ev.r10,2):'', !isNaN(ev.ip)?fmt(ev.ip,2):'',
+        !isNaN(ev.desbR)?fmt(ev.desbR,2):'', !isNaN(ev.desbI)?fmt(ev.desbI,2):'',
+        `"${(d.obs&&d.obs[n])||''}"`
+      ].join(','));
+    }
+  }
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `motor_pro_historial_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function clearAllData(){
+  if (!confirm('¿Borrar TODOS los motores y ensayos? Esta acción no se puede deshacer.')) return;
+  motorsRegistry.clear(); readingsData.clear();
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  13. INIT
+// ═══════════════════════════════════════════════════════════
+loadState();
+populateMotorTypeSelect();
+renderAll();
+
+</script>
+</body>
+</html>

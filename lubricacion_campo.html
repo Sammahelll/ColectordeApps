@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#07090f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Lubricación en Campo — Satélite MANTEC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --bg2: #0d1220;
+  --bg3: #111827;
+  --surface: #151d2e;
+  --surface2: #1a2438;
+  --border: #1e2d47;
+  --border2: #253550;
+  --accent: #00d4ff;
+  --accent2: #0099bb;
+  --accent3: #00ff9d;
+  --warning: #ffaa00;
+  --danger: #ff3b5c;
+  --text: #e8edf5;
+  --text2: #8899bb;
+  --text3: #4a5a7a;
+  --font-display: 'Rajdhani', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --font-body: 'Exo 2', sans-serif;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { height:100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  min-height: 100vh;
+  display:flex; flex-direction:column;
+}
+::-webkit-scrollbar { width:8px; height:8px; }
+::-webkit-scrollbar-thumb { background:var(--border2); border-radius:4px; }
+::-webkit-scrollbar-track { background:var(--bg2); }
+
+/* ── HEADER ── */
+header {
+  background: linear-gradient(180deg, var(--bg3), var(--bg2));
+  border-bottom: 1px solid var(--border);
+  padding: 14px 18px;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  position: sticky; top:0; z-index:50;
+}
+.brand { display:flex; align-items:center; gap:10px; }
+.brand .logo {
+  width:34px; height:34px; border-radius:8px;
+  background:radial-gradient(circle at 30% 30%, var(--accent), var(--accent2));
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+  box-shadow: 0 0 14px rgba(0,212,255,0.4);
+}
+.brand-text h1 {
+  font-family:var(--font-display); font-size:16px; font-weight:700; letter-spacing:1.5px; color:var(--accent);
+}
+.brand-text .sub {
+  font-family:var(--font-mono); font-size:10px; color:var(--text3); letter-spacing:1px;
+}
+.header-badge {
+  font-family:var(--font-mono); font-size:10px; color:var(--accent3);
+  background:rgba(0,255,157,0.08); border:1px solid rgba(0,255,157,0.25);
+  border-radius:20px; padding:5px 12px; white-space:nowrap;
+}
+
+/* ── TABS ── */
+.tabs {
+  display:flex; gap:0; background:var(--bg2); border-bottom:1px solid var(--border);
+  overflow-x:auto; position:sticky; top:63px; z-index:40;
+}
+.tab-btn {
+  font-family:var(--font-display); font-size:13px; font-weight:600; letter-spacing:0.5px;
+  color:var(--text2); background:none; border:none; padding:12px 18px; cursor:pointer;
+  border-bottom:2px solid transparent; white-space:nowrap; transition:.15s;
+}
+.tab-btn:hover { color:var(--text); background:rgba(255,255,255,0.02); }
+.tab-btn.active { color:var(--accent); border-bottom-color:var(--accent); }
+
+main { flex:1; padding:16px; max-width:1100px; margin:0 auto; width:100%; }
+.view { display:none; }
+.view.active { display:block; animation:fadeIn .2s ease; }
+@keyframes fadeIn { from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+/* ── CARDS ── */
+.card {
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:16px; margin-bottom:14px;
+}
+.card-title {
+  font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:1.5px;
+  color:var(--accent); text-transform:uppercase; margin-bottom:12px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+
+/* ── FORM ── */
+label.field-label {
+  display:block; font-family:var(--font-mono); font-size:10px; color:var(--text3);
+  letter-spacing:0.5px; text-transform:uppercase; margin-bottom:5px;
+}
+select, input[type=text], input[type=number], input[type=date], textarea {
+  width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:6px;
+  color:var(--text); padding:9px 11px; font-family:var(--font-body); font-size:13px; outline:none;
+  transition:.15s;
+}
+select:focus, input:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 2px rgba(0,212,255,0.12); }
+.field-row { margin-bottom:12px; }
+.field-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:560px) { .field-grid { grid-template-columns:1fr; } }
+
+button.btn {
+  font-family:var(--font-display); font-size:13px; font-weight:700; letter-spacing:1px;
+  border-radius:7px; border:1px solid var(--border2); background:var(--bg2); color:var(--text2);
+  padding:10px 16px; cursor:pointer; transition:.15s;
+}
+button.btn:hover { border-color:var(--accent); color:var(--accent); }
+button.btn.primary { background:linear-gradient(135deg, var(--accent2), var(--accent)); color:#04121a; border:none; }
+button.btn.primary:hover { filter:brightness(1.1); }
+button.btn.small { padding:6px 12px; font-size:11px; }
+button.btn.danger { border-color:rgba(255,59,92,0.4); color:var(--danger); }
+
+.chip-select { display:flex; gap:6px; flex-wrap:wrap; }
+.chip {
+  font-family:var(--font-mono); font-size:11px; padding:6px 12px; border-radius:20px;
+  border:1px solid var(--border2); color:var(--text2); background:var(--bg2); cursor:pointer; transition:.15s;
+}
+.chip.selected { background:rgba(0,212,255,0.12); border-color:var(--accent); color:var(--accent); }
+.chip.state-ok.selected { background:rgba(0,255,157,0.12); border-color:var(--accent3); color:var(--accent3); }
+.chip.state-warn.selected { background:rgba(255,170,0,0.12); border-color:var(--warning); color:var(--warning); }
+.chip.state-danger.selected { background:rgba(255,59,92,0.12); border-color:var(--danger); color:var(--danger); }
+
+/* ── PUNTO ITEM ── */
+.punto-item {
+  border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--bg2);
+}
+.punto-item.done { border-color:rgba(0,255,157,0.35); background:rgba(0,255,157,0.03); }
+.punto-item.overdue { border-color:rgba(255,59,92,0.4); background:rgba(255,59,92,0.03); }
+.punto-head { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; cursor:pointer; }
+.punto-nombre { font-size:13px; color:var(--text); font-weight:500; }
+.punto-producto { font-family:var(--font-mono); font-size:10px; color:var(--text3); margin-top:3px; }
+.punto-status {
+  font-family:var(--font-mono); font-size:9px; letter-spacing:0.5px; padding:3px 9px; border-radius:12px;
+  white-space:nowrap; height:fit-content;
+}
+.punto-status.pend { background:rgba(136,153,187,0.1); color:var(--text2); border:1px solid var(--border2); }
+.punto-status.done { background:rgba(0,255,157,0.1); color:var(--accent3); border:1px solid rgba(0,255,157,0.3); }
+.punto-status.overdue { background:rgba(255,59,92,0.1); color:var(--danger); border:1px solid rgba(255,59,92,0.3); }
+.punto-body { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); display:none; }
+.punto-body.open { display:block; }
+.punto-nota { font-family:var(--font-mono); font-size:10px; color:var(--text3); margin-top:8px; line-height:1.5; }
+
+/* ── HISTORY ── */
+.hist-row {
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:10px 12px; border-bottom:1px solid var(--border); font-size:12px;
+}
+.hist-row:last-child { border-bottom:none; }
+.hist-meta { font-family:var(--font-mono); font-size:10px; color:var(--text3); margin-top:2px; }
+
+/* ── ALERT ── */
+.alert-row {
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
+  padding:12px; border-radius:8px; margin-bottom:8px; border:1px solid rgba(255,59,92,0.3);
+  background:rgba(255,59,92,0.05);
+}
+.alert-row.warn { border-color:rgba(255,170,0,0.3); background:rgba(255,170,0,0.05); }
+.alert-eq { font-size:13px; font-weight:600; }
+.alert-detail { font-family:var(--font-mono); font-size:10px; color:var(--text3); margin-top:3px; }
+.alert-days { font-family:var(--font-mono); font-size:16px; color:var(--danger); }
+.alert-days.warn { color:var(--warning); }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--text3); }
+.empty-state .icon { font-size:36px; margin-bottom:10px; opacity:0.5; }
+.empty-state .msg { font-family:var(--font-mono); font-size:12px; }
+
+.badge-count {
+  font-family:var(--font-mono); font-size:10px; background:var(--bg2); border:1px solid var(--border2);
+  border-radius:10px; padding:2px 8px; color:var(--text2);
+}
+.progress-bar { height:6px; border-radius:3px; background:var(--bg2); overflow:hidden; margin-top:8px; }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg, var(--accent2), var(--accent3)); transition:width .3s; }
+
+.toast-wrap { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:8px; align-items:center; }
+.toast {
+  font-family:var(--font-mono); font-size:12px; padding:10px 18px; border-radius:8px;
+  background:var(--surface2); border:1px solid var(--border2); color:var(--text);
+  box-shadow:0 6px 20px rgba(0,0,0,0.4); animation:toastIn .2s ease;
+}
+.toast.success { border-color:rgba(0,255,157,0.4); color:var(--accent3); }
+.toast.error { border-color:rgba(255,59,92,0.4); color:var(--danger); }
+.toast.warn { border-color:rgba(255,170,0,0.4); color:var(--warning); }
+@keyframes toastIn { from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+.select-row { display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; }
+.select-row > div { flex:1; min-width:160px; }
+
+textarea { resize:vertical; min-height:60px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">🛢️</div>
+    <div class="brand-text">
+      <h1>LUBRICACIÓN EN CAMPO</h1>
+      <div class="sub">SATÉLITE MANTEC · REGISTRO DE APLICACIONES</div>
+    </div>
+  </div>
+  <div class="header-badge" id="headerBadge">— sin datos MANTEC —</div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-view="registro" onclick="switchView('registro')">📋 REGISTRAR</button>
+  <button class="tab-btn" data-view="historico" onclick="switchView('historico')">🕓 HISTÓRICO</button>
+  <button class="tab-btn" data-view="alertas" onclick="switchView('alertas')">⚠ ALERTAS</button>
+  <button class="tab-btn" data-view="equipos" onclick="switchView('equipos')">⚙ EQUIPOS</button>
+</div>
+
+<main>
+
+  <!-- ═══════════════ VISTA: REGISTRO ═══════════════ -->
+  <div class="view active" id="view-registro">
+    <div class="card">
+      <div class="card-title">SELECCIONAR EQUIPO</div>
+      <div class="select-row">
+        <div>
+          <label class="field-label">Equipo</label>
+          <select id="selEquipo" onchange="onEquipoSeleccionado()">
+            <option value="">— Seleccionar equipo —</option>
+          </select>
+        </div>
+        <div style="flex:0 0 auto;">
+          <label class="field-label">Horómetro actual</label>
+          <input type="number" id="inpHorometro" placeholder="hrs" style="width:110px;" oninput="onHorometroChange()">
+        </div>
+      </div>
+      <div id="equipoInfo" style="margin-top:10px; font-family:var(--font-mono); font-size:11px; color:var(--text3);"></div>
+    </div>
+
+    <div class="card" id="planCard" style="display:none;">
+      <div class="card-title">
+        <span>PLAN DE LUBRICACIÓN</span>
+        <span class="badge-count" id="planBadge">0/0</span>
+      </div>
+      <div class="progress-bar"><div class="progress-bar-fill" id="planProgress" style="width:0%;"></div></div>
+      <div style="margin-top:14px;" id="puntosLista"></div>
+    </div>
+
+    <div class="empty-state" id="registroEmpty">
+      <div class="icon">🔧</div>
+      <div class="msg">Seleccioná un equipo para ver su plan de lubricación</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VISTA: HISTÓRICO ═══════════════ -->
+  <div class="view" id="view-historico">
+    <div class="card">
+      <div class="card-title">
+        <span>HISTÓRICO DE APLICACIONES</span>
+        <span class="badge-count" id="histBadge">0</span>
+      </div>
+      <div class="select-row" style="margin-bottom:12px;">
+        <div>
+          <label class="field-label">Filtrar por equipo</label>
+          <select id="histFiltroEquipo" onchange="renderHistorico()">
+            <option value="">Todos los equipos</option>
+          </select>
+        </div>
+      </div>
+      <div id="historicoLista"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VISTA: ALERTAS ═══════════════ -->
+  <div class="view" id="view-alertas">
+    <div class="card">
+      <div class="card-title">
+        <span>PUNTOS NO LUBRICADOS EN FECHA</span>
+        <span class="badge-count" id="alertBadge">0</span>
+      </div>
+      <div id="alertasLista"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ VISTA: EQUIPOS ═══════════════ -->
+  <div class="view" id="view-equipos">
+    <div class="card">
+      <div class="card-title">
+        <span>EQUIPOS CARGADOS</span>
+        <span class="badge-count" id="equiposBadge">0</span>
+      </div>
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--text3); margin-bottom:12px;">
+        Este satélite lee los equipos ya registrados en MANTEC (localStorage compartido, prefijo <code>mantec_</code>). Si no ves tus equipos, abrí este archivo desde el mismo navegador donde usás MANTEC, o cargá equipos de demo abajo.
+      </div>
+      <button class="btn small" onclick="cargarEquiposDemo()">+ Cargar equipos de demo</button>
+      <div id="equiposLista" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+</main>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+'use strict';
+
+/* ══════════════════════════════════════════════════════════════
+   PERSISTENCIA — mismo patrón que MANTEC (DB.get/set sobre
+   localStorage). Usamos el MISMO prefijo 'mantec_' para leer
+   equipos/componentes ya cargados en MANTEC, y un prefijo propio
+   'lubcampo_' para los datos nuevos de este satélite.
+   ══════════════════════════════════════════════════════════════ */
+const MANTEC_PREFIX = 'mantec_';
+const SAT_PREFIX = 'lubcampo_';
+
+const DB = {
+  get:  (k) => { try { return JSON.parse(localStorage.getItem(MANTEC_PREFIX+k)) || []; } catch { return []; } },
+  set:  (k,v) => localStorage.setItem(MANTEC_PREFIX+k, JSON.stringify(v)),
+};
+const SAT = {
+  get:  (k) => { try { return JSON.parse(localStorage.getItem(SAT_PREFIX+k)) || []; } catch { return []; } },
+  set:  (k,v) => localStorage.setItem(SAT_PREFIX+k, JSON.stringify(v)),
+  getObj: (k) => { try { return JSON.parse(localStorage.getItem(SAT_PREFIX+k)) || {}; } catch { return {}; } },
+  setObj: (k,v) => localStorage.setItem(SAT_PREFIX+k, JSON.stringify(v)),
+};
+
+var equipos = DB.get('equipos');                 // leído de MANTEC
+var horometros = SAT.getObj('horometros_campo'); // { eqId: valor }  (independiente del de MANTEC para no pisar datos)
+var aplicaciones = SAT.get('aplicaciones');       // histórico de aplicaciones de lubricación en campo
+
+/* ══════════════════════════════════════════════════════════════
+   PLANES DE LUBRICACIÓN POR TIPO DE EQUIPO
+   — Reutiliza EXACTAMENTE la estructura y contenido de
+   loadDefaultLubricacion() de MANTEC (motorreductor / izaje / pala),
+   agregando un id estable por punto para poder trackear histórico.
+   ══════════════════════════════════════════════════════════════ */
+const PLANES = {
+  motorreductor: [
+    { pid:'mr1', punto:'Aceite de engranajes del reductor', producto:'ISO VG 220 o SAE 80W-90 GL-4/GL-5 (según fabricante)', intervalo_label:'Nivel: 500 h | Cambio: 2000–4000 h', intervalo_h:2000, nota:'Nivel en mirilla: entre mín/máx. T° aceite >85°C → cambio anticipado. Lentax C45T: llenar por tapón superior hasta rebosar' },
+    { pid:'mr2', punto:'Rodamientos del motor eléctrico (lado acople)', producto:'Grasa EP2 litio NLGI 2 (ej. Mobilux EP2)', intervalo_label:'Cada 2000 h o según placa del motor', intervalo_h:2000, nota:'Purgar hasta salir grasa limpia. No sobrecargar: exceso de grasa sella los rodamientos y eleva temperatura' },
+    { pid:'mr3', punto:'Rodamientos del motor eléctrico (lado libre)', producto:'Grasa EP2 litio NLGI 2', intervalo_label:'Cada 2000 h o según placa del motor', intervalo_h:2000, nota:'SEW con freno (BM/BMG): verificar también lubricación del eje del freno cada 2000 h' },
+    { pid:'mr4', punto:'Acoplamiento flexible (entre motor y reductor)', producto:'Grasa EP2 o polímero (según tipo de acople)', intervalo_label:'Inspección: 1000 h | Relleno: 2000 h', intervalo_h:2000, nota:'Acoples de uñas o estrella de goma: no requieren grasa, solo inspección de desgaste del inserto' },
+    { pid:'mr5', punto:'Sello / retén de salida del eje', producto:'No requiere lubricante externo', intervalo_label:'Inspección visual: cada 500 h', intervalo_h:500, nota:'Verificar ausencia de fugas de aceite. Labio del retén reseco o endurecido = cambio preventivo antes de 1000 h' },
+    { pid:'mr6', punto:'Ventilador y cubierta de refrigeración', producto:'N/A — Limpieza con aire comprimido', intervalo_label:'Limpieza: cada 250 h', intervalo_h:250, nota:'Aletas de motor tapadas con polvo/aceite elevan T° hasta 15°C. Crítico en ambientes con aerosoles de clorosoda' },
+  ],
+  izaje: [
+    { pid:'iz1', punto:'Cable de acero (lubricación penetrante)', producto:'Aceite penetrante de cables o Mobilarma 524 (SAE 30 mineral)', intervalo_label:'Cada 250 h o cuando aparezca oxidación superficial', intervalo_h:250, nota:'Aplicar con brocha a lo largo del tendido. Si el cable muestra corrosión interna → reemplazo inmediato' },
+    { pid:'iz2', punto:'Reductor del polipasto (izaje)', producto:'Aceite engranajes ISO VG 220 o SAE 80W-90 GL-4', intervalo_label:'Nivel: mensual | Cambio: 2000 h', intervalo_h:2000, nota:'T° carcasa >85°C en ciclo continuo = falta de aceite o rodamientos en falla' },
+    { pid:'iz3', punto:'Reductor de traslación del carro', producto:'Aceite engranajes ISO VG 220 o SAE 80W-90 GL-4', intervalo_label:'Nivel: mensual | Cambio: 2000 h', intervalo_h:2000, nota:'Igual al reductor de izaje. En grúa bandera verificar placa del reductor de orientación' },
+    { pid:'iz4', punto:'Rodamientos de ruedas (vigas carril)', producto:'Grasa EP2 litio NLGI 2', intervalo_label:'Cada 250–500 h', intervalo_h:250, nota:'Purgar hasta ver grasa limpia. Ambiente clorosoda: usar grasa con inhibidor de corrosión' },
+    { pid:'iz5', punto:'Gancho (rodamiento de rotación del gancho)', producto:'Grasa EP2 litio NLGI 2', intervalo_label:'Cada 250 h', intervalo_h:250, nota:'Rodamiento sin grasa genera falla de giro libre → carga rotativa y desgaste acelerado del cable' },
+    { pid:'iz6', punto:'Cadena de izaje (si aplica)', producto:'Aceite de cadenas SAE 30 o lubricante específico', intervalo_label:'Cada 250 h o visualmente', intervalo_h:250, nota:'Verificar elongación: si supera 2% del paso nominal → reemplazar' },
+    { pid:'iz7', punto:'Carros porta-cables festón (ejes y roldanas)', producto:'Grasa EP2 (ejes de roldanas)', intervalo_label:'Cada 500 h', intervalo_h:500, nota:'Roldanas trabadas deforman el cable plano de festón' },
+    { pid:'iz8', punto:'Piñón y cremallera de traslación (si aplica)', producto:'Grasa semilíquida NLGI 00 o spray de grasa de cadena', intervalo_label:'Cada 250 h o visualmente', intervalo_h:250, nota:'Piñón seco genera golpeteo característico' },
+  ],
+  pala: [
+    { pid:'pl1', punto:'Pivotes brazo cargador (4–6 pts)', producto:'Grasa EP2 litio NLGI 2', intervalo_label:'50 h', intervalo_h:50, nota:'Si sale agua o barro → programar limpieza de bujes antes de 250 h' },
+    { pid:'pl2', punto:'Pivotes brazo retroexcavador (cuchara / balancín / pluma)', producto:'Grasa EP2', intervalo_label:'50 h (25 h en ambiente severo)', intervalo_h:50, nota:'Juego lateral >2 mm: medir diámetros y prever rectificado' },
+    { pid:'pl3', punto:'Articulación central (chasis articulado)', producto:'Grasa EP2', intervalo_label:'50 h', intervalo_h:50, nota:'2 engrasadores (sup e inf). Dificultad en el giro → verificar rodamiento central' },
+    { pid:'pl4', punto:'Cilindros estabilizadores / patas', producto:'Grasa EP2', intervalo_label:'50 h', intervalo_h:50, nota:'Pasadores superiores e inferiores' },
+    { pid:'pl5', punto:'Eje cardán y crucetas', producto:'Grasa EP2', intervalo_label:'50 h', intervalo_h:50, nota:'Purgar hasta salir grasa limpia. Crítico: crucetas tienden a secarse' },
+    { pid:'pl6', punto:'Mandos finales / Cubos de rueda', producto:'Grasa NLGI 00 o SAE 85W-140', intervalo_label:'Nivel: 250 h | Cambio: 1000 h', intervalo_h:250, nota:'T° IR >90°C con carga → drenaje inmediato y revisión rodamientos' },
+    { pid:'pl7', punto:'Transmisión Power Shift y convertidor', producto:'SAE 10W (TO-4) o Cat TDTO SAE 30', intervalo_label:'Nivel: diario | Cambio: 1000 h', intervalo_h:1000, nota:'T° carcasa >100°C sostenido = patinamiento de discos' },
+    { pid:'pl8', punto:'Sistema hidráulico', producto:'ISO VG 68 (antidesgaste)', intervalo_label:'Cambio: 2000 h | Filtro retorno: 500 h', intervalo_h:2000, nota:'T° tanque >85°C → limpiar enfriador y revisar nivel' },
+    { pid:'pl9', punto:'Motor diésel (aceite motor)', producto:'SAE 15W-40 API CI-4 / CH-4', intervalo_label:'Cambio: 250 h (horómetro)', intervalo_h:250, nota:'Alerta a 50 h del vencimiento' },
+    { pid:'pl10', punto:'Filtro de aire (indicador de restricción)', producto:'N/A — Indicador físico de vacío', intervalo_label:'Verificar: diario / 10 h', intervalo_h:10, nota:'Indicador en ROJO → cambio inmediato de elemento' },
+  ],
+};
+
+// Mapa flexible tipo de equipo (texto libre en MANTEC) → clave de plan
+function resolverTipoPlan(tipoTexto) {
+  const t = (tipoTexto || '').toLowerCase();
+  if (t.includes('motorreductor') || t.includes('reductor')) return 'motorreductor';
+  if (t.includes('izaje') || t.includes('grúa') || t.includes('grua') || t.includes('polipasto') || t.includes('puente')) return 'izaje';
+  if (t.includes('pala') || t.includes('cargador') || t.includes('retro') || t.includes('movil') || t.includes('móvil')) return 'pala';
+  return null;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ESTADOS VISUALES DEL PRODUCTO
+   ══════════════════════════════════════════════════════════════ */
+const COLORES = ['Ámbar / normal', 'Marrón oscuro', 'Negro (oxidado)', 'Lechoso (agua)', 'Verdoso'];
+const TURBIDEZ = ['Transparente', 'Levemente turbio', 'Turbio', 'Con sedimento'];
+
+let equipoActual = null;
+let tipoUpdate = null;
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════════════════════════ */
+function init() {
+  poblarSelectEquipos();
+  actualizarHeaderBadge();
+  renderHistorico();
+  renderAlertas();
+  renderEquiposLista();
+}
+
+function actualizarHeaderBadge() {
+  const badge = document.getElementById('headerBadge');
+  if (equipos.length) {
+    badge.textContent = `✓ ${equipos.length} equipo(s) desde MANTEC`;
+  } else {
+    badge.textContent = '— sin equipos de MANTEC —';
+  }
+}
+
+function poblarSelectEquipos() {
+  const sel = document.getElementById('selEquipo');
+  const selHist = document.getElementById('histFiltroEquipo');
+  const opts = equipos.map(eq => `<option value="${eq.id}">${eq.tag} — ${eq.nombre}</option>`).join('');
+  sel.innerHTML = '<option value="">— Seleccionar equipo —</option>' + opts;
+  selHist.innerHTML = '<option value="">Todos los equipos</option>' + opts;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TABS
+   ══════════════════════════════════════════════════════════════ */
+function switchView(name) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  document.querySelector(`.tab-btn[data-view="${name}"]`).classList.add('active');
+  if (name === 'historico') renderHistorico();
+  if (name === 'alertas') renderAlertas();
+  if (name === 'equipos') renderEquiposLista();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   REGISTRO — selección de equipo y plan
+   ══════════════════════════════════════════════════════════════ */
+function onEquipoSeleccionado() {
+  const id = document.getElementById('selEquipo').value;
+  const empty = document.getElementById('registroEmpty');
+  const planCard = document.getElementById('planCard');
+  const info = document.getElementById('equipoInfo');
+
+  if (!id) {
+    equipoActual = null;
+    planCard.style.display = 'none';
+    empty.style.display = 'block';
+    info.innerHTML = '';
+    return;
+  }
+
+  equipoActual = equipos.find(e => e.id === id);
+  const tipoPlan = resolverTipoPlan(equipoActual.tipo);
+
+  document.getElementById('inpHorometro').value = horometros[id] != null ? horometros[id] : '';
+
+  if (!tipoPlan) {
+    empty.style.display = 'block';
+    empty.querySelector('.msg').textContent = `No hay plan de lubricación predefinido para el tipo "${equipoActual.tipo}". Tipos soportados: motorreductor, izaje/grúa, pala/maquinaria móvil.`;
+    planCard.style.display = 'none';
+    info.innerHTML = `<b>${equipoActual.tag}</b> — ${equipoActual.nombre} · ${equipoActual.marca} ${equipoActual.modelo} · Área: ${equipoActual.area}`;
+    return;
+  }
+
+  empty.style.display = 'none';
+  planCard.style.display = 'block';
+  info.innerHTML = `<b>${equipoActual.tag}</b> — ${equipoActual.nombre} · ${equipoActual.marca} ${equipoActual.modelo} · Área: ${equipoActual.area} · Plan: <span style="color:var(--accent);">${tipoPlan}</span>`;
+
+  renderPuntos(tipoPlan);
+}
+
+function onHorometroChange() {
+  if (!equipoActual) return;
+  const v = document.getElementById('inpHorometro').value;
+  horometros[equipoActual.id] = v !== '' ? parseFloat(v) : null;
+  SAT.setObj('horometros_campo', horometros);
+  if (equipoActual) renderPuntos(resolverTipoPlan(equipoActual.tipo));
+}
+
+function ultimaAplicacion(eqId, pid) {
+  const apps = aplicaciones.filter(a => a.eqId === eqId && a.pid === pid);
+  if (!apps.length) return null;
+  return apps.sort((a,b) => new Date(b.fecha) - new Date(a.fecha))[0];
+}
+
+function diasDesde(fechaStr) {
+  const d = new Date(fechaStr);
+  const now = new Date();
+  return Math.floor((now - d) / (1000*60*60*24));
+}
+
+function horasVencidoPorHorometro(item, ultima, horometroActual) {
+  if (!ultima || horometroActual == null || ultima.horometro == null) return null;
+  const horasTranscurridas = horometroActual - ultima.horometro;
+  return horasTranscurridas - item.intervalo_h;
+}
+
+function renderPuntos(tipoPlan) {
+  const plan = PLANES[tipoPlan];
+  const cont = document.getElementById('puntosLista');
+  const eqId = equipoActual.id;
+  const horometroActual = horometros[eqId];
+  let completados = 0;
+
+  cont.innerHTML = plan.map(item => {
+    const ultima = ultimaAplicacion(eqId, item.pid);
+    let statusClass = 'pend', statusText = 'PENDIENTE', itemClass = '';
+    if (ultima) {
+      const dias = diasDesde(ultima.fecha);
+      const horasVencido = horasVencidoPorHorometro(item, ultima, horometroActual);
+      const vencidoPorHoras = horasVencido != null && horasVencido > 0;
+      const vencidoAprox = !horometroActual && dias > 0 && (dias * 8 > item.intervalo_h); // heurística simple si no hay horómetro
+      if (vencidoPorHoras || vencidoAprox) {
+        statusClass = 'overdue'; statusText = `VENCIDO`; itemClass = 'overdue';
+      } else {
+        statusClass = 'done'; statusText = `OK · hace ${dias}d`; itemClass = 'done';
+        completados++;
+      }
+    }
+    const safeId = item.pid;
+    return `
+      <div class="punto-item ${itemClass}" id="punto-${safeId}">
+        <div class="punto-head" onclick="togglePunto('${safeId}')">
+          <div>
+            <div class="punto-nombre">${item.punto}</div>
+            <div class="punto-producto">${item.producto} · ${item.intervalo_label}</div>
+          </div>
+          <div class="punto-status ${statusClass}">${statusText}</div>
+        </div>
+        <div class="punto-body" id="body-${safeId}">
+          <div class="field-grid">
+            <div class="field-row">
+              <label class="field-label">N° de frasco / envase</label>
+              <input type="text" id="frasco-${safeId}" placeholder="ej. F-2024-118">
+            </div>
+            <div class="field-row">
+              <label class="field-label">Cantidad aplicada</label>
+              <input type="text" id="cantidad-${safeId}" placeholder="ej. 250 ml / 2 disparos">
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Método de aplicación</label>
+            <select id="metodo-${safeId}">
+              <option>Engrasadora manual</option>
+              <option>Pistola neumática</option>
+              <option>Vertido directo</option>
+              <option>Brocha</option>
+              <option>Sistema centralizado</option>
+              <option>Otro</option>
+            </select>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Color observado</label>
+            <div class="chip-select" id="color-${safeId}">
+              ${COLORES.map(c => `<span class="chip" data-val="${c}" onclick="selectChip('color-${safeId}', this)">${c}</span>`).join('')}
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Turbidez</label>
+            <div class="chip-select" id="turbidez-${safeId}">
+              ${TURBIDEZ.map(t => `<span class="chip" data-val="${t}" onclick="selectChip('turbidez-${safeId}', this)">${t}</span>`).join('')}
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">¿Presencia de agua?</label>
+            <div class="chip-select" id="agua-${safeId}">
+              <span class="chip state-ok" data-val="No" onclick="selectChip('agua-${safeId}', this)">No</span>
+              <span class="chip state-danger" data-val="Sí" onclick="selectChip('agua-${safeId}', this)">Sí</span>
+            </div>
+          </div>
+          <div class="field-row">
+            <label class="field-label">Observaciones</label>
+            <textarea id="obs-${safeId}" placeholder="Notas adicionales del técnico..."></textarea>
+          </div>
+          <div class="punto-nota">💡 ${item.nota}</div>
+          <div style="margin-top:12px; display:flex; gap:8px;">
+            <button class="btn primary" onclick="registrarAplicacion('${safeId}')">✓ REGISTRAR APLICACIÓN</button>
+            <button class="btn small" onclick="togglePunto('${safeId}')">Cancelar</button>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('planBadge').textContent = `${completados}/${plan.length}`;
+  document.getElementById('planProgress').style.width = plan.length ? `${(completados/plan.length)*100}%` : '0%';
+}
+
+function togglePunto(pid) {
+  document.querySelectorAll('.punto-body.open').forEach(el => {
+    if (el.id !== 'body-'+pid) el.classList.remove('open');
+  });
+  const body = document.getElementById('body-'+pid);
+  body.classList.toggle('open');
+}
+
+function selectChip(groupId, el) {
+  const group = document.getElementById(groupId);
+  group.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function valorChipSeleccionado(groupId) {
+  const sel = document.querySelector(`#${groupId} .chip.selected`);
+  return sel ? sel.dataset.val : null;
+}
+
+function registrarAplicacion(pid) {
+  const tipoPlan = resolverTipoPlan(equipoActual.tipo);
+  const item = PLANES[tipoPlan].find(p => p.pid === pid);
+  const frasco = document.getElementById(`frasco-${pid}`).value.trim();
+  const cantidad = document.getElementById(`cantidad-${pid}`).value.trim();
+  const metodo = document.getElementById(`metodo-${pid}`).value;
+  const color = valorChipSeleccionado(`color-${pid}`);
+  const turbidez = valorChipSeleccionado(`turbidez-${pid}`);
+  const agua = valorChipSeleccionado(`agua-${pid}`);
+  const obs = document.getElementById(`obs-${pid}`).value.trim();
+  const horometroActual = horometros[equipoActual.id];
+
+  if (!cantidad) { toast('Ingresá la cantidad aplicada', 'error'); return; }
+
+  const registro = {
+    id: 'app_' + Date.now(),
+    eqId: equipoActual.id,
+    eqTag: equipoActual.tag,
+    eqNombre: equipoActual.nombre,
+    pid: pid,
+    punto: item.punto,
+    producto: item.producto,
+    fecha: new Date().toISOString(),
+    horometro: horometroActual != null ? horometroActual : null,
+    frasco: frasco || null,
+    cantidad: cantidad,
+    metodo: metodo,
+    color: color || null,
+    turbidez: turbidez || null,
+    agua: agua || null,
+    observaciones: obs || null,
+  };
+
+  aplicaciones.push(registro);
+  SAT.set('aplicaciones', aplicaciones);
+
+  if (agua === 'Sí') {
+    toast(`⚠ Registrado con presencia de agua en "${item.punto.substring(0,30)}"`, 'warn');
+  } else {
+    toast(`✓ Aplicación registrada: ${item.punto.substring(0,30)}`, 'success');
+  }
+
+  renderPuntos(tipoPlan);
+  renderHistorico();
+  renderAlertas();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HISTÓRICO
+   ══════════════════════════════════════════════════════════════ */
+function renderHistorico() {
+  const filtro = document.getElementById('histFiltroEquipo').value;
+  const cont = document.getElementById('historicoLista');
+  let lista = [...aplicaciones].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
+  if (filtro) lista = lista.filter(a => a.eqId === filtro);
+
+  document.getElementById('histBadge').textContent = lista.length;
+
+  if (!lista.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">🕓</div><div class="msg">Sin aplicaciones registradas todavía</div></div>`;
+    return;
+  }
+
+  cont.innerHTML = lista.map(a => {
+    const fecha = new Date(a.fecha);
+    const fechaStr = fecha.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit', year:'numeric'}) + ' ' + fecha.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+    const aguaFlag = a.agua === 'Sí' ? ` · <span style="color:var(--danger);">⚠ agua</span>` : '';
+    return `
+      <div class="hist-row">
+        <div>
+          <div><b>${a.eqTag}</b> — ${a.punto}</div>
+          <div class="hist-meta">${fechaStr} · ${a.cantidad} · ${a.metodo}${a.horometro != null ? ' · '+a.horometro+' hrs' : ''}${a.frasco ? ' · frasco '+a.frasco : ''}${aguaFlag}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ALERTAS — puntos vencidos cruzando plan vs. histórico
+   ══════════════════════════════════════════════════════════════ */
+function renderAlertas() {
+  const cont = document.getElementById('alertasLista');
+  const alertas = [];
+
+  equipos.forEach(eq => {
+    const tipoPlan = resolverTipoPlan(eq.tipo);
+    if (!tipoPlan) return;
+    const horometroActual = horometros[eq.id];
+    PLANES[tipoPlan].forEach(item => {
+      const ultima = ultimaAplicacion(eq.id, item.pid);
+      if (!ultima) {
+        alertas.push({ eq, item, tipo:'nunca', detalle:'Nunca registrado' });
+        return;
+      }
+      const dias = diasDesde(ultima.fecha);
+      const horasVencido = horasVencidoPorHorometro(item, ultima, horometroActual);
+      if (horasVencido != null && horasVencido > 0) {
+        alertas.push({ eq, item, tipo:'horas', detalle:`Vencido por ${Math.round(horasVencido)} h (intervalo ${item.intervalo_h} h)`, magnitud: horasVencido });
+      } else if (!horometroActual && dias * 8 > item.intervalo_h) {
+        alertas.push({ eq, item, tipo:'dias', detalle:`Última aplicación hace ${dias} días (sin horómetro, estimado)`, magnitud: dias });
+      }
+    });
+  });
+
+  document.getElementById('alertBadge').textContent = alertas.length;
+
+  if (!alertas.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">✓</div><div class="msg">No hay puntos vencidos — todo al día</div></div>`;
+    return;
+  }
+
+  alertas.sort((a,b) => (b.magnitud||999) - (a.magnitud||999));
+
+  cont.innerHTML = alertas.map(al => {
+    const severo = al.tipo === 'nunca' || (al.magnitud && al.magnitud > (al.item.intervalo_h*0.5));
+    return `
+      <div class="alert-row ${severo ? '' : 'warn'}">
+        <div>
+          <div class="alert-eq">${al.eq.tag} — ${al.item.punto}</div>
+          <div class="alert-detail">${al.detalle}</div>
+        </div>
+        <button class="btn small" onclick="irARegistrarDesdeAlerta('${al.eq.id}')">Registrar →</button>
+      </div>`;
+  }).join('');
+}
+
+function irARegistrarDesdeAlerta(eqId) {
+  switchView('registro');
+  document.getElementById('selEquipo').value = eqId;
+  onEquipoSeleccionado();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   EQUIPOS — vista de solo lectura + carga de demo
+   ══════════════════════════════════════════════════════════════ */
+function renderEquiposLista() {
+  const cont = document.getElementById('equiposLista');
+  document.getElementById('equiposBadge').textContent = equipos.length;
+  if (!equipos.length) {
+    cont.innerHTML = `<div class="empty-state"><div class="icon">⚙</div><div class="msg">No hay equipos cargados desde MANTEC</div></div>`;
+    return;
+  }
+  cont.innerHTML = equipos.map(eq => {
+    const tipoPlan = resolverTipoPlan(eq.tipo);
+    return `
+      <div class="hist-row">
+        <div>
+          <div><b>${eq.tag}</b> — ${eq.nombre}</div>
+          <div class="hist-meta">Tipo: ${eq.tipo} · Área: ${eq.area}${tipoPlan ? ` · Plan: <span style="color:var(--accent3);">${tipoPlan}</span>` : ' · <span style="color:var(--text3);">sin plan de lubricación</span>'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function cargarEquiposDemo() {
+  const demo = [
+    { id:'eq_mr1', tag:'MR-101', nombre:'Motorreductor Cinta Transportadora #1', tipo:'motorreductor', area:'Planta Norte', marca:'SEW', modelo:'K97', serie:'SW2023011', potencia:5.5, rpm:1450, estado:'operativo', notas:'' },
+    { id:'eq_iz1', tag:'GP-201', nombre:'Grúa Puente 5T Nave Principal', tipo:'izaje', area:'Nave Principal', marca:'Demag', modelo:'DR', serie:'DM2021044', potencia:11, rpm:0, estado:'operativo', notas:'' },
+    { id:'eq_pl1', tag:'PC-701', nombre:'Pala Cargadora Caterpillar', tipo:'pala', area:'Patio', marca:'Caterpillar', modelo:'906M', serie:'CAT2019200', potencia:0, rpm:0, estado:'operativo', notas:'' },
+  ];
+  demo.forEach(d => { if (!equipos.find(e => e.id === d.id)) equipos.push(d); });
+  DB.set('equipos', equipos);
+  poblarSelectEquipos();
+  actualizarHeaderBadge();
+  renderEquiposLista();
+  renderAlertas();
+  toast('✓ Equipos de demo cargados', 'success');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════════════════════════ */
+function toast(msg, type='info') {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+init();
+</script>
+</body>
+</html>
