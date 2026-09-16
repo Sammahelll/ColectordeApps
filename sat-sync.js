@@ -147,9 +147,53 @@
     return data.publicUrl;
   }
 
+  // ---- Hub de Campo: capturas crudas (alineación, motor, tablero) ----
+  // Independiza lo que se carga a mano en el celular (sin diagnóstico)
+  // de lo que ya calculó cada app Pro (tabla `analisis`). Una vez que la
+  // app Pro procesa una captura, la marca como 'procesado' y queda
+  // enlazada al registro de `analisis` que generó.
+
+  async function guardarCaptura({ modulo, equipo_tag, datos, autor }) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    const equipo = await buscarOCrearEquipo(equipo_tag);
+    const { data, error } = await client.from('capturas_campo').insert({
+      equipo_id: equipo.id,
+      modulo,
+      datos: datos || {},
+      autor: autor || 'técnico_campo',
+      estado: 'pendiente'
+    }).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async function listarCapturasPendientes({ modulo, limite = 100 } = {}) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    let q = client.from('capturas_campo')
+      .select('*, equipos(tag, nombre, ubicacion)')
+      .eq('estado', 'pendiente')
+      .order('fecha', { ascending: false })
+      .limit(limite);
+    if (modulo) q = q.eq('modulo', modulo);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  }
+
+  async function marcarCapturaProcesada(capturaId, analisisId) {
+    if (!client) throw new Error('[SatSync] no inicializado — llamá a SatSync.init() primero');
+    const { data, error } = await client.from('capturas_campo')
+      .update({ estado: 'procesado', analisis_id: analisisId || null })
+      .eq('id', capturaId)
+      .select().single();
+    if (error) throw error;
+    return data;
+  }
+
   global.SatSync = {
     init, estaConfigurado, guardarConfig, leerConfig,
     listarEquipos, buscarOCrearEquipo, actualizarEquipo, archivarEquipo,
-    guardarAnalisis, listarAnalisis, subirImagen
+    guardarAnalisis, listarAnalisis, subirImagen,
+    guardarCaptura, listarCapturasPendientes, marcarCapturaProcesada
   };
 })(window);
