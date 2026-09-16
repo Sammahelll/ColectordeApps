@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANTEC – Refrigeración Pro V1.0 · Análisis Predictivo de Climatización Industrial</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #07090f;
+  --surface: #0d1117;
+  --card: #111827;
+  --card2: #141d2e;
+  --border: #1e2d45;
+  --border2: #263548;
+  --text: #cdd9f0;
+  --muted: #5e7a9a;
+  --good: #10c98a;
+  --elevated: #f0b429;
+  --warning: #f97316;
+  --critical: #ef4444;
+  --good-bg: rgba(16,201,138,.12);
+  --elevated-bg: rgba(240,180,41,.12);
+  --warning-bg: rgba(249,115,22,.12);
+  --critical-bg: rgba(239,68,68,.12);
+  --accent: #06b6d4;
+  --accent2: #22d3ee;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
+code,.mono{font-family:'Share Tech Mono',monospace;}
+button,select,input{font-family:'Rajdhani',sans-serif;}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#0d1117 0%,#0e1f26 100%);
+  border-bottom:1px solid var(--border);
+  padding:16px 28px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);
+}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-icon{width:38px;height:38px;background:var(--accent);border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:20px;}
+.logo-title{font-size:1.4rem;font-weight:700;letter-spacing:1px;color:#fff;}
+.logo-sub{font-size:.7rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:1px;}
+.header-right{display:flex;align-items:center;gap:20px;}
+.hstat{text-align:center;}
+.hstat-val{font-size:1.3rem;font-weight:700;}
+.hstat-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:1px;}
+
+/* ── UPLOAD BAR ── */
+.upload-bar{
+  background:var(--surface);border-bottom:1px solid var(--border);
+  padding:12px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+}
+.file-label{
+  background:var(--accent);color:#03181c;padding:7px 20px;border-radius:30px;
+  cursor:pointer;font-weight:600;font-size:.9rem;
+  transition:background .2s;letter-spacing:.5px;
+}
+.file-label:hover{background:#0891b2;}
+.file-label input{display:none;}
+.load-status{font-size:.85rem;color:var(--muted);}
+.load-status.ok{color:var(--good);}
+.load-status.err{color:var(--critical);}
+.btn-small{
+  background:var(--card);border:1px solid var(--border2);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.83rem;cursor:pointer;transition:all .2s;
+}
+.btn-small:hover{border-color:var(--accent);color:var(--accent2);}
+.btn-small.danger:hover{border-color:var(--critical);color:var(--critical);}
+
+/* ── TABS ── */
+.tabs{
+  display:flex;gap:2px;background:var(--surface);
+  border-bottom:1px solid var(--border);padding:0 24px;overflow-x:auto;
+}
+.tab-btn{
+  padding:12px 22px;background:transparent;border:none;cursor:pointer;
+  font-weight:600;font-size:1rem;white-space:nowrap;
+  color:var(--muted);transition:.2s;border-bottom:3px solid transparent;
+}
+.tab-btn:hover{color:var(--text);}
+.tab-btn.active{color:var(--accent2);border-bottom-color:var(--accent);}
+.tab-content{display:none;padding:24px;max-width:1500px;margin:0 auto;}
+.tab-content.active{display:block;}
+
+/* ── SUMMARY BAR ── */
+.summary-bar{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;
+}
+.sum-card{
+  background:var(--card);border-radius:10px;padding:14px 18px;
+  border:1px solid var(--border);position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s;
+}
+.sum-card:hover{border-color:var(--border2);}
+.sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.sum-card.good::before{background:var(--good);}
+.sum-card.elevated::before{background:var(--elevated);}
+.sum-card.warning::before{background:var(--warning);}
+.sum-card.critical::before{background:var(--critical);}
+.sum-icon{font-size:1.5rem;}
+.sum-num{font-size:1.8rem;font-weight:700;}
+.sum-lbl{font-size:.78rem;color:var(--muted);margin-top:2px;}
+
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;align-items:center;}
+.filter-btn{
+  background:var(--card);border:1px solid var(--border);color:var(--muted);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;cursor:pointer;transition:all .2s;
+}
+.filter-btn:hover,.filter-btn.active{border-color:var(--accent);color:var(--accent2);background:rgba(6,182,212,.1);}
+.filter-btn.f-good.active{border-color:var(--good);color:var(--good);background:var(--good-bg);}
+.filter-btn.f-elevated.active{border-color:var(--elevated);color:var(--elevated);background:var(--elevated-bg);}
+.filter-btn.f-warning.active{border-color:var(--warning);color:var(--warning);background:var(--warning-bg);}
+.filter-btn.f-critical.active{border-color:var(--critical);color:var(--critical);background:var(--critical-bg);}
+.search-box{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.92rem;outline:none;min-width:200px;
+}
+.search-box:focus{border-color:var(--accent);}
+.sort-sel{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:5px 14px;border-radius:20px;
+  font-size:.88rem;outline:none;cursor:pointer;
+}
+.sep{flex:1;}
+
+/* ── GRID / CARD ── */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:14px;}
+.mcard{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  cursor:pointer;transition:all .2s;overflow:hidden;position:relative;
+}
+.mcard:hover{border-color:var(--border2);transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.4);}
+.mcard-header{
+  padding:12px 16px 9px;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
+.mname{font-size:.98rem;font-weight:700;color:#fff;letter-spacing:.5px;}
+.mpoint{font-size:.73rem;color:var(--muted);margin-top:1px;}
+.mpoint-badge{
+  display:inline-block;background:rgba(6,182,212,.15);color:var(--accent2);
+  border:1px solid rgba(6,182,212,.25);padding:1px 7px;border-radius:4px;
+  font-size:.66rem;font-family:'Share Tech Mono';letter-spacing:.5px;margin-top:3px;
+}
+.mbadge{
+  font-size:.68rem;font-weight:700;padding:3px 10px;border-radius:20px;
+  text-transform:uppercase;letter-spacing:1px;white-space:nowrap;
+}
+.badge-good{background:var(--good-bg);color:var(--good);border:1px solid rgba(16,201,138,.3);}
+.badge-elevated{background:var(--elevated-bg);color:var(--elevated);border:1px solid rgba(240,180,41,.3);}
+.badge-warning{background:var(--warning-bg);color:var(--warning);border:1px solid rgba(249,115,22,.3);}
+.badge-critical{background:var(--critical-bg);color:var(--critical);border:1px solid rgba(239,68,68,.3);animation:pulse-border .8s ease-in-out infinite alternate;}
+@keyframes pulse-border{from{border-color:rgba(239,68,68,.3);}to{border-color:rgba(239,68,68,.8);}}
+
+.mcard-body{padding:12px 16px;display:flex;gap:12px;align-items:center;}
+.health-ring-wrap{flex-shrink:0;}
+.health-ring{transform:rotate(-90deg);}
+.health-ring circle{fill:none;stroke-width:4;}
+.health-num{font-size:1rem;font-weight:700;}
+.mmetrics{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;}
+.mm-item{display:flex;flex-direction:column;}
+.mm-lbl{font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mm-val{font-size:.86rem;font-weight:700;font-family:'Share Tech Mono';}
+.mm-val.good{color:var(--good);}
+.mm-val.elevated{color:var(--elevated);}
+.mm-val.warning{color:var(--warning);}
+.mm-val.critical{color:var(--critical);}
+.mcard-footer{padding:7px 16px;border-top:1px solid var(--border);font-size:.7rem;color:var(--muted);display:flex;justify-content:space-between;}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty-state .ei{font-size:3rem;margin-bottom:12px;}
+
+/* ── MODAL ── */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(3,5,10,.75);
+  z-index:1000;backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;
+  overflow-y:auto;padding:40px 16px;
+}
+.modal-overlay.open{display:flex;}
+.modal-box{
+  background:var(--surface);border:1px solid var(--border2);border-radius:16px;
+  max-width:920px;width:100%;overflow:hidden;
+}
+.modal-head{
+  padding:18px 26px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,#0d1117 0%,#0e1f26 100%);
+}
+.modal-title{font-size:1.2rem;font-weight:700;color:#fff;}
+.modal-sub{font-size:.78rem;color:var(--muted);margin-top:2px;}
+.modal-close{background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:22px 26px;}
+.modal-section-title{font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1.5px;font-weight:700;margin:20px 0 10px;}
+.modal-section-title:first-child{margin-top:0;}
+.mgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+.mstat{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+.mstat-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.mstat-val{font-size:1.15rem;font-weight:700;font-family:'Share Tech Mono';margin-top:2px;}
+.chart-wrap{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px;height:260px;}
+.diag-box{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:9px;padding:12px 16px;margin-bottom:8px;}
+.diag-box.warning{border-left-color:var(--warning);}
+.diag-box.critical{border-left-color:var(--critical);}
+.diag-box.elevated{border-left-color:var(--elevated);}
+.diag-title{font-weight:700;font-size:.9rem;margin-bottom:3px;}
+.diag-action{font-size:.82rem;color:var(--muted);}
+.rtable{width:100%;border-collapse:collapse;}
+.rtable th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--border2);}
+.rtable td{padding:6px 10px;border-bottom:1px solid var(--border);font-size:.82rem;font-family:'Share Tech Mono';}
+
+/* ── FORMS / CONFIG ── */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
+.fld{display:flex;flex-direction:column;gap:4px;}
+.fld label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.fld input,.fld select{
+  background:var(--card);border:1px solid var(--border);color:var(--text);
+  padding:8px 12px;border-radius:8px;font-size:.92rem;outline:none;
+}
+.fld input:focus,.fld select:focus{border-color:var(--accent);}
+.panel-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+.panel-box-title{font-weight:700;color:#fff;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.th-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.th-item-lbl{font-size:.78rem;font-weight:700;color:#fff;margin-bottom:8px;}
+.th-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:.78rem;}
+.th-row label{flex:1;color:var(--muted);}
+.th-row input{width:70px;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:3px 6px;border-radius:5px;font-family:'Share Tech Mono';font-size:.8rem;}
+
+/* ── REPORT TAB ── */
+.fleet-box{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 22px;margin-bottom:20px;}
+.fleet-box-title{font-size:.85rem;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.fleet-text{font-size:.95rem;line-height:1.6;}
+.section-divider{border:none;border-top:1px solid var(--border);margin:26px 0 16px;position:relative;}
+.section-divider[data-label]::after{
+  content:attr(data-label);position:absolute;top:-11px;left:0;background:var(--bg);
+  padding:0 10px;font-size:.72rem;color:var(--accent2);text-transform:uppercase;letter-spacing:1px;font-weight:700;
+}
+.plan-table{width:100%;border-collapse:collapse;}
+.plan-table th{text-align:left;font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--border2);}
+.plan-table td{padding:8px 10px;border-bottom:1px solid var(--border);font-size:.84rem;}
+.prio-badge{font-family:'Share Tech Mono';font-weight:700;padding:2px 8px;border-radius:5px;font-size:.75rem;}
+.prio-critical{background:var(--critical-bg);color:var(--critical);}
+.prio-warning{background:var(--warning-bg);color:var(--warning);}
+.prio-elevated{background:var(--elevated-bg);color:var(--elevated);}
+.action-bar{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.note-box{margin-top:16px;padding:12px 18px;background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15);border-radius:10px;font-size:.8rem;color:var(--muted);}
+
+/* ── MISC ── */
+.hidden{display:none !important;}
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:var(--surface);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE (≤680px) — versión adaptada para celular/tablet
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 680px){
+  header{padding:12px 16px;flex-wrap:wrap;gap:10px;}
+  .logo-title{font-size:1.1rem;}
+  .logo-sub{font-size:.62rem;letter-spacing:1px;}
+  .logo-icon{width:32px;height:32px;font-size:16px;border-radius:8px;}
+  .header-right{gap:14px;width:100%;justify-content:space-between;}
+  .hstat-val{font-size:1.05rem;}
+  .hstat-lbl{font-size:.58rem;}
+
+  .upload-bar{padding:10px 16px;gap:8px;}
+  .file-label{padding:6px 14px;font-size:.82rem;}
+  .btn-small{padding:6px 12px;font-size:.8rem;}
+  .load-status{width:100%;order:1;}
+
+  .tabs{padding:0 10px;}
+  .tab-btn{padding:10px 14px;font-size:.88rem;}
+  .tab-content{padding:14px;}
+
+  .summary-bar{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .sum-card{padding:12px 14px;}
+  .sum-num{font-size:1.5rem;}
+
+  .toolbar{gap:6px;}
+  .search-box{min-width:0;flex:1 1 100%;order:1;}
+  .sort-sel{flex:1;}
+
+  .grid{grid-template-columns:1fr;}
+
+  /* modales a pantalla completa, más fáciles de usar con el dedo */
+  .modal-overlay{padding:0;align-items:stretch;}
+  .modal-box{max-width:100%;width:100%;min-height:100vh;border-radius:0;}
+  .modal-head{padding:14px 16px;}
+  .modal-body{padding:16px;}
+  .form-grid{grid-template-columns:1fr;}
+  .th-grid{grid-template-columns:1fr;}
+  .mgrid{grid-template-columns:repeat(2,1fr);}
+
+  /* tablas de historial/plan de acción → tarjetas apiladas en vez de scroll horizontal */
+  .rtable, .plan-table{border:none;}
+  .rtable thead, .plan-table thead{display:none;}
+  .rtable tbody tr, .plan-table tbody tr{
+    display:block;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;padding:8px 10px;
+  }
+  .rtable td, .plan-table td{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    border:none;padding:5px 0;font-size:.82rem;white-space:normal;
+  }
+  .rtable td::before, .plan-table td::before{
+    content:attr(data-label);color:var(--muted);font-family:'Rajdhani',sans-serif;
+    text-transform:uppercase;font-size:.65rem;letter-spacing:.5px;flex-shrink:0;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">🧊</div>
+    <div>
+      <div class="logo-title">REFRIGERACIÓN PRO</div>
+      <div class="logo-sub">MANTEC · Análisis Predictivo de Climatización</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="hstat"><div class="hstat-val" id="hsEquipos">0</div><div class="hstat-lbl">Equipos</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsMediciones">0</div><div class="hstat-lbl">Con mediciones</div></div>
+    <div class="hstat"><div class="hstat-val" id="hsSalud" style="color:var(--good);">—</div><div class="hstat-lbl">Salud Flota</div></div>
+  </div>
+</header>
+
+<div class="upload-bar">
+  <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
+  <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar medición manual</button>
+  <button class="btn-small" style="border-color:var(--good);color:var(--good);" onclick="abrirCapturasPendientes()">📥 Capturas de campo <span id="capturasBadge" class="hidden" style="margin-left:4px;">0</span></button>
+  <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
+  <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
+  <span class="load-status" id="loadStatus"></span>
+  <div class="sep"></div>
+  <button class="btn-small danger" onclick="clearAllData()">🗑️ Borrar todos los datos</button>
+</div>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="tab-btn" data-tab="equipos" onclick="switchTab('equipos')">🧊 Equipos</button>
+  <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Umbrales</button>
+  <button class="tab-btn" data-tab="informe" onclick="switchTab('informe')">📋 Informe</button>
+</div>
+
+<!-- ═══ DASHBOARD TAB ═══ -->
+<div class="tab-content active" id="tab-dashboard">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="toolbar">
+    <button class="filter-btn active" data-f="all" onclick="setStatusFilter('all')">Todos</button>
+    <button class="filter-btn f-good" data-f="good" onclick="setStatusFilter('good')">🟢 Normal</button>
+    <button class="filter-btn f-elevated" data-f="elevated" onclick="setStatusFilter('elevated')">🟡 Elevado</button>
+    <button class="filter-btn f-warning" data-f="warning" onclick="setStatusFilter('warning')">🟠 Alerta</button>
+    <button class="filter-btn f-critical" data-f="critical" onclick="setStatusFilter('critical')">🔴 Crítico</button>
+    <input class="search-box" id="searchBox" placeholder="🔎 Buscar equipo…" oninput="renderGrid()">
+    <select class="sort-sel" id="sortSel" onchange="renderGrid()">
+      <option value="health_asc">Salud (peor primero)</option>
+      <option value="name_asc">Nombre A-Z</option>
+      <option value="deltaT_asc">ΔT (menor primero)</option>
+      <option value="date_desc">Última medición</option>
+    </select>
+    <div class="sep"></div>
+  </div>
+  <div class="grid" id="cardGrid"></div>
+</div>
+
+<!-- ═══ EQUIPOS TAB ═══ -->
+<div class="tab-content" id="tab-equipos">
+  <div class="panel-box">
+    <div class="panel-box-title">➕ Registrar equipo</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <button class="btn-small" onclick="sincronizarEquiposHub().then(()=>{renderEquiposList();alert('Catálogo del hub actualizado ('+equiposHub.size+' equipos).');})">🔄 Sincronizar equipos del hub</button>
+      <span style="font-size:.8rem;color:var(--muted);">trae el catálogo compartido para reusar el mismo TAG entre módulos</span>
+    </div>
+    <datalist id="hubTagsDatalist"></datalist>
+    <div class="form-grid">
+      <div class="fld"><label>TAG del equipo</label><input id="newEqTag" list="hubTagsDatalist" placeholder="Ej: AC-SALA-CONTROL"></div>
+      <div class="fld"><label>Tipo</label>
+        <select id="newEqTipo"></select>
+      </div>
+      <div class="fld"><label>Ambiente que climatiza</label><input id="newEqAmbiente" placeholder="Ej: Sala de control"></div>
+      <div class="fld"><label>Ubicación</label><input id="newEqUbicacion" placeholder="Ej: Planta - techo sala eléctrica"></div>
+      <div class="fld"><label>Capacidad</label>
+        <div style="display:flex;gap:6px;">
+          <input id="newEqCapacidad" type="number" step="0.1" placeholder="Ej: 5" style="flex:1;">
+          <select id="newEqCapUnidad" style="width:80px;"></select>
+        </div>
+      </div>
+      <div class="fld"><label>Refrigerante</label>
+        <select id="newEqRefrigerante"></select>
+      </div>
+    </div>
+    <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;" onclick="createEquipo()">Crear equipo</button>
+  </div>
+  <div id="equiposRegistryList"></div>
+</div>
+
+<!-- ═══ CONFIG TAB ═══ -->
+<div class="tab-content" id="tab-config">
+  <div class="panel-box">
+    <div class="panel-box-title">⚙️ Umbrales de diagnóstico (editables)</div>
+    <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">
+      Valores orientativos generales para acondicionadores y chillers de planta (ΔT de aire, desbalance eléctrico NEMA MG-1 aplicado al compresor, y caudal de aire). No calculan presión-temperatura de saturación por refrigerante — ajustá los rangos de presión según el refrigerante y la norma/política interna de cada equipo.
+    </p>
+    <div class="th-grid" id="thresholdGrid"></div>
+    <div class="th-grid" style="margin-top:14px;">
+      <div class="th-item">
+        <div class="th-item-lbl">🧊 Presión alta — rango normal (bar)</div>
+        <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presAlta_min"></div>
+        <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presAlta_max"></div>
+      </div>
+      <div class="th-item">
+        <div class="th-item-lbl">🧊 Presión baja — rango normal (bar)</div>
+        <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presBaja_min"></div>
+        <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presBaja_max"></div>
+      </div>
+    </div>
+    <button class="btn-small" style="margin-top:14px;background:var(--accent);color:#03181c;border:none;" onclick="saveThresholdsFromUI()">💾 Guardar umbrales</button>
+    <button class="btn-small" style="margin-top:14px;" onclick="resetThresholds()">↺ Restaurar por defecto</button>
+  </div>
+</div>
+
+<!-- ═══ INFORME TAB ═══ -->
+<div class="tab-content" id="tab-informe">
+  <div class="action-bar">
+    <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;" onclick="generateOfflineReport()">🔄 Generar informe</button>
+    <button class="btn-small" onclick="copyReport()">📋 Copiar como texto</button>
+    <button class="btn-small" id="btnGuardarNube" onclick="guardarEnLaNube()">☁️ Guardar en la nube</button>
+  </div>
+  <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
+  <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de refrigeración.</div></div>
+</div>
+
+<!-- ═══ MODAL CARGA MANUAL ═══ -->
+<div class="modal-overlay" id="manualOverlay" onclick="if(event.target===this)closeManualEntry()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">✍️ Cargar medición manual</div>
+        <div class="modal-sub">Registrá una ronda puntual sin necesidad de Excel</div>
+      </div>
+      <button class="modal-close" onclick="closeManualEntry()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Equipo</div>
+      <div class="form-grid">
+        <div class="fld">
+          <label>Equipo</label>
+          <select id="me_eqSel" onchange="onManualEquipoChange()"></select>
+        </div>
+        <div class="fld hidden" id="me_newEqTagWrap">
+          <label>TAG del nuevo equipo</label>
+          <input id="me_newEqTag" placeholder="Ej: AC-SALA-CONTROL">
+        </div>
+        <div class="fld hidden" id="me_newEqTipoWrap">
+          <label>Tipo</label>
+          <select id="me_newEqTipo"></select>
+        </div>
+        <div class="fld">
+          <label>Fecha de medición</label>
+          <input type="date" id="me_fecha">
+        </div>
+      </div>
+
+      <div class="modal-section-title">🌡️ Temperaturas</div>
+      <div class="form-grid">
+        <div class="fld"><label>Temp. entrada de aire (°C)</label><input type="number" step="0.1" id="me_tempEntrada"></div>
+        <div class="fld"><label>Temp. salida de aire (°C)</label><input type="number" step="0.1" id="me_tempSalida"></div>
+        <div class="fld"><label>Temp. ambiente climatizado (°C)</label><input type="number" step="0.1" id="me_tempAmb"></div>
+      </div>
+
+      <div class="modal-section-title">🧊 Presiones de refrigerante</div>
+      <div class="form-grid">
+        <div class="fld"><label>Presión alta (bar)</label><input type="number" step="0.1" id="me_presAlta"></div>
+        <div class="fld"><label>Presión baja (bar)</label><input type="number" step="0.1" id="me_presBaja"></div>
+      </div>
+
+      <div class="modal-section-title">⚡ Corriente (A) y Tensión (V) del compresor</div>
+      <div class="form-grid">
+        <div class="fld"><label>Corriente R (A)</label><input type="number" step="0.1" id="me_iR"></div>
+        <div class="fld"><label>Corriente S (A)</label><input type="number" step="0.1" id="me_iS"></div>
+        <div class="fld"><label>Corriente T (A)</label><input type="number" step="0.1" id="me_iT"></div>
+        <div class="fld"><label>Tensión R (V)</label><input type="number" step="0.1" id="me_vR"></div>
+        <div class="fld"><label>Tensión S (V)</label><input type="number" step="0.1" id="me_vS"></div>
+        <div class="fld"><label>Tensión T (V)</label><input type="number" step="0.1" id="me_vT"></div>
+      </div>
+
+      <div class="modal-section-title">💨 Caudal de aire y estado de filtros</div>
+      <div class="form-grid">
+        <div class="fld"><label>Velocidad de aire — anemómetro (m/s)</label><input type="number" step="0.1" id="me_velAire"></div>
+        <div class="fld"><label>Estado de filtros/serpentinas</label>
+          <select id="me_filtro"><option value="">—</option><option value="Bueno">Bueno</option><option value="Sucio">Sucio</option><option value="Muy sucio">Muy sucio</option></select>
+        </div>
+      </div>
+
+      <div class="modal-section-title">Observaciones</div>
+      <div class="fld"><textarea id="me_obs" rows="2" style="background:var(--card);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:8px 12px;font-family:'Rajdhani',sans-serif;font-size:.92rem;outline:none;resize:vertical;" placeholder="Opcional"></textarea></div>
+
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;padding:8px 20px;" onclick="saveManualReading()">💾 Guardar medición</button>
+        <button class="btn-small" onclick="closeManualEntry()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL CAPTURAS DE CAMPO ═══ -->
+<div class="modal-overlay" id="capturasOverlay" onclick="if(event.target===this)cerrarCapturasPendientes()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">📥 Capturas pendientes de campo</div>
+        <div class="modal-sub">Cargadas desde el Hub de Campo — sin diagnóstico todavía</div>
+      </div>
+      <button class="modal-close" onclick="cerrarCapturasPendientes()">✕</button>
+    </div>
+    <div class="modal-body" id="capturasLista">
+      <div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL DETALLE ═══ -->
+<div class="modal-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">—</div>
+        <div class="modal-sub" id="modalSub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  1. CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const TIPOS_EQUIPO = ['AC Split','AC Precisión','Chiller','Otro'];
+const REFRIGERANTES = ['R410A','R22','R134a','R407C','R404A','Otro'];
+const CAP_UNIDADES = ['TR','kW'];
+
+const STATUS        = ['good','elevated','warning','critical'];
+const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
+const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
+const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
+
+// Umbrales por defecto (editables desde la pestaña Umbrales)
+// deltaT (°C, entrada-salida de aire) y velAire (m/s): menor = peor (inverso)
+// desbV/desbI (%): mayor = peor
+// presionAlta/presionBaja: rango [min,max] normal, evaluado por desviación %
+const DEFAULT_THRESHOLDS = {
+  deltaT:  [8, 5, 3],       // inverso: ≥8 normal, ≥5 elevado, ≥3 alerta, <3 crítico
+  desbV:   [1, 2, 3.5],
+  desbI:   [10, 20, 30],
+  velAire: [2.5, 1.5, 0.8], // inverso
+  presionAlta: {min:6.9, max:17.5},
+  presionBaja: {min:3.5, max:7.5}
+};
+const THRESHOLD_META = {
+  deltaT:  {label:'ΔT Aire (entrada − salida)', unit:'°C', inverse:true},
+  desbV:   {label:'Desbalance de Tensión (compresor)', unit:'%', inverse:false},
+  desbI:   {label:'Desbalance de Corriente (compresor)', unit:'%', inverse:false},
+  velAire: {label:'Velocidad de Aire (anemómetro)', unit:'m/s', inverse:true}
+};
+
+// ═══════════════════════════════════════════════════════════
+//  2. STATE
+// ═══════════════════════════════════════════════════════════
+let equiposRegistry = new Map();  // eqId -> {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante}
+let readingsData    = new Map();  // eqId -> {dates:[], params:{...}, obs:[]}
+let equiposHub       = new Map(); // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
+let _capturasPendientes = [];     // capturas crudas desde el Hub de Campo
+let _capturaActual = null;        // captura en edición dentro del modal manual
+let thresholds      = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+let statusFilter    = 'all';
+let currentKey      = null;
+let detailChart      = null;
+
+// ═══════════════════════════════════════════════════════════
+//  3. PERSISTENCE
+// ═══════════════════════════════════════════════════════════
+function loadState() {
+  try {
+    const c = JSON.parse(localStorage.getItem('refrigeracion_pro_cfg') || '{}');
+    if (c.thresholds) thresholds = {
+      ...DEFAULT_THRESHOLDS, ...c.thresholds,
+      presionAlta: {...DEFAULT_THRESHOLDS.presionAlta, ...(c.thresholds.presionAlta||{})},
+      presionBaja: {...DEFAULT_THRESHOLDS.presionBaja, ...(c.thresholds.presionBaja||{})}
+    };
+    if (c.equiposRegistry) for (const [k,v] of Object.entries(c.equiposRegistry)) equiposRegistry.set(k,v);
+    if (c.readingsData) {
+      for (const [k,v] of Object.entries(c.readingsData)) {
+        readingsData.set(k, { dates: v.dates.map(d => new Date(d)), params: v.params, obs: v.obs || [] });
+      }
+    }
+  } catch(e){ console.warn('loadState error', e); }
+}
+function saveState() {
+  const rdSerial = {};
+  for (const [k,v] of readingsData.entries()) {
+    rdSerial[k] = { dates: v.dates.map(d=>d.toISOString()), params: v.params, obs: v.obs || [] };
+  }
+  localStorage.setItem('refrigeracion_pro_cfg', JSON.stringify({
+    thresholds,
+    equiposRegistry: Object.fromEntries(equiposRegistry),
+    readingsData: rdSerial
+  }));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  4. HELPERS
+// ═══════════════════════════════════════════════════════════
+function genId(){ return 'R'+Date.now().toString(36).toUpperCase().slice(-5)+Math.random().toString(36).slice(-3).toUpperCase(); }
+function escHtml(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escJs(s){ return String(s??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function fmt(v,d=1){ return (v===undefined||v===null||isNaN(v)) ? '—' : Number(v).toFixed(d); }
+function fmtDate(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmtDateTime(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+function getEqName(id){ return equiposRegistry.get(id)?.tag || id; }
+function getDisplayName(k){ return getEqName(k); }
+
+function levelOf(value, band, inverse){
+  if (value===undefined||value===null||isNaN(value)) return -1; // sin dato
+  if (!inverse){
+    if (value <= band[0]) return 0;
+    if (value <= band[1]) return 1;
+    if (value <= band[2]) return 2;
+    return 3;
+  } else {
+    if (value >= band[0]) return 0;
+    if (value >= band[1]) return 1;
+    if (value >= band[2]) return 2;
+    return 3;
+  }
+}
+// Presión: rango [min,max] normal. Fuera de rango, gravedad según % de desviación
+// respecto al ancho del rango (orientativo — no calcula presión-temp. de saturación).
+function evalPresion(value, band){
+  if (value===undefined||value===null||isNaN(value)) return -1;
+  const {min,max} = band;
+  if (value>=min && value<=max) return 0;
+  const range = Math.max(max-min, 0.1);
+  const dev = value<min ? (min-value) : (value-max);
+  const pct = dev/range;
+  if (pct < 0.15) return 1;
+  if (pct < 0.35) return 2;
+  return 3;
+}
+function filtroLevel(estado){
+  if (estado==='Muy sucio') return 3;
+  if (estado==='Sucio') return 2;
+  if (estado==='Bueno') return 0;
+  return -1;
+}
+
+// Calcula los sub-niveles y nivel global para una lectura puntual (índice n de una serie)
+function evalReading(params, n){
+  const p = params;
+  const deltaT  = (p.TempEntrada?.[n] - p.TempSalida?.[n]);
+  const desbV   = p.DesbV?.[n];
+  const desbI   = p.DesbI?.[n];
+  const velAire = p.VelAire?.[n];
+  const presAlta = p.PresAlta?.[n];
+  const presBaja = p.PresBaja?.[n];
+  const filtro  = p.Filtro?.[n] || '';
+
+  const subs = {
+    deltaT:  levelOf(deltaT, thresholds.deltaT, true),
+    desbV:   levelOf(desbV,  thresholds.desbV,  false),
+    desbI:   levelOf(desbI,  thresholds.desbI,  false),
+    velAire: levelOf(velAire, thresholds.velAire, true),
+    presAlta: evalPresion(presAlta, thresholds.presionAlta),
+    presBaja: evalPresion(presBaja, thresholds.presionBaja),
+    filtro:  filtroLevel(filtro)
+  };
+  let overall = 0;
+  for (const k in subs) if (subs[k] > overall) overall = subs[k];
+  return { subs, overall, deltaT, desbV, desbI, velAire, presAlta, presBaja, filtro };
+}
+
+function computeDesbalance(a,b,c){
+  const vals = [a,b,c].filter(v=>v!==undefined && v!==null && !isNaN(v));
+  if (vals.length < 2) return NaN;
+  const avg = vals.reduce((x,y)=>x+y,0)/vals.length;
+  if (avg === 0) return NaN;
+  const maxDev = Math.max(...vals.map(v=>Math.abs(v-avg)));
+  return (maxDev/avg)*100;
+}
+
+function healthScoreFromLevel(overall, subs){
+  if (overall < 0) return null;
+  const base = [100, 78, 50, 20][overall];
+  const worseCount = Object.values(subs).filter(s=>s===overall).length;
+  return Math.max(3, base - (worseCount-1)*4);
+}
+
+function lastValidIdx(d){ return d.dates.length - 1; }
+
+function diagnoseEquipo(k){
+  const d = readingsData.get(k);
+  if (!d || !d.dates.length) return null;
+  const n = lastValidIdx(d);
+  const ev = evalReading(d.params, n);
+  return { ...ev, date: d.dates[n] };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  5. IMPORT (Excel / CSV)
+// ═══════════════════════════════════════════════════════════
+const TEMPLATE_HEADERS = ['TAG','Tipo','Ambiente','Ubicacion','Capacidad','UnidadCapacidad','Refrigerante','Fecha','Temp_Entrada_C','Temp_Salida_C','Temp_Ambiente_C','Presion_Alta_bar','Presion_Baja_bar','I_R_A','I_S_A','I_T_A','V_R_V','V_S_V','V_T_V','Velocidad_Aire_ms','Estado_Filtro','Observaciones'];
+
+function downloadTemplate(){
+  const sample = [
+    TEMPLATE_HEADERS,
+    ['AC-SALA-CONTROL','AC Precisión','Sala de control','Planta - techo sala eléctrica',5,'TR','R410A','2026-08-01',24,15,22,12.5,5.2,8.1,7.9,8.0,220,221,219,3.1,'Bueno','Ejemplo de fila — Estado_Filtro: Bueno / Sucio / Muy sucio'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(sample);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Mediciones');
+  XLSX.writeFile(wb, 'plantilla_refrigeracion_pro.xlsx');
+}
+
+function handleFileUpload(evt){
+  const file = evt.target.files[0];
+  if (!file) return;
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status';
+  status.textContent = 'Procesando…';
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const wb = XLSX.read(e.target.result, {type:'array', cellDates:true, defval:''});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {defval:''});
+      const result = importRows(rows);
+      status.className = 'load-status ok';
+      status.textContent = `✅ ${result.rows} lectura(s) · ${result.equipos} equipo(s)`;
+      saveState();
+      renderAll();
+    } catch(err){
+      console.error(err);
+      status.className = 'load-status err';
+      status.textContent = '❌ Error al procesar el archivo: ' + err.message;
+    }
+    evt.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findCol(row, names){
+  for (const n of names){
+    for (const key of Object.keys(row)){
+      if (key.trim().toLowerCase() === n.toLowerCase()) return row[key];
+    }
+  }
+  return '';
+}
+function numOrNaN(v){ if (v==='' || v===undefined || v===null) return NaN; const n = parseFloat(v); return isNaN(n) ? NaN : n; }
+
+function importRows(rows){
+  let equiposCreated = 0, rowsImported = 0;
+  const touched = new Map(); // eqId -> {dates:[],params:{}}
+
+  for (const row of rows){
+    const tag = String(findCol(row,['TAG']) || '').trim();
+    if (!tag) continue;
+    const tipo = String(findCol(row,['Tipo']) || TIPOS_EQUIPO[0]).trim();
+    const ambiente = String(findCol(row,['Ambiente']) || '').trim();
+    const ubicacion = String(findCol(row,['Ubicacion']) || '').trim();
+    const capacidad = numOrNaN(findCol(row,['Capacidad'])) || 0;
+    const capUnidad = String(findCol(row,['UnidadCapacidad']) || 'TR').trim();
+    const refrigerante = String(findCol(row,['Refrigerante']) || '').trim();
+    let fechaRaw = findCol(row,['Fecha']);
+    let fecha;
+    if (fechaRaw instanceof Date) fecha = fechaRaw;
+    else if (typeof fechaRaw === 'number') { const p = XLSX.SSF.parse_date_code(fechaRaw); fecha = new Date(p.y,p.m-1,p.d,p.H||0,p.M||0,p.S||0); }
+    else fecha = new Date(fechaRaw);
+    if (isNaN(fecha)) continue;
+
+    // localizar o crear equipo
+    let eqId = null;
+    for (const [id, ev] of equiposRegistry.entries()){
+      if (ev.tag.toLowerCase() === tag.toLowerCase()) { eqId = id; break; }
+    }
+    if (!eqId){
+      eqId = genId();
+      equiposRegistry.set(eqId, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante});
+      equiposCreated++;
+    }
+
+    const tempEntrada = numOrNaN(findCol(row,['Temp_Entrada_C']));
+    const tempSalida = numOrNaN(findCol(row,['Temp_Salida_C']));
+    const tempAmb = numOrNaN(findCol(row,['Temp_Ambiente_C']));
+    const presAlta = numOrNaN(findCol(row,['Presion_Alta_bar']));
+    const presBaja = numOrNaN(findCol(row,['Presion_Baja_bar']));
+    const iR = numOrNaN(findCol(row,['I_R_A']));
+    const iS = numOrNaN(findCol(row,['I_S_A']));
+    const iT = numOrNaN(findCol(row,['I_T_A']));
+    const vR = numOrNaN(findCol(row,['V_R_V']));
+    const vS = numOrNaN(findCol(row,['V_S_V']));
+    const vT = numOrNaN(findCol(row,['V_T_V']));
+    const velAire = numOrNaN(findCol(row,['Velocidad_Aire_ms']));
+    const filtro = String(findCol(row,['Estado_Filtro']) || '');
+    const obs = String(findCol(row,['Observaciones']) || '');
+
+    const desbI = computeDesbalance(iR,iS,iT);
+    const desbV = computeDesbalance(vR,vS,vT);
+
+    if (!touched.has(eqId)) touched.set(eqId, {dates:[], params:{TempEntrada:[],TempSalida:[],TempAmb:[],PresAlta:[],PresBaja:[],I_R:[],I_S:[],I_T:[],V_R:[],V_S:[],V_T:[],DesbI:[],DesbV:[],VelAire:[],Filtro:[]}, obs:[]});
+    const t = touched.get(eqId);
+    t.dates.push(fecha);
+    t.params.TempEntrada.push(tempEntrada); t.params.TempSalida.push(tempSalida); t.params.TempAmb.push(tempAmb);
+    t.params.PresAlta.push(presAlta); t.params.PresBaja.push(presBaja);
+    t.params.I_R.push(iR); t.params.I_S.push(iS); t.params.I_T.push(iT);
+    t.params.V_R.push(vR); t.params.V_S.push(vS); t.params.V_T.push(vT);
+    t.params.DesbI.push(desbI); t.params.DesbV.push(desbV);
+    t.params.VelAire.push(velAire); t.params.Filtro.push(filtro);
+    t.obs.push(obs);
+    rowsImported++;
+  }
+
+  for (const [eqId, incoming] of touched.entries()){
+    const existing = readingsData.get(eqId);
+    if (!existing){ readingsData.set(eqId, incoming); continue; }
+    readingsData.set(eqId, mergeReadings(existing, incoming));
+  }
+  return { rows: rowsImported, equipos: equiposCreated };
+}
+
+function mergeReadings(existing, incoming){
+  const keyOf = d => { try { return new Date(d).toISOString().slice(0,19); } catch { return String(d).slice(0,19); } };
+  const existKeys = new Set(existing.dates.map(keyOf));
+  const allDates = [...existing.dates];
+  const allObs = [...(existing.obs||[])];
+  const allParams = {};
+  const paramKeys = new Set([...Object.keys(existing.params), ...Object.keys(incoming.params)]);
+  for (const pk of paramKeys) allParams[pk] = [...(existing.params[pk]||new Array(existing.dates.length).fill(NaN))];
+
+  for (let i=0;i<incoming.dates.length;i++){
+    if (!existKeys.has(keyOf(incoming.dates[i]))){
+      allDates.push(incoming.dates[i]);
+      allObs.push(incoming.obs?.[i] || '');
+      for (const pk of paramKeys) allParams[pk].push(incoming.params[pk]?.[i] ?? NaN);
+    }
+  }
+  const idx = allDates.map((_,i)=>i).sort((a,b)=>allDates[a]-allDates[b]);
+  return {
+    dates: idx.map(i=>allDates[i]),
+    obs: idx.map(i=>allObs[i]),
+    params: Object.fromEntries(Object.entries(allParams).map(([k,v])=>[k, idx.map(i=>v[i])]))
+  };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6. MANUAL ENTRY
+// ═══════════════════════════════════════════════════════════
+function openManualEntry(){
+  const eqSel = document.getElementById('me_eqSel');
+  eqSel.innerHTML = `<option value="__new">➕ Crear nuevo equipo…</option>` +
+    Array.from(equiposRegistry.entries()).map(([id,e])=>`<option value="${id}">${escHtml(e.tag)}</option>`).join('');
+  const newEqTipo = document.getElementById('me_newEqTipo');
+  if (!newEqTipo.dataset.filled){ newEqTipo.innerHTML = TIPOS_EQUIPO.map(t=>`<option value="${t}">${t}</option>`).join(''); newEqTipo.dataset.filled='1'; }
+
+  ['me_tempEntrada','me_tempSalida','me_tempAmb','me_presAlta','me_presBaja','me_iR','me_iS','me_iT','me_vR','me_vS','me_vT','me_velAire','me_newEqTag','me_obs'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('me_filtro').value = '';
+  document.getElementById('me_fecha').value = new Date().toISOString().slice(0,10);
+
+  onManualEquipoChange();
+  document.getElementById('manualOverlay').classList.add('open');
+}
+function closeManualEntry(){ document.getElementById('manualOverlay').classList.remove('open'); }
+
+function onManualEquipoChange(){
+  const sel = document.getElementById('me_eqSel');
+  const isNew = sel.value === '__new';
+  document.getElementById('me_newEqTagWrap').classList.toggle('hidden', !isNew);
+  document.getElementById('me_newEqTipoWrap').classList.toggle('hidden', !isNew);
+}
+
+function numOrUndef(id){
+  const v = document.getElementById(id).value;
+  if (v==='') return NaN;
+  const n = parseFloat(v);
+  return isNaN(n) ? NaN : n;
+}
+
+function saveManualReading(){
+  const eqSelVal = document.getElementById('me_eqSel').value;
+  const fechaStr = document.getElementById('me_fecha').value;
+  if (!fechaStr){ alert('Ingresá la fecha de la medición.'); return; }
+  const fecha = new Date(fechaStr + 'T12:00:00');
+  if (isNaN(fecha)){ alert('Fecha inválida.'); return; }
+
+  let eqId = eqSelVal;
+  if (eqSelVal === '__new'){
+    const tag = document.getElementById('me_newEqTag').value.trim();
+    if (!tag){ alert('Ingresá el TAG del nuevo equipo.'); return; }
+    const tipo = document.getElementById('me_newEqTipo').value;
+    eqId = null;
+    for (const [id, ev] of equiposRegistry.entries()) if (ev.tag.toLowerCase()===tag.toLowerCase()) { eqId = id; break; }
+    if (!eqId){ eqId = genId(); equiposRegistry.set(eqId, {tag, tipo, ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:''}); publicarEquipoEnHub(tag, tipo); }
+  }
+
+  const tempEntrada = numOrUndef('me_tempEntrada');
+  const tempSalida = numOrUndef('me_tempSalida');
+  const tempAmb = numOrUndef('me_tempAmb');
+  const presAlta = numOrUndef('me_presAlta');
+  const presBaja = numOrUndef('me_presBaja');
+  const iR = numOrUndef('me_iR'), iS = numOrUndef('me_iS'), iT = numOrUndef('me_iT');
+  const vR = numOrUndef('me_vR'), vS = numOrUndef('me_vS'), vT = numOrUndef('me_vT');
+  const velAire = numOrUndef('me_velAire');
+  const filtro = document.getElementById('me_filtro').value;
+  const obs = document.getElementById('me_obs').value.trim();
+  const desbI = computeDesbalance(iR,iS,iT);
+  const desbV = computeDesbalance(vR,vS,vT);
+
+  const incoming = {
+    dates:[fecha],
+    params:{ TempEntrada:[tempEntrada], TempSalida:[tempSalida], TempAmb:[tempAmb], PresAlta:[presAlta], PresBaja:[presBaja], I_R:[iR], I_S:[iS], I_T:[iT], V_R:[vR], V_S:[vS], V_T:[vT], DesbI:[desbI], DesbV:[desbV], VelAire:[velAire], Filtro:[filtro] },
+    obs:[obs]
+  };
+  const existing = readingsData.get(eqId);
+  readingsData.set(eqId, existing ? mergeReadings(existing, incoming) : incoming);
+
+  saveState();
+  closeManualEntry();
+  renderAll();
+  if (_capturaActual){
+    const capId = _capturaActual.id;
+    _capturaActual = null;
+    if (typeof SatSync !== 'undefined' && SatSync.estaConfigurado()){
+      SatSync.marcarCapturaProcesada(capId).catch(err=>console.warn('[SatSync] no se pudo marcar la captura como procesada', err));
+    }
+  }
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `✅ Medición guardada: ${getDisplayName(eqId)}`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  6b. RENDER — DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderAll(){
+  renderHeaderStats();
+  renderSummaryBar();
+  renderGrid();
+  renderEquiposList();
+  renderThresholdGrid();
+  populateEquipoTypeSelect();
+}
+
+function fleetHealth(){
+  let sum=0,count=0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseEquipo(k);
+    if (!diag || diag.overall < 0) continue;
+    const hs = healthScoreFromLevel(diag.overall, diag.subs);
+    if (hs!==null){ sum+=hs; count++; }
+  }
+  return count ? Math.round(sum/count) : null;
+}
+
+function renderHeaderStats(){
+  document.getElementById('hsEquipos').textContent = equiposRegistry.size;
+  document.getElementById('hsMediciones').textContent = readingsData.size;
+  const fh = fleetHealth();
+  const el = document.getElementById('hsSalud');
+  el.textContent = fh===null ? '—' : fh+'%';
+  el.style.color = fh===null ? 'var(--muted)' : fh>=85?'var(--good)':fh>=60?'var(--elevated)':fh>=35?'var(--warning)':'var(--critical)';
+}
+
+function statusDistribution(){
+  const dist = {good:0, elevated:0, warning:0, critical:0};
+  for (const k of readingsData.keys()){
+    const diag = diagnoseEquipo(k);
+    if (!diag || diag.overall < 0) continue;
+    dist[STATUS[diag.overall]]++;
+  }
+  return dist;
+}
+
+function renderSummaryBar(){
+  const dist = statusDistribution();
+  const bar = document.getElementById('summaryBar');
+  bar.innerHTML = `
+    <div class="sum-card good" onclick="setStatusFilter('good')"><div class="sum-icon">🟢</div><div><div class="sum-num">${dist.good}</div><div class="sum-lbl">Normal</div></div></div>
+    <div class="sum-card elevated" onclick="setStatusFilter('elevated')"><div class="sum-icon">🟡</div><div><div class="sum-num">${dist.elevated}</div><div class="sum-lbl">Elevado</div></div></div>
+    <div class="sum-card warning" onclick="setStatusFilter('warning')"><div class="sum-icon">🟠</div><div><div class="sum-num">${dist.warning}</div><div class="sum-lbl">Alerta</div></div></div>
+    <div class="sum-card critical" onclick="setStatusFilter('critical')"><div class="sum-icon">🔴</div><div><div class="sum-num">${dist.critical}</div><div class="sum-lbl">Crítico</div></div></div>
+  `;
+}
+
+function setStatusFilter(f){
+  statusFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('active', b.dataset.f===f));
+  switchTab('dashboard');
+  renderGrid();
+}
+
+function healthRingSVG(health, level){
+  const color = level<0 ? 'var(--muted)' : STATUS_COLORS[level];
+  const r = 20, c = 2*Math.PI*r;
+  const pct = health===null ? 0 : health/100;
+  const dash = c*pct;
+  return `<div style="position:relative;width:52px;height:52px;">
+    <svg class="health-ring" width="52" height="52" viewBox="0 0 52 52">
+      <circle cx="26" cy="26" r="${r}" stroke="var(--border2)"></circle>
+      <circle cx="26" cy="26" r="${r}" stroke="${color}" stroke-dasharray="${dash} ${c}" stroke-linecap="round"></circle>
+    </svg>
+    <div class="health-num" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:${color};">${health===null?'—':health+'%'}</div>
+  </div>`;
+}
+
+function renderGrid(){
+  const grid = document.getElementById('cardGrid');
+  const search = (document.getElementById('searchBox')?.value || '').toLowerCase();
+  const sortMode = document.getElementById('sortSel')?.value || 'health_asc';
+
+  let items = [];
+  for (const k of readingsData.keys()){
+    const diag = diagnoseEquipo(k);
+    if (!diag) continue;
+    const level = diag.overall;
+    if (statusFilter !== 'all' && (level<0 || STATUS[level] !== statusFilter)) continue;
+    const displayName = getDisplayName(k).toLowerCase();
+    if (search && !displayName.includes(search)) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    items.push({k, diag, level, health});
+  }
+
+  if (sortMode==='health_asc') items.sort((a,b)=>(a.health??999)-(b.health??999));
+  else if (sortMode==='name_asc') items.sort((a,b)=>getDisplayName(a.k).localeCompare(getDisplayName(b.k)));
+  else if (sortMode==='deltaT_asc') items.sort((a,b)=>(a.diag.deltaT??999)-(b.diag.deltaT??999));
+  else if (sortMode==='date_desc') items.sort((a,b)=>b.diag.date-a.diag.date);
+
+  if (!items.length){
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><div class="ei">🧊</div>${readingsData.size?'Sin resultados para el filtro actual.':'Importá un Excel con mediciones para comenzar.'}</div>`;
+    return;
+  }
+
+  grid.innerHTML = items.map(({k, diag, level, health})=>{
+    const badgeClass = level<0 ? '' : `badge-${STATUS[level]}`;
+    const badgeLabel = level<0 ? 'Sin datos' : STATUS_LABELS[level];
+    const eq = equiposRegistry.get(k) || {};
+    const subDeltaClass = diag.subs.deltaT>=0?STATUS[diag.subs.deltaT]:'';
+    const subVelClass = diag.subs.velAire>=0?STATUS[diag.subs.velAire]:'';
+    const subPresAltaClass = diag.subs.presAlta>=0?STATUS[diag.subs.presAlta]:'';
+    const subFiltroClass = diag.subs.filtro>=0?STATUS[diag.subs.filtro]:'';
+    return `
+    <div class="mcard" onclick="openDetail('${escJs(k)}')">
+      <div class="mcard-header">
+        <div>
+          <div class="mname">${escHtml(eq.tag||k)}</div>
+          <div class="mpoint">${escHtml(eq.ambiente||'')}</div>
+          <div class="mpoint-badge">${escHtml(eq.tipo||'')}</div>
+        </div>
+        <span class="mbadge ${badgeClass}">${badgeLabel}</span>
+      </div>
+      <div class="mcard-body">
+        <div class="health-ring-wrap">${healthRingSVG(health, level)}</div>
+        <div class="mmetrics">
+          <div class="mm-item"><div class="mm-lbl">ΔT</div><div class="mm-val ${subDeltaClass}">${fmt(diag.deltaT,1)}°C</div></div>
+          <div class="mm-item"><div class="mm-lbl">Vel. Aire</div><div class="mm-val ${subVelClass}">${!isNaN(diag.velAire)?fmt(diag.velAire,1)+' m/s':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">Pres. Alta</div><div class="mm-val ${subPresAltaClass}">${!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">Filtro</div><div class="mm-val ${subFiltroClass}">${diag.filtro||'—'}</div></div>
+        </div>
+      </div>
+      <div class="mcard-footer"><span>Última: ${fmtDate(diag.date)}</span><span>${readingsData.get(k).dates.length} lectura(s)</span></div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  7. DETAIL MODAL
+// ═══════════════════════════════════════════════════════════
+function diagnosisMessages(diag){
+  const msgs = [];
+  const push = (sev, title, action) => msgs.push({sev, title, action});
+
+  if (diag.subs.deltaT >= 2){
+    push(diag.subs.deltaT===3?'critical':'warning', '❄️ Baja transferencia térmica (ΔT bajo)',
+      `ΔT de ${fmt(diag.deltaT,1)}°C entre entrada y salida de aire. Probable filtro/serpentina sucia, obstrucción del evaporador, falta de carga de refrigerante o compresor con baja capacidad. Revisar limpieza y presiones antes de intervenir el circuito de refrigerante.`);
+  } else if (diag.subs.deltaT === 1){
+    push('elevated', '🌡️ ΔT levemente por debajo de lo esperado', 'Rendimiento térmico algo bajo. Monitorear en la próxima ronda; revisar estado de filtros.');
+  }
+
+  if (diag.subs.presAlta >= 2){
+    push(diag.subs.presAlta===3?'critical':'warning', diag.presAlta > thresholds.presionAlta.max ? '📈 Presión alta por encima del rango normal' : '📉 Presión alta por debajo del rango normal',
+      diag.presAlta > thresholds.presionAlta.max
+        ? `${fmt(diag.presAlta,1)} bar. Posible condensador sucio u obstruido, ventilador de condensador fallando, sobrecarga de refrigerante o aire caliente recirculando en el condensador.`
+        : `${fmt(diag.presAlta,1)} bar. Posible falta de refrigerante o compresor con baja capacidad de compresión.`);
+  }
+  if (diag.subs.presBaja >= 2){
+    push(diag.subs.presBaja===3?'critical':'warning', diag.presBaja < thresholds.presionBaja.min ? '📉 Presión baja por debajo del rango normal' : '📈 Presión baja por encima del rango normal',
+      diag.presBaja < thresholds.presionBaja.min
+        ? `${fmt(diag.presBaja,1)} bar. Posible filtro/evaporador obstruido, falta de refrigerante o válvula de expansión con problema (restricción).`
+        : `${fmt(diag.presBaja,1)} bar. Posible sobrecarga de refrigerante o válvula de expansión abierta de más.`);
+  }
+  if (diag.subs.velAire >= 2){
+    push(diag.subs.velAire===3?'critical':'warning', '💨 Caudal de aire insuficiente',
+      `${fmt(diag.velAire,1)} m/s medidos con anemómetro. Filtro sucio u obstrucción en el ducto/evaporador. Reduce la capacidad de intercambio térmico y puede formar hielo en el evaporador. Revisar y limpiar/cambiar filtros.`);
+  }
+  if (diag.subs.filtro >= 2){
+    push(diag.subs.filtro===3?'critical':'warning', diag.filtro==='Muy sucio' ? '🧹 Filtro/serpentina muy sucio' : '🧹 Filtro/serpentina sucio',
+      diag.filtro==='Muy sucio'
+        ? 'Limpieza o cambio de filtro urgente. Afecta directamente el caudal de aire y la eficiencia del equipo; puede derivar en congelamiento del evaporador.'
+        : 'Programar limpieza de filtros/serpentinas en la próxima intervención.');
+  }
+  if (diag.subs.desbI >= 2){
+    push(diag.subs.desbI===3?'critical':'warning', '⚖️ Desbalance de corriente en el compresor',
+      `${fmt(diag.desbI,1)}% de desbalance entre fases. Revisar conexión floja, contactor del compresor o fase con mayor impedancia de contacto. Acelera el desgaste del compresor.`);
+  }
+  if (diag.subs.desbV >= 2){
+    push(diag.subs.desbV===3?'critical':'warning', '⚖️ Desbalance de tensión en el compresor',
+      `${fmt(diag.desbV,1)}% de desbalance de tensión. Verificar el alimentador aguas arriba; el desbalance de tensión afecta especialmente al motor del compresor (sobrecalentamiento).`);
+  }
+
+  if (!msgs.length){
+    push('good', '✅ Sin hallazgos relevantes', 'Todos los parámetros dentro de rango normal. Continuar con el plan de mantenimiento establecido.');
+  }
+  return msgs;
+}
+
+function openDetail(k){
+  currentKey = k;
+  const d = readingsData.get(k);
+  const diag = diagnoseEquipo(k);
+  if (!d || !diag) return;
+  const eq = equiposRegistry.get(k) || {};
+
+  document.getElementById('modalTitle').textContent = eq.tag || k;
+  document.getElementById('modalSub').textContent = `${eq.tipo||''}${eq.ambiente?' · '+eq.ambiente:''}${eq.ubicacion?' · '+eq.ubicacion:''} · Última medición: ${fmtDateTime(diag.date)}`;
+
+  const level = diag.overall;
+  const badgeClass = level<0?'':`badge-${STATUS[level]}`;
+  const health = healthScoreFromLevel(diag.overall, diag.subs);
+
+  let html = `
+  <div class="modal-section-title">Estado actual</div>
+  <div class="mgrid">
+    <div class="mstat"><div class="mstat-lbl">Estado</div><div class="mstat-val"><span class="mbadge ${badgeClass}">${level<0?'Sin datos':STATUS_LABELS[level]}</span></div></div>
+    <div class="mstat"><div class="mstat-lbl">Salud</div><div class="mstat-val">${health===null?'—':health+'%'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">ΔT Aire</div><div class="mstat-val">${fmt(diag.deltaT,1)}°C</div></div>
+    <div class="mstat"><div class="mstat-lbl">Presión Alta</div><div class="mstat-val">${!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Presión Baja</div><div class="mstat-val">${!isNaN(diag.presBaja)?fmt(diag.presBaja,1)+' bar':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Vel. Aire</div><div class="mstat-val">${!isNaN(diag.velAire)?fmt(diag.velAire,1)+' m/s':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Filtro</div><div class="mstat-val">${diag.filtro||'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+  </div>
+
+  <div class="modal-section-title">Diagnóstico</div>
+  <div id="modalDiagBox"></div>
+
+  <div class="modal-section-title">Tendencia (ΔT y Presión Alta)</div>
+  <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
+
+  <div class="modal-section-title">Historial reciente</div>
+  <div style="overflow-x:auto;">
+    <table class="rtable">
+      <thead><tr><th>Fecha</th><th>ΔT (°C)</th><th>Pres.Alta</th><th>Pres.Baja</th><th>Vel.Aire</th><th>Filtro</th></tr></thead>
+      <tbody>${d.dates.map((dt,i)=>{
+        const ev = evalReading(d.params, i);
+        return `<tr>
+          <td data-label="Fecha">${fmtDate(dt)}</td>
+          <td data-label="ΔT (°C)">${fmt(ev.deltaT,1)}</td>
+          <td data-label="Pres.Alta">${!isNaN(ev.presAlta)?fmt(ev.presAlta,1):'—'}</td>
+          <td data-label="Pres.Baja">${!isNaN(ev.presBaja)?fmt(ev.presBaja,1):'—'}</td>
+          <td data-label="Vel.Aire">${!isNaN(ev.velAire)?fmt(ev.velAire,1):'—'}</td>
+          <td data-label="Filtro">${escHtml(ev.filtro||'—')}</td>
+        </tr>`;
+      }).reverse().slice(0,15).join('')}</tbody>
+    </table>
+  </div>`;
+
+  document.getElementById('modalBody').innerHTML = html;
+
+  const diagBox = document.getElementById('modalDiagBox');
+  diagBox.innerHTML = diagnosisMessages(diag).map(m=>`
+    <div class="diag-box ${m.sev==='good'?'':m.sev}">
+      <div class="diag-title">${m.title}</div>
+      <div class="diag-action">${m.action}</div>
+    </div>`).join('');
+
+  document.getElementById('detailOverlay').classList.add('open');
+
+  setTimeout(()=>{
+    const ctx = document.getElementById('modalChart');
+    if (!ctx) return;
+    if (detailChart) detailChart.destroy();
+    const labels = d.dates.map(fmtDate);
+    const deltaTSeries = d.dates.map((_,i)=> (d.params.TempEntrada[i] - d.params.TempSalida[i]));
+    const presAltaSeries = d.params.PresAlta;
+    detailChart = new Chart(ctx, {
+      type:'line',
+      data:{ labels, datasets:[
+        { label:'ΔT (°C)', data:deltaTSeries, borderColor:'#22d3ee', backgroundColor:'rgba(34,211,238,.1)', yAxisID:'y', tension:.3 },
+        { label:'Presión Alta (bar)', data:presAltaSeries, borderColor:'#f97316', backgroundColor:'rgba(249,115,22,.1)', yAxisID:'y1', tension:.3 }
+      ]},
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{labels:{color:'#cdd9f0'}}},
+        scales:{
+          x:{ticks:{color:'#5e7a9a'}, grid:{color:'#1e2d45'}},
+          y:{position:'left', ticks:{color:'#22d3ee'}, grid:{color:'#1e2d45'}},
+          y1:{position:'right', ticks:{color:'#f97316'}, grid:{display:false}}
+        }
+      }
+    });
+  }, 30);
+}
+function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
+
+// ═══════════════════════════════════════════════════════════
+//  8. EQUIPOS TAB
+// ═══════════════════════════════════════════════════════════
+function populateEquipoTypeSelect(){
+  const sel = document.getElementById('newEqTipo');
+  if (sel && !sel.dataset.filled){ sel.innerHTML = TIPOS_EQUIPO.map(t=>`<option value="${t}">${t}</option>`).join(''); sel.dataset.filled='1'; }
+  const capSel = document.getElementById('newEqCapUnidad');
+  if (capSel && !capSel.dataset.filled){ capSel.innerHTML = CAP_UNIDADES.map(t=>`<option value="${t}">${t}</option>`).join(''); capSel.dataset.filled='1'; }
+  const refSel = document.getElementById('newEqRefrigerante');
+  if (refSel && !refSel.dataset.filled){ refSel.innerHTML = `<option value="">—</option>` + REFRIGERANTES.map(t=>`<option value="${t}">${t}</option>`).join(''); refSel.dataset.filled='1'; }
+}
+function createEquipo(){
+  const tag = document.getElementById('newEqTag').value.trim();
+  if (!tag){ alert('Ingresá el TAG del equipo.'); return; }
+  const tipo = document.getElementById('newEqTipo').value;
+  const ambiente = document.getElementById('newEqAmbiente').value.trim();
+  const ubicacion = document.getElementById('newEqUbicacion').value.trim();
+  const capacidad = parseFloat(document.getElementById('newEqCapacidad').value) || 0;
+  const capUnidad = document.getElementById('newEqCapUnidad').value;
+  const refrigerante = document.getElementById('newEqRefrigerante').value;
+  const id = genId();
+  equiposRegistry.set(id, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante});
+  publicarEquipoEnHub(tag, tipo);
+  document.getElementById('newEqTag').value='';
+  document.getElementById('newEqAmbiente').value='';
+  document.getElementById('newEqUbicacion').value='';
+  document.getElementById('newEqCapacidad').value='';
+  saveState();
+  renderAll();
+}
+function deleteEquipo(id){
+  if (!confirm('¿Eliminar este equipo y todas sus mediciones asociadas?')) return;
+  equiposRegistry.delete(id);
+  readingsData.delete(id);
+  saveState();
+  renderAll();
+}
+function renderEquiposList(){
+  const el = document.getElementById('equiposRegistryList');
+  if (!el) return;
+  if (!equiposRegistry.size){
+    el.innerHTML = `<div class="empty-state"><div class="ei">🧊</div>Sin equipos registrados. Creá uno arriba o importá un Excel (se crean automáticamente).</div>`;
+    return;
+  }
+  el.innerHTML = Array.from(equiposRegistry.entries()).map(([id, e])=>{
+    const n = readingsData.get(id)?.dates.length || 0;
+    return `<div class="panel-box">
+      <div class="panel-box-title"><span>🧊 ${escHtml(e.tag)} <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— ${escHtml(e.tipo||'')}${e.ambiente?' · '+escHtml(e.ambiente):''}${e.ubicacion?' · '+escHtml(e.ubicacion):''}</span></span>
+        <button class="btn-small danger" onclick="deleteEquipo('${escJs(id)}')">Eliminar</button>
+      </div>
+      <div style="font-size:.82rem;color:var(--muted);">
+        ${e.capacidad?`<span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${escHtml(String(e.capacidad))} ${escHtml(e.capUnidad||'')}</span>`:''}
+        ${e.refrigerante?`<span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${escHtml(e.refrigerante)}</span>`:''}
+        <span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${n} lectura(s)</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  9. THRESHOLDS TAB
+// ═══════════════════════════════════════════════════════════
+function renderThresholdGrid(){
+  const el = document.getElementById('thresholdGrid');
+  if (el){
+    el.innerHTML = Object.keys(THRESHOLD_META).map(key=>{
+      const meta = THRESHOLD_META[key];
+      const band = thresholds[key];
+      const labels = meta.inverse ? ['Normal (≥)','Elevado (≥)','Alerta (≥)'] : ['Normal (≤)','Elevado (≤)','Alerta (≤)'];
+      return `<div class="th-item">
+        <div class="th-item-lbl">${meta.label}${meta.unit?' ('+meta.unit+')':''}</div>
+        ${band.map((v,i)=>`<div class="th-row"><label>${labels[i]}</label><input type="number" step="0.01" id="th_${key}_${i}" value="${v}"></div>`).join('')}
+      </div>`;
+    }).join('');
+  }
+  const pa = document.getElementById('th_presAlta_min'); if (pa) pa.value = thresholds.presionAlta.min;
+  const pa2 = document.getElementById('th_presAlta_max'); if (pa2) pa2.value = thresholds.presionAlta.max;
+  const pb = document.getElementById('th_presBaja_min'); if (pb) pb.value = thresholds.presionBaja.min;
+  const pb2 = document.getElementById('th_presBaja_max'); if (pb2) pb2.value = thresholds.presionBaja.max;
+}
+function saveThresholdsFromUI(){
+  for (const key of Object.keys(THRESHOLD_META)){
+    for (let i=0;i<3;i++){
+      const input = document.getElementById(`th_${key}_${i}`);
+      if (input){ const v = parseFloat(input.value); if (!isNaN(v)) thresholds[key][i] = v; }
+    }
+  }
+  const paMin = parseFloat(document.getElementById('th_presAlta_min').value);
+  const paMax = parseFloat(document.getElementById('th_presAlta_max').value);
+  const pbMin = parseFloat(document.getElementById('th_presBaja_min').value);
+  const pbMax = parseFloat(document.getElementById('th_presBaja_max').value);
+  if (!isNaN(paMin)) thresholds.presionAlta.min = paMin;
+  if (!isNaN(paMax)) thresholds.presionAlta.max = paMax;
+  if (!isNaN(pbMin)) thresholds.presionBaja.min = pbMin;
+  if (!isNaN(pbMax)) thresholds.presionBaja.max = pbMax;
+  saveState();
+  renderAll();
+  alert('Umbrales guardados.');
+}
+function resetThresholds(){
+  if (!confirm('¿Restaurar los umbrales por defecto?')) return;
+  thresholds = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  10. TABS
+// ═══════════════════════════════════════════════════════════
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  11. OFFLINE REPORT
+// ═══════════════════════════════════════════════════════════
+function generateOfflineReport(){
+  if (!readingsData.size){ alert('Sin datos para generar el informe.'); return; }
+  const dist = statusDistribution();
+  const fh = fleetHealth();
+  const totalEquipos = equiposRegistry.size;
+  const totalConDatos = readingsData.size;
+
+  let html = '';
+  html += `<div class="fleet-box">
+    <div class="fleet-box-title">🧊 Resumen de flota</div>
+    <div class="mgrid">
+      <div class="mstat"><div class="mstat-lbl">Equipos</div><div class="mstat-val">${totalEquipos}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Con mediciones</div><div class="mstat-val">${totalConDatos}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Salud de flota</div><div class="mstat-val">${fh===null?'—':fh+'%'}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Críticos</div><div class="mstat-val" style="color:var(--critical);">${dist.critical}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Alerta</div><div class="mstat-val" style="color:var(--warning);">${dist.warning}</div></div>
+      <div class="mstat"><div class="mstat-lbl">Elevado</div><div class="mstat-val" style="color:var(--elevated);">${dist.elevated}</div></div>
+    </div>
+  </div>`;
+
+  const actionItems = [];
+  for (const k of readingsData.keys()){
+    const diag = diagnoseEquipo(k);
+    if (!diag || diag.overall < 1) continue;
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const msgs = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const accion = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Revisar parámetros fuera de rango';
+    const plazo = diag.overall===3?'Inmediato':diag.overall===2?'7 días':'30 días';
+    actionItems.push({
+      prio: diag.overall===3?'critical':diag.overall===2?'warning':'elevated',
+      equipo: getEqName(k),
+      accion, plazo, health, nivel: STATUS[diag.overall]
+    });
+  }
+  actionItems.sort((a,b)=> ({critical:0,warning:1,elevated:2}[a.prio]) - ({critical:0,warning:1,elevated:2}[b.prio]));
+
+  if (actionItems.length){
+    html += `<hr class="section-divider" data-label="Plan de Acción Priorizado">`;
+    html += `<div style="overflow-x:auto;"><table class="plan-table">
+      <thead><tr><th>Prioridad</th><th>Equipo</th><th>Hallazgo</th><th>Plazo</th><th>Salud</th></tr></thead>
+      <tbody>${actionItems.map(a=>`
+        <tr>
+          <td data-label="Prioridad"><span class="prio-badge prio-${a.prio}">${a.prio.toUpperCase()}</span></td>
+          <td data-label="Equipo" style="font-weight:700;">${escHtml(a.equipo)}</td>
+          <td data-label="Hallazgo" style="font-size:.82rem;">${escHtml(a.accion)}</td>
+          <td data-label="Plazo" style="font-weight:700;color:${STATUS_COLORS[STATUS.indexOf(a.nivel)]};">${a.plazo}</td>
+          <td data-label="Salud" style="font-family:'Share Tech Mono';">${a.health}%</td>
+        </tr>`).join('')}</tbody>
+    </table></div>`;
+  }
+
+  html += `<hr class="section-divider" data-label="Conclusiones y Próximos Pasos">`;
+  let conc = `El análisis de <strong>${totalConDatos} equipo(s)</strong> de refrigeración (sobre ${totalEquipos} registrado(s)) arroja una salud de flota de <strong>${fh===null?'—':fh+'%'}</strong>. `;
+  if (dist.critical > 0){
+    conc += `Se requieren <strong>intervenciones inmediatas</strong> en ${dist.critical} equipo(s) crítico(s), principalmente por baja transferencia térmica o presiones fuera de rango. `;
+  } else if (dist.warning > 0){
+    conc += `Se recomienda programar ${dist.warning} intervención(es) dentro de los próximos 7 días. `;
+  } else if (dist.elevated > 0){
+    conc += `Varios equipos muestran deficiencias incipientes; se recomienda mantener el intervalo de monitoreo actual. `;
+  } else {
+    conc += `La flota no presenta alarmas activas. Continuar con el plan de mantenimiento preventivo establecido. `;
+  }
+  const proxima = dist.critical>0?'dentro de 7 días':dist.warning>0?'dentro de 14 días':dist.elevated>0?'dentro de 30 días':'según plan habitual';
+  conc += `Próxima ronda de mediciones recomendada: <strong>${proxima}</strong>.`;
+
+  html += `<div class="fleet-box" style="margin-bottom:0;">
+    <div class="fleet-box-title">📝 Conclusiones</div>
+    <div class="fleet-text">${conc}</div>
+  </div>
+  <div class="note-box">
+    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Refrigeración Pro</strong>, basado en criterios orientativos de ΔT de aire, caudal de aire, estado de filtros, desbalance eléctrico NEMA MG-1 aplicado al compresor y rangos de presión editables por equipo. No reemplaza el cálculo de presión-temperatura de saturación por refrigerante; ajustá los umbrales a cada equipo y refrigerante antes de usar el informe para decisiones críticas.
+  </div>`;
+
+  document.getElementById('reportSections').innerHTML = html;
+}
+
+function copyReport(){
+  const el = document.getElementById('reportSections');
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    alert('Informe copiado al portapapeles.');
+  }).catch(()=>alert('No se pudo copiar. Seleccioná el texto manualmente.'));
+}
+
+// ═══════════════════════════════════════════════════════════
+//  12. CSV EXPORT
+// ═══════════════════════════════════════════════════════════
+function exportCSV(){
+  if (!readingsData.size){ alert('Sin datos.'); return; }
+  let rows = ['TAG,Tipo,Fecha,Estado,DeltaT_C,PresAlta_bar,PresBaja_bar,VelAire_ms,Filtro,DesbI_%,DesbV_%,Observaciones'];
+  for (const [k, d] of readingsData.entries()){
+    const eq = equiposRegistry.get(k) || {};
+    for (let n=0;n<d.dates.length;n++){
+      const ev = evalReading(d.params, n);
+      const estado = ev.overall>=0 ? STATUS_LABELS[ev.overall] : '—';
+      const dt = d.dates[n];
+      const fecha = (dt instanceof Date && !isNaN(dt)) ? dt.toISOString().slice(0,10) : '';
+      rows.push([
+        `"${eq.tag||''}"`, `"${eq.tipo||''}"`, fecha, estado, fmt(ev.deltaT,2),
+        !isNaN(ev.presAlta)?fmt(ev.presAlta,2):'', !isNaN(ev.presBaja)?fmt(ev.presBaja,2):'',
+        !isNaN(ev.velAire)?fmt(ev.velAire,2):'', `"${ev.filtro||''}"`,
+        !isNaN(ev.desbI)?fmt(ev.desbI,2):'', !isNaN(ev.desbV)?fmt(ev.desbV,2):'',
+        `"${(d.obs&&d.obs[n])||''}"`
+      ].join(','));
+    }
+  }
+  const blob = new Blob([rows.join('\n')], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `refrigeracion_pro_historial_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(a.href);
+}
+
+function clearAllData(){
+  if (!confirm('¿Borrar TODOS los equipos y lecturas? Esta acción no se puede deshacer.')) return;
+  equiposRegistry.clear(); readingsData.clear();
+  saveState();
+  renderAll();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Sincronización con el hub (SatSync)
+// ═══════════════════════════════════════════════════════════
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equiposHub = new Map(rows.map(e => [e.tag, e]));
+    const dl = document.getElementById('hubTagsDatalist');
+    if(dl) dl.innerHTML = rows.map(e => `<option value="${escHtml(e.tag)}">${escHtml(e.nombre||'')}</option>`).join('');
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) alert('No se pudo leer el catálogo de equipos del hub: ' + err.message);
+    return false;
+  }
+}
+
+async function publicarEquipoEnHub(name, tipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return;
+  try{
+    await SatSync.buscarOCrearEquipo(name, {tipo});
+    equiposHub.set(name, {tag:name, nombre:name, tipo});
+  }catch(err){
+    console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
+  }
+}
+
+function mapNivelASeveridad(nivel){
+  if(nivel === 'critical') return 'critico';
+  if(nivel === 'warning' || nivel === 'elevated') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(){
+  if(!readingsData.size){ alert('Generá el informe primero.'); return; }
+  const statusEl = document.getElementById('nubeStatus');
+  const btn = document.getElementById('btnGuardarNube');
+
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    statusEl.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero — la config se comparte entre este módulo y el hub.';
+    statusEl.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseEquipo(k);
+    if(!diag || diag.overall < 0) continue;
+    const eq = equiposRegistry.get(k);
+    const tag = eq?.tag;
+    if(!tag){ fail++; continue; }
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const nivel  = STATUS[diag.overall];
+    const msgs   = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const resumen = `${tag}: ` + (msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Sin hallazgos relevantes');
+    try{
+      await SatSync.guardarAnalisis({
+        modulo: 'refrigeracion',
+        equipo_tag: tag,
+        severidad: mapNivelASeveridad(nivel),
+        resumen,
+        datos: {
+          equipo: tag, tipo: eq?.tipo, health, nivel,
+          deltaT: diag.deltaT, presAlta: diag.presAlta, presBaja: diag.presBaja,
+          velAire: diag.velAire, filtro: diag.filtro, desbI: diag.desbI, desbV: diag.desbV,
+          fecha: diag.date, hallazgos: msgs
+        }
+      });
+      ok++;
+    }catch(err){
+      console.error('[SatSync] error guardando', tag, err);
+      fail++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.style.color = fail ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  statusEl.textContent = fail
+    ? `☁️ Guardados ${ok} equipo(s) (${fail} con error — ver consola).`
+    : `☁️ ${ok} equipo(s) guardados en la nube correctamente.`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CAPTURAS DE CAMPO (Hub de Campo → copiar a formulario → analizar)
+// ═══════════════════════════════════════════════════════════
+async function abrirCapturasPendientes(){
+  const overlay = document.getElementById('capturasOverlay');
+  const lista = document.getElementById('capturasLista');
+  overlay.classList.add('open');
+  lista.innerHTML = `<div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>`;
+  if (typeof SatSync === 'undefined' || !SatSync.init()){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.</div>`;
+    return;
+  }
+  try{
+    _capturasPendientes = await SatSync.listarCapturasPendientes({ modulo: 'refrigeracion' });
+  }catch(err){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>No se pudo leer capturas_campo: ${escHtml(err.message)}</div>`;
+    return;
+  }
+  renderCapturasBadge();
+  if (!_capturasPendientes.length){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">✅</div>No hay capturas pendientes desde el Hub de Campo.</div>`;
+    return;
+  }
+  lista.innerHTML = _capturasPendientes.map((c,i)=>{
+    const d = c.datos || {};
+    const tag = c.equipos?.tag || '(sin tag)';
+    const deltaT = (d.tempEntrada!=null && d.tempSalida!=null) ? `ΔT ${(d.tempEntrada-d.tempSalida).toFixed(1)}°C · ` : '';
+    return `<div class="fld" style="border:1px solid var(--border,#26374f);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:600;">${escHtml(tag)}</div>
+        <div style="font-size:.75rem;color:var(--muted);">${escHtml(d.fecha||'')} · ${deltaT}Pres.alta ${d.presAlta??'—'} bar</div>
+      </div>
+      <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;" onclick="copiarCapturaAFormulario(${i})">📋 Copiar a formulario</button>
+    </div>`;
+  }).join('');
+}
+function cerrarCapturasPendientes(){ document.getElementById('capturasOverlay').classList.remove('open'); }
+function renderCapturasBadge(){
+  const b = document.getElementById('capturasBadge');
+  b.textContent = _capturasPendientes.length;
+  b.classList.toggle('hidden', _capturasPendientes.length===0);
+}
+
+// Busca un equipo existente cuyo TAG coincida con el que manda el Hub de Campo;
+// si no existe, lo crea (tipo por defecto 'AC Split', editable luego en Equipos).
+function buscarOCrearEquipoPorTag(tag){
+  for (const [id, e] of equiposRegistry.entries()){
+    if ((e.tag||'').toLowerCase() === tag.toLowerCase()) return id;
+  }
+  const id = genId();
+  equiposRegistry.set(id, {tag, tipo:'AC Split', ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:''});
+  publicarEquipoEnHub(tag, 'AC Split');
+  return id;
+}
+
+function copiarCapturaAFormulario(i){
+  const captura = _capturasPendientes[i];
+  if (!captura) return;
+  const d = captura.datos || {};
+  const tag = captura.equipos?.tag || '';
+  if (!tag) return;
+
+  cerrarCapturasPendientes();
+  openManualEntry(); // resetea el form, arma los selects y lo abre
+
+  const eqId = buscarOCrearEquipoPorTag(tag);
+  saveState();
+
+  const eqSel = document.getElementById('me_eqSel');
+  eqSel.innerHTML = `<option value="__new">➕ Crear nuevo equipo…</option>` +
+    Array.from(equiposRegistry.entries()).map(([id,e])=>`<option value="${id}">${escHtml(e.tag)}</option>`).join('');
+  eqSel.value = eqId;
+  onManualEquipoChange();
+
+  if (d.fecha) document.getElementById('me_fecha').value = d.fecha;
+  if (d.tempEntrada!=null) document.getElementById('me_tempEntrada').value = d.tempEntrada;
+  if (d.tempSalida!=null) document.getElementById('me_tempSalida').value = d.tempSalida;
+  if (d.tempAmb!=null) document.getElementById('me_tempAmb').value = d.tempAmb;
+  if (d.presAlta!=null) document.getElementById('me_presAlta').value = d.presAlta;
+  if (d.presBaja!=null) document.getElementById('me_presBaja').value = d.presBaja;
+  if (d.iR!=null) document.getElementById('me_iR').value = d.iR;
+  if (d.iS!=null) document.getElementById('me_iS').value = d.iS;
+  if (d.iT!=null) document.getElementById('me_iT').value = d.iT;
+  if (d.vR!=null) document.getElementById('me_vR').value = d.vR;
+  if (d.vS!=null) document.getElementById('me_vS').value = d.vS;
+  if (d.vT!=null) document.getElementById('me_vT').value = d.vT;
+  if (d.velAire!=null) document.getElementById('me_velAire').value = d.velAire;
+  if (d.filtro) document.getElementById('me_filtro').value = d.filtro;
+  if (d.obs) document.getElementById('me_obs').value = d.obs;
+
+  _capturaActual = captura; // se marca como procesada recién al confirmar "Guardar medición"
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `📋 Datos de ${tag} copiados — revisá y confirmá con "Guardar medición".`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  13. INIT
+// ═══════════════════════════════════════════════════════════
+loadState();
+populateEquipoTypeSelect();
+renderAll();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
+
+</script>
+</body>
+</html>
