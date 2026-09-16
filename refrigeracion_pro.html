@@ -212,6 +212,16 @@ header{
 .diag-box.warning{border-left-color:var(--warning);}
 .diag-box.critical{border-left-color:var(--critical);}
 .diag-box.elevated{border-left-color:var(--elevated);}
+.trend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.trend-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:10px 12px;}
+.trend-lbl{font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.trend-val{font-size:1.05rem;font-weight:700;font-family:'Share Tech Mono';margin-top:2px;}
+.trend-sub{font-size:.68rem;color:var(--muted);margin-top:4px;}
+.trend-good{color:var(--good);}
+.trend-bad{color:var(--critical);}
+.trend-neutral{color:var(--text);}
+.trend-empty{font-size:.85rem;color:var(--muted);padding:8px 2px;}
+.trend-select{background:var(--card2);color:var(--text);border:1px solid var(--border2);border-radius:6px;padding:4px 8px;font-family:'Rajdhani',sans-serif;font-size:.8rem;}
 .diag-title{font-weight:700;font-size:.9rem;margin-bottom:3px;}
 .diag-action{font-size:.82rem;color:var(--muted);}
 .rtable{width:100%;border-collapse:collapse;}
@@ -349,6 +359,7 @@ header{
 <div class="tabs">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
   <button class="tab-btn" data-tab="equipos" onclick="switchTab('equipos')">🧊 Equipos</button>
+  <button class="tab-btn" data-tab="intervenciones" onclick="switchTab('intervenciones')">🛠️ Intervenciones</button>
   <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Umbrales</button>
   <button class="tab-btn" data-tab="informe" onclick="switchTab('informe')">📋 Informe</button>
 </div>
@@ -399,10 +410,56 @@ header{
       <div class="fld"><label>Refrigerante</label>
         <select id="newEqRefrigerante"></select>
       </div>
+      <div class="fld"><label>FLA/RLA del compresor (A)</label><input id="newEqFLA" type="number" step="0.1" placeholder="Ej: 8.5 — de la placa del motor/compresor"></div>
     </div>
     <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;" onclick="createEquipo()">Crear equipo</button>
   </div>
   <div id="equiposRegistryList"></div>
+</div>
+
+<!-- ═══ INTERVENCIONES TAB ═══ -->
+<div class="tab-content" id="tab-intervenciones">
+  <div class="panel-box">
+    <div class="panel-box-title">➕ Registrar intervención</div>
+    <div class="form-grid">
+      <div class="fld"><label>Equipo</label>
+        <select id="ivEquipo"></select>
+      </div>
+      <div class="fld"><label>Fecha</label><input type="date" id="ivFecha"></div>
+      <div class="fld"><label>Tipo de intervención</label>
+        <select id="ivTipo"></select>
+      </div>
+    </div>
+    <div class="fld" style="margin-bottom:14px;">
+      <label>Descripción</label>
+      <textarea id="ivDescripcion" rows="3" placeholder="Ej: Se limpió serpentina de condensador y se corrigió fuga en válvula de servicio."
+        style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:.92rem;outline:none;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+    <button class="btn-small" style="background:var(--accent);color:#03181c;border:none;" onclick="crearIntervencion()">Guardar intervención</button>
+    <span id="ivStatus" style="font-size:.8rem;color:var(--muted);margin-left:10px;"></span>
+  </div>
+
+  <div class="panel-box">
+    <div class="panel-box-title">🛠️ Historial de intervenciones
+      <button class="btn-small" onclick="sincronizarIntervencionesNube()">☁️ Sincronizar con la nube</button>
+    </div>
+    <div class="toolbar" style="margin-bottom:14px;">
+      <select class="sort-sel" id="ivFiltroEquipo" onchange="renderIntervenciones()">
+        <option value="">Todos los equipos</option>
+      </select>
+      <select class="sort-sel" id="ivFiltroTipo" onchange="renderIntervenciones()">
+        <option value="">Todos los tipos</option>
+      </select>
+      <input class="search-box" id="ivBuscar" placeholder="🔎 Buscar en descripción…" oninput="renderIntervenciones()">
+      <select class="sort-sel" id="ivOrden" onchange="renderIntervenciones()">
+        <option value="fecha_desc">Fecha (más reciente primero)</option>
+        <option value="fecha_asc">Fecha (más antigua primero)</option>
+        <option value="equipo_asc">Equipo A-Z</option>
+      </select>
+    </div>
+    <div id="ivListWrap"></div>
+    <div id="ivSyncNote" style="font-size:.78rem;color:var(--muted);margin-top:10px;"></div>
+  </div>
 </div>
 
 <!-- ═══ CONFIG TAB ═══ -->
@@ -410,19 +467,39 @@ header{
   <div class="panel-box">
     <div class="panel-box-title">⚙️ Umbrales de diagnóstico (editables)</div>
     <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">
-      Valores orientativos generales para acondicionadores y chillers de planta (ΔT de aire, desbalance eléctrico NEMA MG-1 aplicado al compresor, y caudal de aire). No calculan presión-temperatura de saturación por refrigerante — ajustá los rangos de presión según el refrigerante y la norma/política interna de cada equipo.
+      Valores orientativos generales para acondicionadores y chillers de planta (ΔT de aire, desbalance eléctrico NEMA MG-1 aplicado al compresor, y caudal de aire). Cuando el equipo tiene un refrigerante soportado (R410A, R22, R134a, R407C, R404A), Presión Alta y Presión Baja se evalúan por su <strong>Temperatura de Saturación equivalente</strong> (tabla P-T real de cada refrigerante) contra los rangos en °C de abajo — así el umbral tiene sentido físico sin importar el refrigerante de cada equipo. Si el refrigerante no está soportado (vacío o "Otro"), se usa el respaldo en bar. Recalentamiento (SH) y Subenfriamiento (SC) también se calculan con la tabla presión-temperatura real cuando se cargan las temperaturas de línea de succión/líquido.
     </p>
     <div class="th-grid" id="thresholdGrid"></div>
     <div class="th-grid" style="margin-top:14px;">
       <div class="th-item">
-        <div class="th-item-lbl">🧊 Presión alta — rango normal (bar)</div>
+        <div class="th-item-lbl">🧊 Presión alta — T° saturación condensación (°C)</div>
+        <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presAltaTsat_min"></div>
+        <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presAltaTsat_max"></div>
+      </div>
+      <div class="th-item">
+        <div class="th-item-lbl">🧊 Presión baja — T° saturación evaporación (°C)</div>
+        <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presBajaTsat_min"></div>
+        <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presBajaTsat_max"></div>
+      </div>
+      <div class="th-item">
+        <div class="th-item-lbl">🧊 Presión alta — respaldo en bar <span style="font-weight:400;color:var(--muted);">(solo si el refrigerante no está soportado)</span></div>
         <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presAlta_min"></div>
         <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presAlta_max"></div>
       </div>
       <div class="th-item">
-        <div class="th-item-lbl">🧊 Presión baja — rango normal (bar)</div>
+        <div class="th-item-lbl">🧊 Presión baja — respaldo en bar <span style="font-weight:400;color:var(--muted);">(solo si el refrigerante no está soportado)</span></div>
         <div class="th-row"><label>Mínima aceptable</label><input type="number" step="0.1" id="th_presBaja_min"></div>
         <div class="th-row"><label>Máxima aceptable</label><input type="number" step="0.1" id="th_presBaja_max"></div>
+      </div>
+      <div class="th-item">
+        <div class="th-item-lbl">♨️ Recalentamiento SH — rango normal (°C)</div>
+        <div class="th-row"><label>Mínimo aceptable</label><input type="number" step="0.1" id="th_superheat_min"></div>
+        <div class="th-row"><label>Máximo aceptable</label><input type="number" step="0.1" id="th_superheat_max"></div>
+      </div>
+      <div class="th-item">
+        <div class="th-item-lbl">🧊 Subenfriamiento SC — rango normal (°C)</div>
+        <div class="th-row"><label>Mínimo aceptable</label><input type="number" step="0.1" id="th_subenfriamiento_min"></div>
+        <div class="th-row"><label>Máximo aceptable</label><input type="number" step="0.1" id="th_subenfriamiento_max"></div>
       </div>
     </div>
     <button class="btn-small" style="margin-top:14px;background:var(--accent);color:#03181c;border:none;" onclick="saveThresholdsFromUI()">💾 Guardar umbrales</button>
@@ -464,7 +541,7 @@ header{
         </div>
         <div class="fld hidden" id="me_newEqTipoWrap">
           <label>Tipo</label>
-          <select id="me_newEqTipo"></select>
+          <select id="me_newEqTipo" onchange="updateAguaFieldsVisibility()"></select>
         </div>
         <div class="fld">
           <label>Fecha de medición</label>
@@ -485,6 +562,13 @@ header{
         <div class="fld"><label>Presión baja (bar)</label><input type="number" step="0.1" id="me_presBaja"></div>
       </div>
 
+      <div class="modal-section-title">🌡️ Temperaturas de línea (para SH / SC)</div>
+      <p style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;">Con estas dos temperaturas y las presiones de arriba, el sistema calcula el Recalentamiento (SH) y Subenfriamiento (SC) reales usando la tabla presión-temperatura del refrigerante del equipo.</p>
+      <div class="form-grid">
+        <div class="fld"><label>Temp. línea de succión (°C)</label><input type="number" step="0.1" id="me_tempSuccion" placeholder="Bulbo del compresor, con TXV"></div>
+        <div class="fld"><label>Temp. línea de líquido (°C)</label><input type="number" step="0.1" id="me_tempLiquido" placeholder="Salida del condensador/receptor"></div>
+      </div>
+
       <div class="modal-section-title">⚡ Corriente (A) y Tensión (V) del compresor</div>
       <div class="form-grid">
         <div class="fld"><label>Corriente R (A)</label><input type="number" step="0.1" id="me_iR"></div>
@@ -500,6 +584,16 @@ header{
         <div class="fld"><label>Velocidad de aire — anemómetro (m/s)</label><input type="number" step="0.1" id="me_velAire"></div>
         <div class="fld"><label>Estado de filtros/serpentinas</label>
           <select id="me_filtro"><option value="">—</option><option value="Bueno">Bueno</option><option value="Sucio">Sucio</option><option value="Muy sucio">Muy sucio</option></select>
+        </div>
+      </div>
+
+      <div class="hidden" id="me_aguaWrap">
+        <div class="modal-section-title" style="margin-top:14px;">💧 Lado de agua (evaporador) — solo Chillers</div>
+        <p style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;">Retorno = agua que entra al evaporador (más caliente). Suministro = agua que sale hacia la carga (más fría). El caudal es opcional, solo informativo.</p>
+        <div class="form-grid">
+          <div class="fld"><label>Temp. agua retorno (°C)</label><input type="number" step="0.1" id="me_tempAguaRetorno"></div>
+          <div class="fld"><label>Temp. agua suministro (°C)</label><input type="number" step="0.1" id="me_tempAguaSuministro"></div>
+          <div class="fld"><label>Caudal de agua (m³/h)</label><input type="number" step="0.1" id="me_caudalAgua" placeholder="Opcional"></div>
         </div>
       </div>
 
@@ -549,41 +643,164 @@ header{
 //  1. CONSTANTS
 // ═══════════════════════════════════════════════════════════
 const TIPOS_EQUIPO = ['AC Split','AC Precisión','Chiller','Otro'];
+const TIPOS_INTERVENCION = ['Preventivo','Correctivo','Cambio de filtro','Carga de refrigerante','Limpieza','Reparación eléctrica','Cambio de repuesto','Otro'];
 const REFRIGERANTES = ['R410A','R22','R134a','R407C','R404A','Otro'];
 const CAP_UNIDADES = ['TR','kW'];
 
+// ═══════════════════════════════════════════════════════════
+//  1b. TABLAS PRESIÓN-TEMPERATURA DE SATURACIÓN POR REFRIGERANTE
+//  Presión manométrica (bar g). Pares [Temp °C, Presión bar].
+//  R410A/R22/R134a: curva única (no hay glide significativo a fines prácticos).
+//  R407C/R404A: mezclas zeotrópicas con glide -> curva "dew" (vapor/succión,
+//  usada para el lado de baja/evaporador) y curva "bubble" (líquido/condensado,
+//  usada para el lado de alta/condensador).
+// ═══════════════════════════════════════════════════════════
+const PT_TABLES = {
+  R410A: { single: [
+    [-40.0,0.738],[-34.4,1.22],[-28.9,1.806],[-23.3,2.503],[-17.8,3.323],[-15.0,3.785],
+    [-12.2,4.289],[-9.4,4.826],[-6.7,5.405],[-3.9,6.026],[-1.1,6.688],[0.0,6.971],
+    [1.1,7.253],[2.2,7.55],[3.3,7.853],[4.4,8.163],[5.6,8.481],[6.7,8.805],[7.8,9.142],
+    [8.9,9.48],[10.0,9.832],[11.1,10.197],[12.2,10.563],[13.3,10.942],[14.4,11.335],
+    [15.6,11.728],[18.3,12.762],[21.1,13.865],[23.9,15.024],[26.7,16.251],[29.4,17.554],
+    [32.2,18.926],[35.0,20.367],[37.8,21.898],[40.6,23.497],[43.3,25.193],[46.1,26.972],
+    [48.9,28.841],[54.4,32.874],[60.0,37.335],[65.6,42.265]
+  ]},
+  R22: { single: [
+    [-40.0,0.041],[-34.4,0.338],[-28.9,0.703],[-23.3,1.138],[-17.8,1.655],[-15.0,1.951],
+    [-12.2,2.261],[-9.4,2.606],[-6.7,2.972],[-3.9,3.365],[-1.1,3.792],[0.0,3.964],
+    [1.1,4.151],[2.2,4.337],[3.3,4.53],[4.4,4.73],[5.6,4.93],[6.7,5.137],[7.8,5.35],
+    [8.9,5.571],[10.0,5.798],[11.1,6.026],[12.2,6.26],[13.3,6.509],[14.4,6.757],
+    [15.6,7.005],[18.3,7.667],[21.1,8.37],[23.9,9.115],[26.7,9.901],[29.4,10.735],
+    [32.2,11.611],[35.0,12.535],[37.8,13.507],[40.6,14.534],[43.3,15.61],[46.1,16.74],
+    [48.9,17.926],[54.4,20.471],[60.0,23.263],[65.6,26.317]
+  ]},
+  R134a: { single: [
+    [-40,-0.5],[-35,-0.35],[-30,-0.17],[-25,0.05],[-20,0.31],[-15,0.625],[-10,0.99],
+    [-5,1.42],[0,1.91],[5,2.485],[10,3.13],[15,3.87],[20,4.7],[25,5.6],[30,6.7],
+    [35,7.85],[40,9.1],[45,10.6],[50,12.2],[55,13.9],[60,15.8],[65,18.3],[70,20.1]
+  ]},
+  R404A: {
+    bubble: [
+      [-40.0,0.338],[-34.4,0.71],[-28.9,1.158],[-23.3,1.696],[-17.8,2.324],[-15.0,2.675],
+      [-12.2,3.054],[-9.4,3.461],[-6.7,3.902],[-3.9,4.371],[-1.1,4.875],[0.0,5.088],
+      [1.1,5.309],[2.2,5.53],[3.3,5.757],[4.4,5.992],[5.6,6.233],[6.7,6.481],[7.8,6.729],
+      [8.9,6.991],[10.0,7.26],[11.1,7.529],[12.2,7.812],[13.3,8.094],[14.4,8.391],
+      [15.6,8.687],[18.3,9.467],[21.1,10.294],[23.9,11.17],[26.7,12.093],[29.4,13.066],
+      [32.2,14.1],[35.0,15.182],[37.8,16.327],[40.6,17.526],[43.3,18.795],[46.1,20.119],
+      [48.9,21.519],[54.4,24.525],[60.0,27.834],[65.6,31.495]
+    ],
+    dew: [
+      [-40.0,0.296],[-34.4,0.662],[-28.9,1.103],[-23.3,1.627],[-17.8,2.248],[-15.0,2.599],
+      [-12.2,2.972],[-9.4,3.378],[-6.7,3.813],[-3.9,4.282],[-1.1,4.778],[0.0,4.992],
+      [1.1,5.206],[2.2,5.426],[3.3,5.654],[4.4,5.888],[5.6,6.123],[6.7,6.371],[7.8,6.619],
+      [8.9,6.881],[10.0,7.143],[11.1,7.412],[12.2,7.695],[13.3,7.977],[14.4,8.267],
+      [15.6,8.563],[18.3,9.342],[21.1,10.163],[23.9,11.039],[26.7,11.956],[29.4,12.928],
+      [32.2,13.955],[35.0,15.037],[37.8,16.182],[40.6,17.382],[43.3,18.643],[46.1,19.974],
+      [48.9,21.367],[54.4,24.38],[60.0,27.696],[65.6,31.371]
+    ]
+  },
+  R407C: {
+    bubble: [
+      [-28.9,0.945],[-23.3,1.441],[-17.8,2.034],[-12.2,2.723],[-6.7,3.53],[-1.1,4.461],
+      [4.4,5.53],[10.0,6.75],[15.6,8.136],[21.1,9.687],[26.7,11.432],[32.2,13.383],
+      [37.8,15.548],[43.3,17.947],[48.9,20.588],[54.4,23.49],[60.0,26.683],[65.6,30.165]
+    ],
+    dew: [
+      [-28.9,0.448],[-23.3,0.848],[-17.8,1.338],[-12.2,1.924],[-6.7,2.613],[-1.1,3.42],
+      [4.4,4.357],[10.0,5.433],[15.6,6.674],[21.1,8.088],[26.7,9.687],[32.2,11.494],
+      [37.8,13.521],[43.3,15.789],[48.9,18.326],[54.4,21.146],[60.0,24.276],[65.6,27.751]
+    ]
+  }
+};
+
+// Interpola la temperatura de saturación (°C) para una presión dada (bar g),
+// usando una tabla [temp,presión] ordenada ascendente. Extrapola por clamp en los bordes.
+function interpTempFromPressure(table, pBar){
+  if (!table || pBar===undefined || pBar===null || isNaN(pBar)) return NaN;
+  const n = table.length;
+  if (pBar <= table[0][1]) return table[0][0];
+  if (pBar >= table[n-1][1]) return table[n-1][0];
+  for (let i=0;i<n-1;i++){
+    const [t0,p0] = table[i], [t1,p1] = table[i+1];
+    if (pBar>=p0 && pBar<=p1){
+      const frac = (p1===p0) ? 0 : (pBar-p0)/(p1-p0);
+      return t0 + frac*(t1-t0);
+    }
+  }
+  return NaN;
+}
+// side: 'evap' (lado de baja, succión -> usa curva dew/vapor) | 'cond' (lado de alta, líquido -> usa curva bubble/líquido)
+function getSatTable(refrigerante, side){
+  const r = PT_TABLES[refrigerante];
+  if (!r) return null;
+  if (r.single) return r.single;
+  return side==='evap' ? r.dew : r.bubble;
+}
+function satTempEvap(refrigerante, presBajaBar){
+  return interpTempFromPressure(getSatTable(refrigerante,'evap'), presBajaBar);
+}
+function satTempCond(refrigerante, presAltaBar){
+  return interpTempFromPressure(getSatTable(refrigerante,'cond'), presAltaBar);
+}
+// Recalentamiento (superheat) = Temp. real en línea de succión − Temp. de saturación a la presión de baja
+function computeSuperheat(refrigerante, presBajaBar, tempSuccionC){
+  if (!PT_TABLES[refrigerante] || isNaN(presBajaBar) || isNaN(tempSuccionC)) return NaN;
+  const tSat = satTempEvap(refrigerante, presBajaBar);
+  return isNaN(tSat) ? NaN : (tempSuccionC - tSat);
+}
+// Subenfriamiento (subcooling) = Temp. de saturación a la presión de alta − Temp. real en línea de líquido
+function computeSubcooling(refrigerante, presAltaBar, tempLiquidoC){
+  if (!PT_TABLES[refrigerante] || isNaN(presAltaBar) || isNaN(tempLiquidoC)) return NaN;
+  const tSat = satTempCond(refrigerante, presAltaBar);
+  return isNaN(tSat) ? NaN : (tSat - tempLiquidoC);
+}
+
 const STATUS        = ['good','elevated','warning','critical'];
 const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
-const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
 const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
 
 // Umbrales por defecto (editables desde la pestaña Umbrales)
 // deltaT (°C, entrada-salida de aire) y velAire (m/s): menor = peor (inverso)
 // desbV/desbI (%): mayor = peor
 // presionAlta/presionBaja: rango [min,max] normal, evaluado por desviación %
+//
+// Presión Alta/Baja: cuando el equipo tiene un refrigerante soportado (R410A, R22, R134a,
+// R407C, R404A), la presión medida se evalúa por su Temperatura de Saturación equivalente
+// (presionAltaTsat / presionBajaTsat, en °C) en vez del valor en bar — así el mismo umbral
+// tiene sentido físico sin importar el refrigerante del equipo. Si el refrigerante no está
+// soportado (vacío o "Otro"), se usa el respaldo en bar (presionAlta/presionBaja).
 const DEFAULT_THRESHOLDS = {
   deltaT:  [8, 5, 3],       // inverso: ≥8 normal, ≥5 elevado, ≥3 alerta, <3 crítico
   desbV:   [1, 2, 3.5],
   desbI:   [10, 20, 30],
+  cargaPct:[100, 110, 125], // % de FLA/RLA de placa: ≤100 normal, ≤110 elevado, ≤125 alerta, >125 crítico
   velAire: [2.5, 1.5, 0.8], // inverso
-  presionAlta: {min:6.9, max:17.5},
-  presionBaja: {min:3.5, max:7.5}
+  presionAltaTsat: {min:38, max:55},  // °C — T° de saturación de condensación (lado de alta), refrigerante soportado
+  presionBajaTsat: {min:0, max:10},   // °C — T° de saturación de evaporación (lado de baja), refrigerante soportado
+  presionAlta: {min:6.9, max:17.5},   // bar — respaldo cuando el refrigerante NO está soportado
+  presionBaja: {min:3.5, max:7.5},    // bar — respaldo cuando el refrigerante NO está soportado
+  superheat: {min:4, max:12},        // °C — recalentamiento en línea de succión (orientativo, TXV típico)
+  subenfriamiento: {min:4, max:11},  // °C — subenfriamiento en línea de líquido (orientativo)
+  deltaTAgua: [5, 3.5, 2]   // inverso: ≥5 normal, ≥3.5 elevado, ≥2 alerta, <2 crítico — ΔT agua evaporador (solo Chillers)
 };
 const THRESHOLD_META = {
   deltaT:  {label:'ΔT Aire (entrada − salida)', unit:'°C', inverse:true},
   desbV:   {label:'Desbalance de Tensión (compresor)', unit:'%', inverse:false},
   desbI:   {label:'Desbalance de Corriente (compresor)', unit:'%', inverse:false},
-  velAire: {label:'Velocidad de Aire (anemómetro)', unit:'m/s', inverse:true}
+  cargaPct:{label:'% de Carga del Compresor (I medida / FLA·RLA de placa)', unit:'%', inverse:false},
+  velAire: {label:'Velocidad de Aire (anemómetro)', unit:'m/s', inverse:true},
+  deltaTAgua: {label:'ΔT Agua Evaporador — solo Chillers (retorno − suministro)', unit:'°C', inverse:true}
 };
 
 // ═══════════════════════════════════════════════════════════
 //  2. STATE
 // ═══════════════════════════════════════════════════════════
-let equiposRegistry = new Map();  // eqId -> {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante}
+let equiposRegistry = new Map();  // eqId -> {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante, fla}
 let readingsData    = new Map();  // eqId -> {dates:[], params:{...}, obs:[]}
 let equiposHub       = new Map(); // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
 let _capturasPendientes = [];     // capturas crudas desde el Hub de Campo
 let _capturaActual = null;        // captura en edición dentro del modal manual
+let intervenciones = [];          // [{id, eqTag, fecha, tipo, descripcion, ts, synced}] — historial de intervenciones (todos los equipos)
 let thresholds      = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
 let statusFilter    = 'all';
 let currentKey      = null;
@@ -597,8 +814,12 @@ function loadState() {
     const c = JSON.parse(localStorage.getItem('refrigeracion_pro_cfg') || '{}');
     if (c.thresholds) thresholds = {
       ...DEFAULT_THRESHOLDS, ...c.thresholds,
+      presionAltaTsat: {...DEFAULT_THRESHOLDS.presionAltaTsat, ...(c.thresholds.presionAltaTsat||{})},
+      presionBajaTsat: {...DEFAULT_THRESHOLDS.presionBajaTsat, ...(c.thresholds.presionBajaTsat||{})},
       presionAlta: {...DEFAULT_THRESHOLDS.presionAlta, ...(c.thresholds.presionAlta||{})},
-      presionBaja: {...DEFAULT_THRESHOLDS.presionBaja, ...(c.thresholds.presionBaja||{})}
+      presionBaja: {...DEFAULT_THRESHOLDS.presionBaja, ...(c.thresholds.presionBaja||{})},
+      superheat: {...DEFAULT_THRESHOLDS.superheat, ...(c.thresholds.superheat||{})},
+      subenfriamiento: {...DEFAULT_THRESHOLDS.subenfriamiento, ...(c.thresholds.subenfriamiento||{})}
     };
     if (c.equiposRegistry) for (const [k,v] of Object.entries(c.equiposRegistry)) equiposRegistry.set(k,v);
     if (c.readingsData) {
@@ -606,6 +827,7 @@ function loadState() {
         readingsData.set(k, { dates: v.dates.map(d => new Date(d)), params: v.params, obs: v.obs || [] });
       }
     }
+    if (Array.isArray(c.intervenciones)) intervenciones = c.intervenciones;
   } catch(e){ console.warn('loadState error', e); }
 }
 function saveState() {
@@ -616,7 +838,8 @@ function saveState() {
   localStorage.setItem('refrigeracion_pro_cfg', JSON.stringify({
     thresholds,
     equiposRegistry: Object.fromEntries(equiposRegistry),
-    readingsData: rdSerial
+    readingsData: rdSerial,
+    intervenciones
   }));
 }
 
@@ -648,7 +871,7 @@ function levelOf(value, band, inverse){
 }
 // Presión: rango [min,max] normal. Fuera de rango, gravedad según % de desviación
 // respecto al ancho del rango (orientativo — no calcula presión-temp. de saturación).
-function evalPresion(value, band){
+function evalRange(value, band){
   if (value===undefined||value===null||isNaN(value)) return -1;
   const {min,max} = band;
   if (value>=min && value<=max) return 0;
@@ -666,8 +889,21 @@ function filtroLevel(estado){
   return -1;
 }
 
+// Promedio de corriente entre fases disponibles (ignora NaN/undefined)
+function avgCorriente(a,b,c){
+  const vals = [a,b,c].filter(v=>v!==undefined && v!==null && !isNaN(v));
+  if (!vals.length) return NaN;
+  return vals.reduce((x,y)=>x+y,0)/vals.length;
+}
+// % de carga del compresor = corriente promedio medida / FLA·RLA de placa × 100
+function computeCargaPct(iAvg, fla){
+  if (isNaN(iAvg) || !fla || fla<=0) return NaN;
+  return (iAvg/fla)*100;
+}
+
 // Calcula los sub-niveles y nivel global para una lectura puntual (índice n de una serie)
-function evalReading(params, n){
+// fla: corriente nominal de placa (FLA/RLA, en A) del equipo — opcional, habilita % de Carga.
+function evalReading(params, n, fla, refrigerante, tipo){
   const p = params;
   const deltaT  = (p.TempEntrada?.[n] - p.TempSalida?.[n]);
   const desbV   = p.DesbV?.[n];
@@ -676,19 +912,46 @@ function evalReading(params, n){
   const presAlta = p.PresAlta?.[n];
   const presBaja = p.PresBaja?.[n];
   const filtro  = p.Filtro?.[n] || '';
+  const iAvg    = avgCorriente(p.I_R?.[n], p.I_S?.[n], p.I_T?.[n]);
+  const cargaPct = computeCargaPct(iAvg, fla);
+
+  const tempSuccion = p.TempSuccion?.[n];
+  const tempLiquido = p.TempLiquido?.[n];
+  const ptSupported = !!PT_TABLES[refrigerante];
+  const superheat = ptSupported ? computeSuperheat(refrigerante, presBaja, tempSuccion) : NaN;
+  const subcooling = ptSupported ? computeSubcooling(refrigerante, presAlta, tempLiquido) : NaN;
+  // T° de saturación equivalente a cada presión medida (solo si el refrigerante está soportado).
+  // Es la base de evaluación de presAlta/presBaja cuando hay tabla P-T; si no, se cae al bar (respaldo).
+  const tSatCond = ptSupported ? satTempCond(refrigerante, presAlta) : NaN;
+  const tSatEvap = ptSupported ? satTempEvap(refrigerante, presBaja) : NaN;
+
+  // Lado de agua (solo aplica a Chillers): ΔT entre retorno (entra al evaporador, más caliente)
+  // y suministro (sale del evaporador, más frío) del circuito de agua fría.
+  const esChiller = tipo === 'Chiller';
+  const tempAguaRetorno = p.TempAguaRetorno?.[n];
+  const tempAguaSuministro = p.TempAguaSuministro?.[n];
+  const caudalAgua = p.CaudalAgua?.[n];
+  const deltaTAgua = (tempAguaRetorno!==undefined && tempAguaSuministro!==undefined)
+    ? (tempAguaRetorno - tempAguaSuministro) : NaN;
 
   const subs = {
     deltaT:  levelOf(deltaT, thresholds.deltaT, true),
     desbV:   levelOf(desbV,  thresholds.desbV,  false),
     desbI:   levelOf(desbI,  thresholds.desbI,  false),
+    cargaPct: levelOf(cargaPct, thresholds.cargaPct, false),
     velAire: levelOf(velAire, thresholds.velAire, true),
-    presAlta: evalPresion(presAlta, thresholds.presionAlta),
-    presBaja: evalPresion(presBaja, thresholds.presionBaja),
-    filtro:  filtroLevel(filtro)
+    presAlta: ptSupported ? evalRange(tSatCond, thresholds.presionAltaTsat) : evalRange(presAlta, thresholds.presionAlta),
+    presBaja: ptSupported ? evalRange(tSatEvap, thresholds.presionBajaTsat) : evalRange(presBaja, thresholds.presionBaja),
+    filtro:  filtroLevel(filtro),
+    superheat: evalRange(superheat, thresholds.superheat),
+    subenfriamiento: evalRange(subcooling, thresholds.subenfriamiento),
+    deltaTAgua: esChiller ? levelOf(deltaTAgua, thresholds.deltaTAgua, true) : -1
   };
   let overall = 0;
   for (const k in subs) if (subs[k] > overall) overall = subs[k];
-  return { subs, overall, deltaT, desbV, desbI, velAire, presAlta, presBaja, filtro };
+  return { subs, overall, deltaT, desbV, desbI, cargaPct, iAvg, velAire, presAlta, presBaja, filtro,
+    tempSuccion, tempLiquido, superheat, subcooling, tSatCond, tSatEvap, ptSupported, refrigerante: refrigerante||'',
+    esChiller, tempAguaRetorno, tempAguaSuministro, caudalAgua, deltaTAgua };
 }
 
 function computeDesbalance(a,b,c){
@@ -713,19 +976,21 @@ function diagnoseEquipo(k){
   const d = readingsData.get(k);
   if (!d || !d.dates.length) return null;
   const n = lastValidIdx(d);
-  const ev = evalReading(d.params, n);
+  const eq = equiposRegistry.get(k);
+  const ev = evalReading(d.params, n, eq?.fla, eq?.refrigerante, eq?.tipo);
   return { ...ev, date: d.dates[n] };
 }
 
 // ═══════════════════════════════════════════════════════════
 //  5. IMPORT (Excel / CSV)
 // ═══════════════════════════════════════════════════════════
-const TEMPLATE_HEADERS = ['TAG','Tipo','Ambiente','Ubicacion','Capacidad','UnidadCapacidad','Refrigerante','Fecha','Temp_Entrada_C','Temp_Salida_C','Temp_Ambiente_C','Presion_Alta_bar','Presion_Baja_bar','I_R_A','I_S_A','I_T_A','V_R_V','V_S_V','V_T_V','Velocidad_Aire_ms','Estado_Filtro','Observaciones'];
+const TEMPLATE_HEADERS = ['TAG','Tipo','Ambiente','Ubicacion','Capacidad','UnidadCapacidad','Refrigerante','FLA_A','Fecha','Temp_Entrada_C','Temp_Salida_C','Temp_Ambiente_C','Presion_Alta_bar','Presion_Baja_bar','Temp_Succion_C','Temp_Liquido_C','I_R_A','I_S_A','I_T_A','V_R_V','V_S_V','V_T_V','Velocidad_Aire_ms','Estado_Filtro','Temp_Agua_Retorno_C','Temp_Agua_Suministro_C','Caudal_Agua_m3h','Observaciones'];
 
 function downloadTemplate(){
   const sample = [
     TEMPLATE_HEADERS,
-    ['AC-SALA-CONTROL','AC Precisión','Sala de control','Planta - techo sala eléctrica',5,'TR','R410A','2026-08-01',24,15,22,12.5,5.2,8.1,7.9,8.0,220,221,219,3.1,'Bueno','Ejemplo de fila — Estado_Filtro: Bueno / Sucio / Muy sucio'],
+    ['AC-SALA-CONTROL','AC Precisión','Sala de control','Planta - techo sala eléctrica',5,'TR','R410A',8.5,'2026-08-01',24,15,22,12.5,5.2,11,20,8.1,7.9,8.0,220,221,219,3.1,'Bueno','','','','Ejemplo — Temp_Succion_C y Temp_Liquido_C habilitan el cálculo de Recalentamiento (SH) y Subenfriamiento (SC) por tabla P-T del refrigerante. FLA_A es la corriente de placa del compresor; Estado_Filtro: Bueno / Sucio / Muy sucio'],
+    ['CH-PLANTA-01','Chiller','Planta general','Sala de máquinas',80,'TR','R134a',95,'2026-08-01','','','',6.5,2.1,'','',65,66,64,380,381,379,'','Bueno',12.5,7.0,45,'Ejemplo Chiller — Temp_Agua_Retorno_C/Suministro_C habilitan el diagnóstico del lado de agua del evaporador (solo se evalúa cuando Tipo=Chiller). Caudal_Agua_m3h es opcional/informativo.'],
   ];
   const ws = XLSX.utils.aoa_to_sheet(sample);
   const wb = XLSX.utils.book_new();
@@ -783,6 +1048,7 @@ function importRows(rows){
     const capacidad = numOrNaN(findCol(row,['Capacidad'])) || 0;
     const capUnidad = String(findCol(row,['UnidadCapacidad']) || 'TR').trim();
     const refrigerante = String(findCol(row,['Refrigerante']) || '').trim();
+    const fla = numOrNaN(findCol(row,['FLA_A']));
     let fechaRaw = findCol(row,['Fecha']);
     let fecha;
     if (fechaRaw instanceof Date) fecha = fechaRaw;
@@ -797,8 +1063,11 @@ function importRows(rows){
     }
     if (!eqId){
       eqId = genId();
-      equiposRegistry.set(eqId, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante});
+      equiposRegistry.set(eqId, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante, fla: isNaN(fla)?0:fla});
       equiposCreated++;
+    } else if (!isNaN(fla) && fla>0){
+      const ex = equiposRegistry.get(eqId);
+      if (ex && !ex.fla) equiposRegistry.set(eqId, {...ex, fla});
     }
 
     const tempEntrada = numOrNaN(findCol(row,['Temp_Entrada_C']));
@@ -806,6 +1075,8 @@ function importRows(rows){
     const tempAmb = numOrNaN(findCol(row,['Temp_Ambiente_C']));
     const presAlta = numOrNaN(findCol(row,['Presion_Alta_bar']));
     const presBaja = numOrNaN(findCol(row,['Presion_Baja_bar']));
+    const tempSuccion = numOrNaN(findCol(row,['Temp_Succion_C']));
+    const tempLiquido = numOrNaN(findCol(row,['Temp_Liquido_C']));
     const iR = numOrNaN(findCol(row,['I_R_A']));
     const iS = numOrNaN(findCol(row,['I_S_A']));
     const iT = numOrNaN(findCol(row,['I_T_A']));
@@ -814,20 +1085,25 @@ function importRows(rows){
     const vT = numOrNaN(findCol(row,['V_T_V']));
     const velAire = numOrNaN(findCol(row,['Velocidad_Aire_ms']));
     const filtro = String(findCol(row,['Estado_Filtro']) || '');
+    const tempAguaRetorno = numOrNaN(findCol(row,['Temp_Agua_Retorno_C']));
+    const tempAguaSuministro = numOrNaN(findCol(row,['Temp_Agua_Suministro_C']));
+    const caudalAgua = numOrNaN(findCol(row,['Caudal_Agua_m3h']));
     const obs = String(findCol(row,['Observaciones']) || '');
 
     const desbI = computeDesbalance(iR,iS,iT);
     const desbV = computeDesbalance(vR,vS,vT);
 
-    if (!touched.has(eqId)) touched.set(eqId, {dates:[], params:{TempEntrada:[],TempSalida:[],TempAmb:[],PresAlta:[],PresBaja:[],I_R:[],I_S:[],I_T:[],V_R:[],V_S:[],V_T:[],DesbI:[],DesbV:[],VelAire:[],Filtro:[]}, obs:[]});
+    if (!touched.has(eqId)) touched.set(eqId, {dates:[], params:{TempEntrada:[],TempSalida:[],TempAmb:[],PresAlta:[],PresBaja:[],TempSuccion:[],TempLiquido:[],I_R:[],I_S:[],I_T:[],V_R:[],V_S:[],V_T:[],DesbI:[],DesbV:[],VelAire:[],Filtro:[],TempAguaRetorno:[],TempAguaSuministro:[],CaudalAgua:[]}, obs:[]});
     const t = touched.get(eqId);
     t.dates.push(fecha);
     t.params.TempEntrada.push(tempEntrada); t.params.TempSalida.push(tempSalida); t.params.TempAmb.push(tempAmb);
     t.params.PresAlta.push(presAlta); t.params.PresBaja.push(presBaja);
+    t.params.TempSuccion.push(tempSuccion); t.params.TempLiquido.push(tempLiquido);
     t.params.I_R.push(iR); t.params.I_S.push(iS); t.params.I_T.push(iT);
     t.params.V_R.push(vR); t.params.V_S.push(vS); t.params.V_T.push(vT);
     t.params.DesbI.push(desbI); t.params.DesbV.push(desbV);
     t.params.VelAire.push(velAire); t.params.Filtro.push(filtro);
+    t.params.TempAguaRetorno.push(tempAguaRetorno); t.params.TempAguaSuministro.push(tempAguaSuministro); t.params.CaudalAgua.push(caudalAgua);
     t.obs.push(obs);
     rowsImported++;
   }
@@ -874,7 +1150,7 @@ function openManualEntry(){
   const newEqTipo = document.getElementById('me_newEqTipo');
   if (!newEqTipo.dataset.filled){ newEqTipo.innerHTML = TIPOS_EQUIPO.map(t=>`<option value="${t}">${t}</option>`).join(''); newEqTipo.dataset.filled='1'; }
 
-  ['me_tempEntrada','me_tempSalida','me_tempAmb','me_presAlta','me_presBaja','me_iR','me_iS','me_iT','me_vR','me_vS','me_vT','me_velAire','me_newEqTag','me_obs'].forEach(id=>document.getElementById(id).value='');
+  ['me_tempEntrada','me_tempSalida','me_tempAmb','me_presAlta','me_presBaja','me_tempSuccion','me_tempLiquido','me_iR','me_iS','me_iT','me_vR','me_vS','me_vT','me_velAire','me_newEqTag','me_obs','me_tempAguaRetorno','me_tempAguaSuministro','me_caudalAgua'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('me_filtro').value = '';
   document.getElementById('me_fecha').value = new Date().toISOString().slice(0,10);
 
@@ -888,6 +1164,15 @@ function onManualEquipoChange(){
   const isNew = sel.value === '__new';
   document.getElementById('me_newEqTagWrap').classList.toggle('hidden', !isNew);
   document.getElementById('me_newEqTipoWrap').classList.toggle('hidden', !isNew);
+  updateAguaFieldsVisibility();
+}
+
+// Muestra los campos del lado de agua solo cuando el equipo (nuevo o existente) es un Chiller.
+function updateAguaFieldsVisibility(){
+  const sel = document.getElementById('me_eqSel');
+  const isNew = sel.value === '__new';
+  const tipo = isNew ? document.getElementById('me_newEqTipo').value : equiposRegistry.get(sel.value)?.tipo;
+  document.getElementById('me_aguaWrap').classList.toggle('hidden', tipo !== 'Chiller');
 }
 
 function numOrUndef(id){
@@ -895,6 +1180,33 @@ function numOrUndef(id){
   if (v==='') return NaN;
   const n = parseFloat(v);
   return isNaN(n) ? NaN : n;
+}
+
+// Sanity check de rangos físicos plausibles antes de guardar — no bloquea (podría ser un
+// caso real extremo), pero avisa para atajar errores de tipeo (ej: 9999 en vez de 9.9).
+function sanityIssues(v){
+  const issues = [];
+  const chk = (label, val, min, max, unit) => {
+    if (Number.isFinite(val) && (val < min || val > max)) issues.push(`${label}: ${val}${unit} (esperado ${min} a ${max}${unit})`);
+  };
+  chk('Temp. entrada', v.tempEntrada, -30, 80, '°C');
+  chk('Temp. salida', v.tempSalida, -30, 80, '°C');
+  chk('Temp. ambiente', v.tempAmb, -30, 80, '°C');
+  chk('Temp. succión', v.tempSuccion, -30, 80, '°C');
+  chk('Temp. línea líquido', v.tempLiquido, -30, 80, '°C');
+  chk('Temp. agua retorno', v.tempAguaRetorno, -10, 60, '°C');
+  chk('Temp. agua suministro', v.tempAguaSuministro, -10, 60, '°C');
+  chk('Presión alta', v.presAlta, 0, 50, ' bar');
+  chk('Presión baja', v.presBaja, 0, 50, ' bar');
+  chk('Corriente I_R', v.iR, 0, 2000, ' A');
+  chk('Corriente I_S', v.iS, 0, 2000, ' A');
+  chk('Corriente I_T', v.iT, 0, 2000, ' A');
+  chk('Tensión V_R', v.vR, 0, 1000, ' V');
+  chk('Tensión V_S', v.vS, 0, 1000, ' V');
+  chk('Tensión V_T', v.vT, 0, 1000, ' V');
+  chk('Velocidad de aire', v.velAire, 0, 30, ' m/s');
+  chk('Caudal de agua', v.caudalAgua, 0, 500, ' m³/h');
+  return issues;
 }
 
 function saveManualReading(){
@@ -911,7 +1223,7 @@ function saveManualReading(){
     const tipo = document.getElementById('me_newEqTipo').value;
     eqId = null;
     for (const [id, ev] of equiposRegistry.entries()) if (ev.tag.toLowerCase()===tag.toLowerCase()) { eqId = id; break; }
-    if (!eqId){ eqId = genId(); equiposRegistry.set(eqId, {tag, tipo, ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:''}); publicarEquipoEnHub(tag, tipo); }
+    if (!eqId){ eqId = genId(); equiposRegistry.set(eqId, {tag, tipo, ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:'', fla:0}); publicarEquipoEnHub(tag, tipo); }
   }
 
   const tempEntrada = numOrUndef('me_tempEntrada');
@@ -919,6 +1231,8 @@ function saveManualReading(){
   const tempAmb = numOrUndef('me_tempAmb');
   const presAlta = numOrUndef('me_presAlta');
   const presBaja = numOrUndef('me_presBaja');
+  const tempSuccion = numOrUndef('me_tempSuccion');
+  const tempLiquido = numOrUndef('me_tempLiquido');
   const iR = numOrUndef('me_iR'), iS = numOrUndef('me_iS'), iT = numOrUndef('me_iT');
   const vR = numOrUndef('me_vR'), vS = numOrUndef('me_vS'), vT = numOrUndef('me_vT');
   const velAire = numOrUndef('me_velAire');
@@ -926,10 +1240,16 @@ function saveManualReading(){
   const obs = document.getElementById('me_obs').value.trim();
   const desbI = computeDesbalance(iR,iS,iT);
   const desbV = computeDesbalance(vR,vS,vT);
+  const tempAguaRetorno = numOrUndef('me_tempAguaRetorno');
+  const tempAguaSuministro = numOrUndef('me_tempAguaSuministro');
+  const caudalAgua = numOrUndef('me_caudalAgua');
+
+  const issues = sanityIssues({tempEntrada, tempSalida, tempAmb, presAlta, presBaja, tempSuccion, tempLiquido, iR, iS, iT, vR, vS, vT, velAire, tempAguaRetorno, tempAguaSuministro, caudalAgua});
+  if (issues.length && !confirm(`⚠️ Valores fuera de rango físico esperado — puede ser un error de tipeo:\n\n${issues.join('\n')}\n\n¿Guardar de todas formas?`)) return;
 
   const incoming = {
     dates:[fecha],
-    params:{ TempEntrada:[tempEntrada], TempSalida:[tempSalida], TempAmb:[tempAmb], PresAlta:[presAlta], PresBaja:[presBaja], I_R:[iR], I_S:[iS], I_T:[iT], V_R:[vR], V_S:[vS], V_T:[vT], DesbI:[desbI], DesbV:[desbV], VelAire:[velAire], Filtro:[filtro] },
+    params:{ TempEntrada:[tempEntrada], TempSalida:[tempSalida], TempAmb:[tempAmb], PresAlta:[presAlta], PresBaja:[presBaja], TempSuccion:[tempSuccion], TempLiquido:[tempLiquido], I_R:[iR], I_S:[iS], I_T:[iT], V_R:[vR], V_S:[vS], V_T:[vT], DesbI:[desbI], DesbV:[desbV], VelAire:[velAire], Filtro:[filtro], TempAguaRetorno:[tempAguaRetorno], TempAguaSuministro:[tempAguaSuministro], CaudalAgua:[caudalAgua] },
     obs:[obs]
   };
   const existing = readingsData.get(eqId);
@@ -1059,6 +1379,7 @@ function renderGrid(){
     const subVelClass = diag.subs.velAire>=0?STATUS[diag.subs.velAire]:'';
     const subPresAltaClass = diag.subs.presAlta>=0?STATUS[diag.subs.presAlta]:'';
     const subFiltroClass = diag.subs.filtro>=0?STATUS[diag.subs.filtro]:'';
+    const subCargaClass = diag.subs.cargaPct>=0?STATUS[diag.subs.cargaPct]:'';
     return `
     <div class="mcard" onclick="openDetail('${escJs(k)}')">
       <div class="mcard-header">
@@ -1074,8 +1395,9 @@ function renderGrid(){
         <div class="mmetrics">
           <div class="mm-item"><div class="mm-lbl">ΔT</div><div class="mm-val ${subDeltaClass}">${fmt(diag.deltaT,1)}°C</div></div>
           <div class="mm-item"><div class="mm-lbl">Vel. Aire</div><div class="mm-val ${subVelClass}">${!isNaN(diag.velAire)?fmt(diag.velAire,1)+' m/s':'—'}</div></div>
-          <div class="mm-item"><div class="mm-lbl">Pres. Alta</div><div class="mm-val ${subPresAltaClass}">${!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">Pres. Alta${diag.ptSupported?' (T°sat)':''}</div><div class="mm-val ${subPresAltaClass}">${diag.ptSupported && !isNaN(diag.tSatCond) ? fmt(diag.tSatCond,1)+'°C' : (!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—')}</div></div>
           <div class="mm-item"><div class="mm-lbl">Filtro</div><div class="mm-val ${subFiltroClass}">${diag.filtro||'—'}</div></div>
+          <div class="mm-item"><div class="mm-lbl">% Carga</div><div class="mm-val ${subCargaClass}">${!isNaN(diag.cargaPct)?fmt(diag.cargaPct,0)+'%':'—'}</div></div>
         </div>
       </div>
       <div class="mcard-footer"><span>Última: ${fmtDate(diag.date)}</span><span>${readingsData.get(k).dates.length} lectura(s)</span></div>
@@ -1098,17 +1420,70 @@ function diagnosisMessages(diag){
   }
 
   if (diag.subs.presAlta >= 2){
-    push(diag.subs.presAlta===3?'critical':'warning', diag.presAlta > thresholds.presionAlta.max ? '📈 Presión alta por encima del rango normal' : '📉 Presión alta por debajo del rango normal',
-      diag.presAlta > thresholds.presionAlta.max
-        ? `${fmt(diag.presAlta,1)} bar. Posible condensador sucio u obstruido, ventilador de condensador fallando, sobrecarga de refrigerante o aire caliente recirculando en el condensador.`
-        : `${fmt(diag.presAlta,1)} bar. Posible falta de refrigerante o compresor con baja capacidad de compresión.`);
+    if (diag.ptSupported){
+      const over = diag.tSatCond > thresholds.presionAltaTsat.max;
+      push(diag.subs.presAlta===3?'critical':'warning', over ? '📈 Presión alta por encima del rango normal (T° sat.)' : '📉 Presión alta por debajo del rango normal (T° sat.)',
+        over
+          ? `${fmt(diag.presAlta,1)} bar → T° sat. de condensación ${fmt(diag.tSatCond,1)}°C (tabla P-T de ${diag.refrigerante}), sobre ${thresholds.presionAltaTsat.max}°C. Posible condensador sucio u obstruido, ventilador de condensador fallando, sobrecarga de refrigerante o aire caliente recirculando en el condensador.`
+          : `${fmt(diag.presAlta,1)} bar → T° sat. de condensación ${fmt(diag.tSatCond,1)}°C (tabla P-T de ${diag.refrigerante}), bajo ${thresholds.presionAltaTsat.min}°C. Posible falta de refrigerante o compresor con baja capacidad de compresión.`);
+    } else {
+      const over = diag.presAlta > thresholds.presionAlta.max;
+      push(diag.subs.presAlta===3?'critical':'warning', over ? '📈 Presión alta por encima del rango normal' : '📉 Presión alta por debajo del rango normal',
+        over
+          ? `${fmt(diag.presAlta,1)} bar. Posible condensador sucio u obstruido, ventilador de condensador fallando, sobrecarga de refrigerante o aire caliente recirculando en el condensador.`
+          : `${fmt(diag.presAlta,1)} bar. Posible falta de refrigerante o compresor con baja capacidad de compresión.`);
+    }
   }
   if (diag.subs.presBaja >= 2){
-    push(diag.subs.presBaja===3?'critical':'warning', diag.presBaja < thresholds.presionBaja.min ? '📉 Presión baja por debajo del rango normal' : '📈 Presión baja por encima del rango normal',
-      diag.presBaja < thresholds.presionBaja.min
-        ? `${fmt(diag.presBaja,1)} bar. Posible filtro/evaporador obstruido, falta de refrigerante o válvula de expansión con problema (restricción).`
-        : `${fmt(diag.presBaja,1)} bar. Posible sobrecarga de refrigerante o válvula de expansión abierta de más.`);
+    if (diag.ptSupported){
+      const under = diag.tSatEvap < thresholds.presionBajaTsat.min;
+      push(diag.subs.presBaja===3?'critical':'warning', under ? '📉 Presión baja por debajo del rango normal (T° sat.)' : '📈 Presión baja por encima del rango normal (T° sat.)',
+        under
+          ? `${fmt(diag.presBaja,1)} bar → T° sat. de evaporación ${fmt(diag.tSatEvap,1)}°C (tabla P-T de ${diag.refrigerante}), bajo ${thresholds.presionBajaTsat.min}°C. Posible filtro/evaporador obstruido, falta de refrigerante o válvula de expansión con problema (restricción).`
+          : `${fmt(diag.presBaja,1)} bar → T° sat. de evaporación ${fmt(diag.tSatEvap,1)}°C (tabla P-T de ${diag.refrigerante}), sobre ${thresholds.presionBajaTsat.max}°C. Posible sobrecarga de refrigerante o válvula de expansión abierta de más.`);
+    } else {
+      const under = diag.presBaja < thresholds.presionBaja.min;
+      push(diag.subs.presBaja===3?'critical':'warning', under ? '📉 Presión baja por debajo del rango normal' : '📈 Presión baja por encima del rango normal',
+        under
+          ? `${fmt(diag.presBaja,1)} bar. Posible filtro/evaporador obstruido, falta de refrigerante o válvula de expansión con problema (restricción).`
+          : `${fmt(diag.presBaja,1)} bar. Posible sobrecarga de refrigerante o válvula de expansión abierta de más.`);
+    }
   }
+  if (diag.ptSupported){
+    const shVal = diag.superheat, scVal = diag.subcooling;
+    const shLevel = diag.subs.superheat, scLevel = diag.subs.subenfriamiento;
+    const shHigh = !isNaN(shVal) && shVal > thresholds.superheat.max;
+    const shLow  = !isNaN(shVal) && shVal < thresholds.superheat.min;
+    const scHigh = !isNaN(scVal) && scVal > thresholds.subenfriamiento.max;
+    const scLow  = !isNaN(scVal) && scVal < thresholds.subenfriamiento.min;
+    const worse = Math.max(shLevel, scLevel)===3?'critical':'warning';
+
+    if (shHigh && scLow){
+      push(worse, '🧪 SH alto + SC bajo → probable falta de carga',
+        `Recalentamiento ${fmt(shVal,1)}°C (sobre ${thresholds.superheat.max}°C) y Subenfriamiento ${fmt(scVal,1)}°C (bajo ${thresholds.subenfriamiento.min}°C), calculados con la tabla P-T de ${diag.refrigerante}. Patrón típico de falta de carga de refrigerante (undercharge) o restricción parcial antes de la válvula de expansión. Revisar fugas antes de recargar.`);
+    } else if (shLow && scHigh){
+      push(worse, '🧪 SH bajo + SC alto → probable exceso de carga',
+        `Recalentamiento ${fmt(shVal,1)}°C (bajo ${thresholds.superheat.min}°C) y Subenfriamiento ${fmt(scVal,1)}°C (sobre ${thresholds.subenfriamiento.max}°C), calculados con la tabla P-T de ${diag.refrigerante}. Patrón típico de sobrecarga de refrigerante (overcharge). Riesgo de retorno de líquido al compresor.`);
+    } else if (shHigh && scHigh){
+      push(worse, '🧪 SH alto + SC alto → probable restricción en línea de líquido',
+        `Recalentamiento ${fmt(shVal,1)}°C y Subenfriamiento ${fmt(scVal,1)}°C, ambos por encima de lo normal (tabla P-T de ${diag.refrigerante}). Sugiere filtro deshidratador obstruido, válvula solenoide parcialmente cerrada, o válvula de expansión subalimentando el evaporador.`);
+    } else if (shLow && scLow){
+      push(worse, '🧪 SH bajo + SC bajo → probable válvula de expansión sobrealimentando',
+        `Recalentamiento ${fmt(shVal,1)}°C y Subenfriamiento ${fmt(scVal,1)}°C, ambos por debajo de lo normal (tabla P-T de ${diag.refrigerante}). Sugiere válvula de expansión inundando el evaporador o bulbo remoto con mal contacto térmico. Riesgo de retorno de líquido al compresor.`);
+    } else {
+      if (shLevel >= 2){
+        push(shLevel===3?'critical':'warning', shHigh?'♨️ Recalentamiento (SH) alto':'♨️ Recalentamiento (SH) bajo',
+          `${fmt(shVal,1)}°C sobre la línea de succión (tabla P-T de ${diag.refrigerante}). ${shHigh ? 'Posible falta de carga, restricción en línea de líquido o válvula de expansión subalimentando el evaporador.' : 'Posible exceso de carga o válvula de expansión sobrealimentando el evaporador.'}`);
+      }
+      if (scLevel >= 2){
+        push(scLevel===3?'critical':'warning', scHigh?'🧊 Subenfriamiento (SC) alto':'🧊 Subenfriamiento (SC) bajo',
+          `${fmt(scVal,1)}°C en la línea de líquido (tabla P-T de ${diag.refrigerante}). ${scHigh ? 'Posible exceso de carga de refrigerante o condensador sobredimensionado.' : 'Posible falta de carga o condensador sucio/obstruido con capacidad reducida.'}`);
+      }
+    }
+  } else if (diag.refrigerante === 'Otro' && (!isNaN(diag.tempSuccion) || !isNaN(diag.tempLiquido))){
+    push('elevated', 'ℹ️ SH/SC no calculados', `El equipo tiene refrigerante "Otro" — no hay tabla presión-temperatura cargada para calcular Recalentamiento/Subenfriamiento. Seleccioná un refrigerante soportado (R410A, R22, R134a, R407C, R404A) para habilitar el cálculo.`);
+  }
+
   if (diag.subs.velAire >= 2){
     push(diag.subs.velAire===3?'critical':'warning', '💨 Caudal de aire insuficiente',
       `${fmt(diag.velAire,1)} m/s medidos con anemómetro. Filtro sucio u obstrucción en el ducto/evaporador. Reduce la capacidad de intercambio térmico y puede formar hielo en el evaporador. Revisar y limpiar/cambiar filtros.`);
@@ -1127,11 +1502,126 @@ function diagnosisMessages(diag){
     push(diag.subs.desbV===3?'critical':'warning', '⚖️ Desbalance de tensión en el compresor',
       `${fmt(diag.desbV,1)}% de desbalance de tensión. Verificar el alimentador aguas arriba; el desbalance de tensión afecta especialmente al motor del compresor (sobrecalentamiento).`);
   }
+  if (diag.subs.cargaPct >= 2){
+    push(diag.subs.cargaPct===3?'critical':'warning', '⚡ Compresor con sobrecarga de corriente (%FLA alto)',
+      `Corriente promedio de ${fmt(diag.iAvg,1)} A equivale a ${fmt(diag.cargaPct,0)}% del FLA/RLA de placa. Riesgo de sobrecalentamiento del motor y disparo térmico. Revisar sobrecarga de refrigerante, condensador sucio/obstruido, ventilador de condensador fallando o motor con desgaste; confirmar que el FLA cargado corresponda a la placa real del compresor.`);
+  } else if (diag.subs.cargaPct === 1){
+    push('elevated', '⚡ % de Carga del compresor levemente elevado', `${fmt(diag.cargaPct,0)}% del FLA/RLA de placa. Monitorear en la próxima ronda.`);
+  }
+
+  if (diag.esChiller){
+    if (diag.subs.deltaTAgua >= 2){
+      push(diag.subs.deltaTAgua===3?'critical':'warning', '💧 ΔT de agua del evaporador bajo (lado de agua)',
+        `ΔT de ${fmt(diag.deltaTAgua,1)}°C entre retorno y suministro de agua fría. Posible bajo caudal (válvula parcialmente cerrada, bomba con problema, filtro de agua obstruido), incrustación/ensuciamiento en el intercambiador, o baja carga térmica real del sistema. Revisar el caudal de agua antes de intervenir el circuito de refrigerante.`);
+    } else if (diag.subs.deltaTAgua === 1){
+      push('elevated', '💧 ΔT de agua levemente bajo', 'Rendimiento del lado de agua algo por debajo de lo esperado. Monitorear caudal y estado del intercambiador en la próxima ronda.');
+    } else if (isNaN(diag.deltaTAgua)){
+      push('elevated', 'ℹ️ Sin datos del lado de agua', 'Este chiller no tiene cargadas las temperaturas de agua de retorno/suministro del evaporador. Cargalas para habilitar el diagnóstico del lado de agua.');
+    }
+  }
 
   if (!msgs.length){
     push('good', '✅ Sin hallazgos relevantes', 'Todos los parámetros dentro de rango normal. Continuar con el plan de mantenimiento establecido.');
   }
   return msgs;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  7b. TENDENCIA TEMPORAL SIMPLE (regresión lineal sobre últimos N puntos)
+// ═══════════════════════════════════════════════════════════
+// Regresión lineal por mínimos cuadrados sobre pares {x,y}. Devuelve pendiente,
+// intercepto y R² (bondad de ajuste, 0-1). x = índice de lectura dentro de la ventana.
+function linRegTrend(xs, ys){
+  const n = xs.length;
+  if (n < 2) return null;
+  const xMean = xs.reduce((a,b)=>a+b,0)/n;
+  const yMean = ys.reduce((a,b)=>a+b,0)/n;
+  let num=0, den=0;
+  for (let i=0;i<n;i++){ num += (xs[i]-xMean)*(ys[i]-yMean); den += (xs[i]-xMean)**2; }
+  const slope = den===0 ? 0 : num/den;
+  const intercept = yMean - slope*xMean;
+  let ssTot=0, ssRes=0;
+  for (let i=0;i<n;i++){
+    const yPred = slope*xs[i]+intercept;
+    ssRes += (ys[i]-yPred)**2;
+    ssTot += (ys[i]-yMean)**2;
+  }
+  const r2 = ssTot===0 ? 1 : Math.max(0, 1 - ssRes/ssTot);
+  return { slope, intercept, r2 };
+}
+
+// direction indica qué sentido de la pendiente es una mejora, para colorear el veredicto.
+// onlyFor restringe la métrica a un tipo de equipo específico (p.ej. lado de agua → solo Chillers).
+const TREND_METRICS = [
+  { key:'deltaT',   label:'ΔT Aire',            unit:'°C', direction:'higherIsBetter', get:(p,i)=> p.TempEntrada?.[i]-p.TempSalida?.[i] },
+  { key:'presAlta', label:'Presión Alta',        unit:'bar', direction:'neutral',       get:(p,i)=> p.PresAlta?.[i] },
+  { key:'presBaja', label:'Presión Baja',        unit:'bar', direction:'neutral',       get:(p,i)=> p.PresBaja?.[i] },
+  { key:'desbI',    label:'Desb. Corriente',     unit:'%',  direction:'lowerIsBetter',  get:(p,i)=> p.DesbI?.[i] },
+  { key:'cargaPct', label:'% Carga (I/FLA)',     unit:'%',  direction:'lowerIsBetter',  get:(p,i,fla)=> computeCargaPct(avgCorriente(p.I_R?.[i],p.I_S?.[i],p.I_T?.[i]), fla) },
+  { key:'deltaTAgua', label:'ΔT Agua (Evap.)',   unit:'°C', direction:'higherIsBetter', onlyFor:'Chiller', get:(p,i)=> p.TempAguaRetorno?.[i]-p.TempAguaSuministro?.[i] }
+];
+
+// Calcula la tendencia de cada métrica de TREND_METRICS usando los últimos N puntos
+// con dato válido del equipo k. Requiere mínimo 3 puntos para considerarse significativo.
+function computeTrends(k, N){
+  const d = readingsData.get(k);
+  if (!d || d.dates.length < 2) return [];
+  const eq = equiposRegistry.get(k) || {};
+  const total = d.dates.length;
+  const start = Math.max(0, total - N);
+  const results = [];
+  const metrics = TREND_METRICS.filter(m => !m.onlyFor || m.onlyFor === eq.tipo);
+  const t0 = d.dates[start].getTime();
+  for (const m of metrics){
+    const xs=[], ys=[];
+    for (let i=start;i<total;i++){
+      const v = m.get(d.params, i, eq.fla);
+      if (v===undefined || v===null || isNaN(v)) continue;
+      xs.push((d.dates[i].getTime() - t0) / 86400000); // días transcurridos desde la primera lectura de la ventana
+      ys.push(v);
+    }
+    if (xs.length < 3){ results.push({ ...m, insufficient:true, nPoints:xs.length }); continue; }
+    const reg = linRegTrend(xs, ys);
+    results.push({ ...m, slope:reg.slope, r2:reg.r2, nPoints:xs.length,
+      firstDate:d.dates[start], lastDate:d.dates[total-1], lastValue:ys[ys.length-1] });
+  }
+  return results;
+}
+
+function trendVerdict(t){
+  if (t.direction==='neutral') return { label:'Seguimiento', cls:'trend-neutral' };
+  const eps = Math.abs(t.lastValue||1)*0.01 + 0.001;
+  if (Math.abs(t.slope) < eps) return { label:'Estable', cls:'trend-neutral' };
+  const rising = t.slope > 0;
+  const better = t.direction==='higherIsBetter' ? rising : !rising;
+  return better ? { label:'Mejorando', cls:'trend-good' } : { label:'Empeorando', cls:'trend-bad' };
+}
+
+function renderTrendPanel(){
+  const panel = document.getElementById('trendPanel');
+  const sel = document.getElementById('trendNSel');
+  if (!panel || !currentKey) return;
+  const N = parseInt(sel?.value || '8', 10);
+  const trends = computeTrends(currentKey, N);
+  if (!trends.length){
+    panel.innerHTML = '<div class="trend-empty">No hay suficientes lecturas para calcular tendencias.</div>';
+    return;
+  }
+  panel.innerHTML = trends.map(t=>{
+    if (t.insufficient){
+      return `<div class="trend-card"><div class="trend-lbl">${t.label}</div>
+        <div class="trend-val trend-neutral">—</div>
+        <div class="trend-sub">Datos insuficientes (${t.nPoints} pto${t.nPoints===1?'':'s'}, mín. 3)</div></div>`;
+    }
+    const v = trendVerdict(t);
+    const eps = Math.abs(t.lastValue||1)*0.01 + 0.001;
+    const arrow = Math.abs(t.slope) < eps ? '→' : (t.slope>0 ? '↑' : '↓');
+    return `<div class="trend-card">
+      <div class="trend-lbl">${t.label}</div>
+      <div class="trend-val ${v.cls}">${arrow} ${t.slope>=0?'+':''}${fmt(t.slope,3)} ${t.unit}/día</div>
+      <div class="trend-sub">${v.label} · R²=${fmt(t.r2,2)} · ${t.nPoints} lecturas (${fmtDate(t.firstDate)}–${fmtDate(t.lastDate)})</div>
+    </div>`;
+  }).join('');
 }
 
 function openDetail(k){
@@ -1147,6 +1637,7 @@ function openDetail(k){
   const level = diag.overall;
   const badgeClass = level<0?'':`badge-${STATUS[level]}`;
   const health = healthScoreFromLevel(diag.overall, diag.subs);
+  const esChiller = eq.tipo === 'Chiller';
 
   let html = `
   <div class="modal-section-title">Estado actual</div>
@@ -1154,12 +1645,25 @@ function openDetail(k){
     <div class="mstat"><div class="mstat-lbl">Estado</div><div class="mstat-val"><span class="mbadge ${badgeClass}">${level<0?'Sin datos':STATUS_LABELS[level]}</span></div></div>
     <div class="mstat"><div class="mstat-lbl">Salud</div><div class="mstat-val">${health===null?'—':health+'%'}</div></div>
     <div class="mstat"><div class="mstat-lbl">ΔT Aire</div><div class="mstat-val">${fmt(diag.deltaT,1)}°C</div></div>
-    <div class="mstat"><div class="mstat-lbl">Presión Alta</div><div class="mstat-val">${!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">Presión Baja</div><div class="mstat-val">${!isNaN(diag.presBaja)?fmt(diag.presBaja,1)+' bar':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Presión Alta${diag.ptSupported && !isNaN(diag.tSatCond)?' (T° sat. cond.)':''}</div><div class="mstat-val">${!isNaN(diag.presAlta)?fmt(diag.presAlta,1)+' bar':'—'}${diag.ptSupported && !isNaN(diag.tSatCond)?' · '+fmt(diag.tSatCond,1)+'°C':''}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Presión Baja${diag.ptSupported && !isNaN(diag.tSatEvap)?' (T° sat. evap.)':''}</div><div class="mstat-val">${!isNaN(diag.presBaja)?fmt(diag.presBaja,1)+' bar':'—'}${diag.ptSupported && !isNaN(diag.tSatEvap)?' · '+fmt(diag.tSatEvap,1)+'°C':''}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Recalentamiento (SH)</div><div class="mstat-val">${!isNaN(diag.superheat)?fmt(diag.superheat,1)+'°C':(diag.ptSupported?'—':'Sin tabla P-T')}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Subenfriamiento (SC)</div><div class="mstat-val">${!isNaN(diag.subcooling)?fmt(diag.subcooling,1)+'°C':(diag.ptSupported?'—':'Sin tabla P-T')}</div></div>
     <div class="mstat"><div class="mstat-lbl">Vel. Aire</div><div class="mstat-val">${!isNaN(diag.velAire)?fmt(diag.velAire,1)+' m/s':'—'}</div></div>
     <div class="mstat"><div class="mstat-lbl">Filtro</div><div class="mstat-val">${diag.filtro||'—'}</div></div>
     <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">% Carga (I/FLA)</div><div class="mstat-val">${!isNaN(diag.cargaPct)?fmt(diag.cargaPct,0)+'%':(eq.fla?'—':'Sin FLA cargado')}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Corriente Prom.</div><div class="mstat-val">${!isNaN(diag.iAvg)?fmt(diag.iAvg,1)+' A':'—'}</div></div>
   </div>
+
+  ${esChiller ? `
+  <div class="modal-section-title">💧 Lado de agua (evaporador)</div>
+  <div class="mgrid">
+    <div class="mstat"><div class="mstat-lbl">ΔT Agua</div><div class="mstat-val">${!isNaN(diag.deltaTAgua)?fmt(diag.deltaTAgua,1)+'°C':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Agua Retorno</div><div class="mstat-val">${!isNaN(diag.tempAguaRetorno)?fmt(diag.tempAguaRetorno,1)+'°C':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Agua Suministro</div><div class="mstat-val">${!isNaN(diag.tempAguaSuministro)?fmt(diag.tempAguaSuministro,1)+'°C':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Caudal de Agua</div><div class="mstat-val">${!isNaN(diag.caudalAgua)?fmt(diag.caudalAgua,1)+' m³/h':'—'}</div></div>
+  </div>` : ''}
 
   <div class="modal-section-title">Diagnóstico</div>
   <div id="modalDiagBox"></div>
@@ -1167,23 +1671,62 @@ function openDetail(k){
   <div class="modal-section-title">Tendencia (ΔT y Presión Alta)</div>
   <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
 
+  <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>Tendencia temporal simple (regresión)</span>
+    <label style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;">
+      Últimas N mediciones:
+      <select id="trendNSel" class="trend-select" onchange="renderTrendPanel()">
+        <option value="5">5</option>
+        <option value="8" selected>8</option>
+        <option value="12">12</option>
+        <option value="9999">Todos</option>
+      </select>
+    </label>
+  </div>
+  <div id="trendPanel" class="trend-grid"></div>
+
   <div class="modal-section-title">Historial reciente</div>
   <div style="overflow-x:auto;">
     <table class="rtable">
-      <thead><tr><th>Fecha</th><th>ΔT (°C)</th><th>Pres.Alta</th><th>Pres.Baja</th><th>Vel.Aire</th><th>Filtro</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>ΔT (°C)</th><th>Pres.Alta</th><th>T°sat.Cond</th><th>Pres.Baja</th><th>T°sat.Evap</th><th>SH</th><th>SC</th><th>Vel.Aire</th><th>% Carga</th><th>Filtro</th>${esChiller?'<th>Agua Ret.</th><th>Agua Sum.</th><th>ΔT Agua</th>':''}</tr></thead>
       <tbody>${d.dates.map((dt,i)=>{
-        const ev = evalReading(d.params, i);
+        const ev = evalReading(d.params, i, eq.fla, eq.refrigerante, eq.tipo);
         return `<tr>
           <td data-label="Fecha">${fmtDate(dt)}</td>
           <td data-label="ΔT (°C)">${fmt(ev.deltaT,1)}</td>
           <td data-label="Pres.Alta">${!isNaN(ev.presAlta)?fmt(ev.presAlta,1):'—'}</td>
+          <td data-label="T°sat.Cond">${ev.ptSupported && !isNaN(ev.tSatCond)?fmt(ev.tSatCond,1)+'°C':'—'}</td>
           <td data-label="Pres.Baja">${!isNaN(ev.presBaja)?fmt(ev.presBaja,1):'—'}</td>
+          <td data-label="T°sat.Evap">${ev.ptSupported && !isNaN(ev.tSatEvap)?fmt(ev.tSatEvap,1)+'°C':'—'}</td>
+          <td data-label="SH">${!isNaN(ev.superheat)?fmt(ev.superheat,1)+'°C':'—'}</td>
+          <td data-label="SC">${!isNaN(ev.subcooling)?fmt(ev.subcooling,1)+'°C':'—'}</td>
           <td data-label="Vel.Aire">${!isNaN(ev.velAire)?fmt(ev.velAire,1):'—'}</td>
+          <td data-label="% Carga">${!isNaN(ev.cargaPct)?fmt(ev.cargaPct,0)+'%':'—'}</td>
           <td data-label="Filtro">${escHtml(ev.filtro||'—')}</td>
+          ${esChiller?`<td data-label="Agua Ret.">${!isNaN(ev.tempAguaRetorno)?fmt(ev.tempAguaRetorno,1)+'°C':'—'}</td>
+          <td data-label="Agua Sum.">${!isNaN(ev.tempAguaSuministro)?fmt(ev.tempAguaSuministro,1)+'°C':'—'}</td>
+          <td data-label="ΔT Agua">${!isNaN(ev.deltaTAgua)?fmt(ev.deltaTAgua,1)+'°C':'—'}</td>`:''}
         </tr>`;
       }).reverse().slice(0,15).join('')}</tbody>
     </table>
-  </div>`;
+  </div>
+
+  <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>🛠️ Últimas intervenciones</span>
+    <button class="btn-small" onclick="closeDetail();switchTab('intervenciones');document.getElementById('ivFiltroEquipo').value='${escJs(eq.tag)}';renderIntervenciones();">Ver todas / cargar nueva</button>
+  </div>
+  ${(()=>{
+    const ivs = intervenciones.filter(r=>r.eqTag===eq.tag).sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5);
+    if (!ivs.length) return `<div class="empty-state"><div class="ei">🛠️</div>Sin intervenciones registradas para este equipo.</div>`;
+    return `<div style="overflow-x:auto;"><table class="rtable">
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th></tr></thead>
+      <tbody>${ivs.map(r=>`<tr>
+        <td data-label="Fecha">${escHtml(r.fecha)}</td>
+        <td data-label="Tipo">${escHtml(r.tipo)}</td>
+        <td data-label="Descripción" style="white-space:normal;">${escHtml(r.descripcion)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  })()}`;
 
   document.getElementById('modalBody').innerHTML = html;
 
@@ -1193,6 +1736,8 @@ function openDetail(k){
       <div class="diag-title">${m.title}</div>
       <div class="diag-action">${m.action}</div>
     </div>`).join('');
+
+  renderTrendPanel();
 
   document.getElementById('detailOverlay').classList.add('open');
 
@@ -1244,13 +1789,15 @@ function createEquipo(){
   const capacidad = parseFloat(document.getElementById('newEqCapacidad').value) || 0;
   const capUnidad = document.getElementById('newEqCapUnidad').value;
   const refrigerante = document.getElementById('newEqRefrigerante').value;
+  const fla = parseFloat(document.getElementById('newEqFLA').value) || 0;
   const id = genId();
-  equiposRegistry.set(id, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante});
-  publicarEquipoEnHub(tag, tipo);
+  equiposRegistry.set(id, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante, fla});
+  publicarEquipoEnHub(tag, tipo, {ubicacion});
   document.getElementById('newEqTag').value='';
   document.getElementById('newEqAmbiente').value='';
   document.getElementById('newEqUbicacion').value='';
   document.getElementById('newEqCapacidad').value='';
+  document.getElementById('newEqFLA').value='';
   saveState();
   renderAll();
 }
@@ -1274,13 +1821,27 @@ function renderEquiposList(){
       <div class="panel-box-title"><span>🧊 ${escHtml(e.tag)} <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— ${escHtml(e.tipo||'')}${e.ambiente?' · '+escHtml(e.ambiente):''}${e.ubicacion?' · '+escHtml(e.ubicacion):''}</span></span>
         <button class="btn-small danger" onclick="deleteEquipo('${escJs(id)}')">Eliminar</button>
       </div>
-      <div style="font-size:.82rem;color:var(--muted);">
+      <div style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
         ${e.capacidad?`<span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${escHtml(String(e.capacidad))} ${escHtml(e.capUnidad||'')}</span>`:''}
         ${e.refrigerante?`<span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${escHtml(e.refrigerante)}</span>`:''}
         <span class="mpoint-badge" style="margin:2px 4px 2px 0;display:inline-block;">${n} lectura(s)</span>
+        <span style="display:flex;align-items:center;gap:4px;margin-left:auto;">
+          <label style="font-size:.72rem;color:var(--muted);">FLA/RLA (A)</label>
+          <input type="number" step="0.1" value="${e.fla||''}" id="fla_${id}" style="width:70px;background:var(--card2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:3px 6px;font-size:.82rem;">
+          <button class="btn-small" style="padding:3px 10px;" onclick="actualizarFLA('${escJs(id)}')">💾</button>
+        </span>
       </div>
     </div>`;
   }).join('');
+}
+function actualizarFLA(id){
+  const e = equiposRegistry.get(id);
+  if (!e) return;
+  const input = document.getElementById('fla_'+id);
+  const fla = parseFloat(input.value) || 0;
+  equiposRegistry.set(id, {...e, fla});
+  saveState();
+  renderAll();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1299,10 +1860,18 @@ function renderThresholdGrid(){
       </div>`;
     }).join('');
   }
+  const pat = document.getElementById('th_presAltaTsat_min'); if (pat) pat.value = thresholds.presionAltaTsat.min;
+  const pat2 = document.getElementById('th_presAltaTsat_max'); if (pat2) pat2.value = thresholds.presionAltaTsat.max;
+  const pbt = document.getElementById('th_presBajaTsat_min'); if (pbt) pbt.value = thresholds.presionBajaTsat.min;
+  const pbt2 = document.getElementById('th_presBajaTsat_max'); if (pbt2) pbt2.value = thresholds.presionBajaTsat.max;
   const pa = document.getElementById('th_presAlta_min'); if (pa) pa.value = thresholds.presionAlta.min;
   const pa2 = document.getElementById('th_presAlta_max'); if (pa2) pa2.value = thresholds.presionAlta.max;
   const pb = document.getElementById('th_presBaja_min'); if (pb) pb.value = thresholds.presionBaja.min;
   const pb2 = document.getElementById('th_presBaja_max'); if (pb2) pb2.value = thresholds.presionBaja.max;
+  const sh = document.getElementById('th_superheat_min'); if (sh) sh.value = thresholds.superheat.min;
+  const sh2 = document.getElementById('th_superheat_max'); if (sh2) sh2.value = thresholds.superheat.max;
+  const sc = document.getElementById('th_subenfriamiento_min'); if (sc) sc.value = thresholds.subenfriamiento.min;
+  const sc2 = document.getElementById('th_subenfriamiento_max'); if (sc2) sc2.value = thresholds.subenfriamiento.max;
 }
 function saveThresholdsFromUI(){
   for (const key of Object.keys(THRESHOLD_META)){
@@ -1311,6 +1880,14 @@ function saveThresholdsFromUI(){
       if (input){ const v = parseFloat(input.value); if (!isNaN(v)) thresholds[key][i] = v; }
     }
   }
+  const patMin = parseFloat(document.getElementById('th_presAltaTsat_min').value);
+  const patMax = parseFloat(document.getElementById('th_presAltaTsat_max').value);
+  const pbtMin = parseFloat(document.getElementById('th_presBajaTsat_min').value);
+  const pbtMax = parseFloat(document.getElementById('th_presBajaTsat_max').value);
+  if (!isNaN(patMin)) thresholds.presionAltaTsat.min = patMin;
+  if (!isNaN(patMax)) thresholds.presionAltaTsat.max = patMax;
+  if (!isNaN(pbtMin)) thresholds.presionBajaTsat.min = pbtMin;
+  if (!isNaN(pbtMax)) thresholds.presionBajaTsat.max = pbtMax;
   const paMin = parseFloat(document.getElementById('th_presAlta_min').value);
   const paMax = parseFloat(document.getElementById('th_presAlta_max').value);
   const pbMin = parseFloat(document.getElementById('th_presBaja_min').value);
@@ -1319,6 +1896,14 @@ function saveThresholdsFromUI(){
   if (!isNaN(paMax)) thresholds.presionAlta.max = paMax;
   if (!isNaN(pbMin)) thresholds.presionBaja.min = pbMin;
   if (!isNaN(pbMax)) thresholds.presionBaja.max = pbMax;
+  const shMin = parseFloat(document.getElementById('th_superheat_min').value);
+  const shMax = parseFloat(document.getElementById('th_superheat_max').value);
+  const scMin = parseFloat(document.getElementById('th_subenfriamiento_min').value);
+  const scMax = parseFloat(document.getElementById('th_subenfriamiento_max').value);
+  if (!isNaN(shMin)) thresholds.superheat.min = shMin;
+  if (!isNaN(shMax)) thresholds.superheat.max = shMax;
+  if (!isNaN(scMin)) thresholds.subenfriamiento.min = scMin;
+  if (!isNaN(scMax)) thresholds.subenfriamiento.max = scMax;
   saveState();
   renderAll();
   alert('Umbrales guardados.');
@@ -1336,6 +1921,7 @@ function resetThresholds(){
 function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
+  if (tab === 'intervenciones') renderIntervenciones();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1411,7 +1997,7 @@ function generateOfflineReport(){
     <div class="fleet-text">${conc}</div>
   </div>
   <div class="note-box">
-    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Refrigeración Pro</strong>, basado en criterios orientativos de ΔT de aire, caudal de aire, estado de filtros, desbalance eléctrico NEMA MG-1 aplicado al compresor y rangos de presión editables por equipo. No reemplaza el cálculo de presión-temperatura de saturación por refrigerante; ajustá los umbrales a cada equipo y refrigerante antes de usar el informe para decisiones críticas.
+    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Refrigeración Pro</strong>, basado en criterios orientativos de ΔT de aire, caudal de aire, estado de filtros, desbalance eléctrico NEMA MG-1 aplicado al compresor, rangos de presión editables por equipo y, cuando el refrigerante está soportado (R410A, R22, R134a, R407C, R404A), Recalentamiento (SH) y Subenfriamiento (SC) calculados con la tabla presión-temperatura real de saturación. Ajustá los umbrales a cada equipo y refrigerante antes de usar el informe para decisiones críticas.
   </div>`;
 
   document.getElementById('reportSections').innerHTML = html;
@@ -1430,19 +2016,23 @@ function copyReport(){
 // ═══════════════════════════════════════════════════════════
 function exportCSV(){
   if (!readingsData.size){ alert('Sin datos.'); return; }
-  let rows = ['TAG,Tipo,Fecha,Estado,DeltaT_C,PresAlta_bar,PresBaja_bar,VelAire_ms,Filtro,DesbI_%,DesbV_%,Observaciones'];
+  let rows = ['TAG,Tipo,Refrigerante,Fecha,Estado,DeltaT_C,PresAlta_bar,TSatCond_C,PresBaja_bar,TSatEvap_C,TempSuccion_C,TempLiquido_C,Superheat_C,Subcooling_C,VelAire_ms,Filtro,DesbI_%,DesbV_%,CargaPct_%,Observaciones'];
   for (const [k, d] of readingsData.entries()){
     const eq = equiposRegistry.get(k) || {};
     for (let n=0;n<d.dates.length;n++){
-      const ev = evalReading(d.params, n);
+      const ev = evalReading(d.params, n, eq.fla, eq.refrigerante, eq.tipo);
       const estado = ev.overall>=0 ? STATUS_LABELS[ev.overall] : '—';
       const dt = d.dates[n];
       const fecha = (dt instanceof Date && !isNaN(dt)) ? dt.toISOString().slice(0,10) : '';
       rows.push([
-        `"${eq.tag||''}"`, `"${eq.tipo||''}"`, fecha, estado, fmt(ev.deltaT,2),
-        !isNaN(ev.presAlta)?fmt(ev.presAlta,2):'', !isNaN(ev.presBaja)?fmt(ev.presBaja,2):'',
+        `"${eq.tag||''}"`, `"${eq.tipo||''}"`, `"${eq.refrigerante||''}"`, fecha, estado, fmt(ev.deltaT,2),
+        !isNaN(ev.presAlta)?fmt(ev.presAlta,2):'', (ev.ptSupported && !isNaN(ev.tSatCond))?fmt(ev.tSatCond,2):'',
+        !isNaN(ev.presBaja)?fmt(ev.presBaja,2):'', (ev.ptSupported && !isNaN(ev.tSatEvap))?fmt(ev.tSatEvap,2):'',
+        !isNaN(ev.tempSuccion)?fmt(ev.tempSuccion,2):'', !isNaN(ev.tempLiquido)?fmt(ev.tempLiquido,2):'',
+        !isNaN(ev.superheat)?fmt(ev.superheat,2):'', !isNaN(ev.subcooling)?fmt(ev.subcooling,2):'',
         !isNaN(ev.velAire)?fmt(ev.velAire,2):'', `"${ev.filtro||''}"`,
         !isNaN(ev.desbI)?fmt(ev.desbI,2):'', !isNaN(ev.desbV)?fmt(ev.desbV,2):'',
+        !isNaN(ev.cargaPct)?fmt(ev.cargaPct,1):'',
         `"${(d.obs&&d.obs[n])||''}"`
       ].join(','));
     }
@@ -1455,8 +2045,8 @@ function exportCSV(){
 }
 
 function clearAllData(){
-  if (!confirm('¿Borrar TODOS los equipos y lecturas? Esta acción no se puede deshacer.')) return;
-  equiposRegistry.clear(); readingsData.clear();
+  if (!confirm('¿Borrar TODOS los equipos, lecturas e intervenciones? Esta acción no se puede deshacer.')) return;
+  equiposRegistry.clear(); readingsData.clear(); intervenciones = [];
   saveState();
   renderAll();
 }
@@ -1482,10 +2072,13 @@ async function sincronizarEquiposHub(silencioso){
   }
 }
 
-async function publicarEquipoEnHub(name, tipo){
+async function publicarEquipoEnHub(name, tipo, extra={}){
   if(typeof SatSync === 'undefined' || !SatSync.init()) return;
   try{
-    await SatSync.buscarOCrearEquipo(name, {tipo});
+    // Nota: la tabla "equipos" del hub (sat-sync.js) solo persiste tag/nombre/tipo/ubicacion.
+    // Capacidad, refrigerante y FLA son propios de este módulo y no viajan al hub hasta que
+    // se agreguen esas columnas al esquema compartido (afectaría a los 6 módulos satélite).
+    await SatSync.buscarOCrearEquipo(name, {tipo, ubicacion: extra.ubicacion || null});
     equiposHub.set(name, {tag:name, nombre:name, tipo});
   }catch(err){
     console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
@@ -1531,6 +2124,7 @@ async function guardarEnLaNube(){
           equipo: tag, tipo: eq?.tipo, health, nivel,
           deltaT: diag.deltaT, presAlta: diag.presAlta, presBaja: diag.presBaja,
           velAire: diag.velAire, filtro: diag.filtro, desbI: diag.desbI, desbV: diag.desbV,
+          cargaPct: diag.cargaPct, iAvg: diag.iAvg, fla: eq?.fla,
           fecha: diag.date, hallazgos: msgs
         }
       });
@@ -1545,6 +2139,177 @@ async function guardarEnLaNube(){
   statusEl.textContent = fail
     ? `☁️ Guardados ${ok} equipo(s) (${fail} con error — ver consola).`
     : `☁️ ${ok} equipo(s) guardados en la nube correctamente.`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  HISTORIAL DE INTERVENCIONES
+// ═══════════════════════════════════════════════════════════
+function populateIntervencionSelects(){
+  const eqSel = document.getElementById('ivEquipo');
+  const tipoSel = document.getElementById('ivTipo');
+  const filtroEqSel = document.getElementById('ivFiltroEquipo');
+  const filtroTipoSel = document.getElementById('ivFiltroTipo');
+  if (!eqSel) return;
+
+  const tags = Array.from(equiposRegistry.values()).map(e=>e.tag).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+
+  eqSel.innerHTML = tags.length
+    ? tags.map(t=>`<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('')
+    : `<option value="">— Registrá un equipo primero —</option>`;
+
+  if (!tipoSel.dataset.filled){
+    tipoSel.innerHTML = TIPOS_INTERVENCION.map(t=>`<option value="${t}">${t}</option>`).join('');
+    tipoSel.dataset.filled = '1';
+  }
+
+  const prevEq = filtroEqSel.value;
+  filtroEqSel.innerHTML = `<option value="">Todos los equipos</option>` + tags.map(t=>`<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+  if (tags.includes(prevEq)) filtroEqSel.value = prevEq;
+
+  const prevTipo = filtroTipoSel.value;
+  filtroTipoSel.innerHTML = `<option value="">Todos los tipos</option>` + TIPOS_INTERVENCION.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if (TIPOS_INTERVENCION.includes(prevTipo)) filtroTipoSel.value = prevTipo;
+
+  const fechaEl = document.getElementById('ivFecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().slice(0,10);
+}
+
+function crearIntervencion(){
+  const eqTag = document.getElementById('ivEquipo').value;
+  const fecha = document.getElementById('ivFecha').value || new Date().toISOString().slice(0,10);
+  const tipo = document.getElementById('ivTipo').value;
+  const descripcion = document.getElementById('ivDescripcion').value.trim();
+  const statusEl = document.getElementById('ivStatus');
+
+  if (!eqTag){ alert('Registrá al menos un equipo antes de cargar una intervención.'); return; }
+  if (!descripcion){ alert('Ingresá una descripción de la intervención.'); return; }
+
+  const rec = { id: genId(), eqTag, fecha, tipo, descripcion, ts: new Date().toISOString(), synced: false };
+  intervenciones.push(rec);
+  saveState();
+  document.getElementById('ivDescripcion').value = '';
+  statusEl.textContent = '✅ Guardada localmente.';
+  statusEl.style.color = 'var(--good, #10c98a)';
+  renderIntervenciones();
+
+  // Best-effort: subir a la nube si hay conexión configurada (no bloquea el guardado local).
+  guardarIntervencionEnNube(rec).then(ok=>{
+    if (ok){
+      statusEl.textContent = '☁️ Guardada localmente y sincronizada con la nube.';
+      renderIntervenciones();
+    }
+  });
+}
+
+function eliminarIntervencion(id){
+  if (!confirm('¿Eliminar esta intervención del historial?')) return;
+  intervenciones = intervenciones.filter(r=>r.id!==id);
+  saveState();
+  renderIntervenciones();
+}
+
+function renderIntervenciones(){
+  const wrap = document.getElementById('ivListWrap');
+  if (!wrap) return;
+  populateIntervencionSelects();
+
+  const fEq = document.getElementById('ivFiltroEquipo')?.value || '';
+  const fTipo = document.getElementById('ivFiltroTipo')?.value || '';
+  const q = (document.getElementById('ivBuscar')?.value || '').toLowerCase().trim();
+  const orden = document.getElementById('ivOrden')?.value || 'fecha_desc';
+
+  let rows = intervenciones.filter(r=>{
+    if (fEq && r.eqTag !== fEq) return false;
+    if (fTipo && r.tipo !== fTipo) return false;
+    if (q && !(`${r.descripcion} ${r.eqTag}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    if (orden==='fecha_asc') return a.fecha.localeCompare(b.fecha);
+    if (orden==='equipo_asc') return a.eqTag.localeCompare(b.eqTag) || b.fecha.localeCompare(a.fecha);
+    return b.fecha.localeCompare(a.fecha); // fecha_desc (default)
+  });
+
+  if (!rows.length){
+    wrap.innerHTML = `<div class="empty-state"><div class="ei">🛠️</div>Sin intervenciones registradas todavía.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div style="overflow-x:auto;"><table class="rtable">
+    <thead><tr><th>Fecha</th><th>Equipo</th><th>Tipo</th><th>Descripción</th><th>Origen</th><th></th></tr></thead>
+    <tbody>
+    ${rows.map(r=>`<tr>
+      <td data-label="Fecha">${escHtml(r.fecha)}</td>
+      <td data-label="Equipo">${escHtml(r.eqTag)}</td>
+      <td data-label="Tipo">${escHtml(r.tipo)}</td>
+      <td data-label="Descripción" style="white-space:normal;">${escHtml(r.descripcion)}</td>
+      <td data-label="Origen">${r.synced ? '☁️ Nube' : '💾 Local'}</td>
+      <td data-label=""><button class="btn-small danger" onclick="eliminarIntervencion('${escJs(r.id)}')">Eliminar</button></td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// Sube una intervención puntual al hub (SatSync), reusando el canal genérico de análisis
+// del módulo (no hay severidad real para una intervención, se guarda como informativa).
+async function guardarIntervencionEnNube(rec){
+  if (typeof SatSync === 'undefined' || !SatSync.init()) return false;
+  try{
+    await SatSync.guardarAnalisis({
+      modulo: 'refrigeracion_intervencion',
+      equipo_tag: rec.eqTag,
+      severidad: 'ok',
+      resumen: `${rec.tipo}: ${rec.descripcion.slice(0,140)}`,
+      datos: { id: rec.id, fecha: rec.fecha, tipo: rec.tipo, descripcion: rec.descripcion }
+    });
+    rec.synced = true;
+    saveState();
+    return true;
+  }catch(err){
+    console.warn('[SatSync] no se pudo sincronizar la intervención', err);
+    return false;
+  }
+}
+
+// Sincroniza el historial completo: sube las pendientes y, si el hub expone un método
+// para listarlas, trae las cargadas desde otros equipos/dispositivos.
+async function sincronizarIntervencionesNube(){
+  const note = document.getElementById('ivSyncNote');
+  if (typeof SatSync === 'undefined' || !SatSync.init()){
+    note.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.';
+    note.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+  let subidas = 0, fallos = 0;
+  for (const rec of intervenciones){
+    if (rec.synced) continue;
+    const ok = await guardarIntervencionEnNube(rec);
+    ok ? subidas++ : fallos++;
+  }
+  // Descarga: solo si el hub (sat-sync.js) expone un método para listar análisis genéricos.
+  let bajadas = 0;
+  if (typeof SatSync.listarAnalisis === 'function'){
+    try{
+      const rows = await SatSync.listarAnalisis({ modulo: 'refrigeracion_intervencion', limite: 500 });
+      const idsLocales = new Set(intervenciones.map(r=>r.id));
+      for (const row of (rows||[])){
+        const d = row.datos || {};
+        if (d.id && !idsLocales.has(d.id)){
+          intervenciones.push({ id: d.id, eqTag: row.equipos?.tag || d.eqTag || '(equipo desconocido)', fecha: d.fecha, tipo: d.tipo, descripcion: d.descripcion, ts: row.fecha || new Date().toISOString(), synced: true });
+          bajadas++;
+        }
+      }
+      if (bajadas) saveState();
+    }catch(err){
+      console.warn('[SatSync] no se pudo listar intervenciones del hub', err);
+    }
+  }
+  renderIntervenciones();
+  note.style.color = fallos ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  note.textContent = typeof SatSync.listarAnalisis === 'function'
+    ? `☁️ ${subidas} subida(s), ${bajadas} traída(s) del hub${fallos ? `, ${fallos} con error` : ''}.`
+    : `☁️ ${subidas} subida(s) al hub${fallos ? `, ${fallos} con error` : ''}. (El hub aún no expone un listado de intervenciones — se sincronizan una vía, subida solamente.)`;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1597,7 +2362,7 @@ function buscarOCrearEquipoPorTag(tag){
     if ((e.tag||'').toLowerCase() === tag.toLowerCase()) return id;
   }
   const id = genId();
-  equiposRegistry.set(id, {tag, tipo:'AC Split', ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:''});
+  equiposRegistry.set(id, {tag, tipo:'AC Split', ambiente:'', ubicacion:'', capacidad:0, capUnidad:'TR', refrigerante:'', fla:0});
   publicarEquipoEnHub(tag, 'AC Split');
   return id;
 }
