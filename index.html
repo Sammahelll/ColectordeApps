@@ -183,6 +183,39 @@
     .stats{grid-template-columns:repeat(2,1fr);}
     h1{font-size:26px;}
   }
+
+  /* informe de equipo */
+  .modal.xwide{width:min(920px,94vw);}
+  .informe-toolbar{display:flex; align-items:center; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+  .informe-toolbar .spacer{flex:1;}
+  .informe-toolbar label{font-size:12px; color:var(--muted);}
+  .informe-header{margin-bottom:22px;}
+  .informe-header .eq-tag{font-family:'Rajdhani',sans-serif; font-weight:700; font-size:24px; display:flex; align-items:center; gap:10px;}
+  .informe-header .eq-meta{font-size:12.5px; color:var(--muted); margin-top:4px;}
+  .informe-header .gen-meta{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted); margin-top:12px; padding-top:10px; border-top:1px dashed var(--line);}
+  .informe-section{margin-bottom:24px;}
+  .informe-section h4{font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:700; margin:0 0 10px; color:var(--text); text-transform:uppercase; letter-spacing:.03em;}
+  .informe-mod-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:10px;}
+  .informe-mod-card{background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:12px 14px;}
+  .informe-mod-card.informe-empty-mod{opacity:.5;}
+  .informe-mod-card .imc-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:6px;}
+  .informe-mod-card .imc-name{font-family:'Rajdhani',sans-serif; font-weight:600; font-size:13.5px;}
+  .informe-mod-card .imc-fecha{font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--muted); margin-bottom:4px;}
+  .informe-mod-card .imc-resumen{font-size:12px; color:var(--text); line-height:1.4;}
+  .informe-mod-card .imc-spark{display:block; margin-top:8px;}
+
+  @media print{
+    body *{visibility:hidden;}
+    #informeModal, #informeModal *{visibility:visible;}
+    #informeModal{position:absolute; inset:0; background:#fff !important; padding:0; display:block !important; z-index:9999;}
+    #informeModal .modal{box-shadow:none; border:none; width:100%; max-width:none; max-height:none; padding:0; background:#fff;}
+    #informeModal .no-print{display:none !important;}
+    #informeModal, #informeModal h3, #informeModal h4, #informeModal .eq-tag, #informeModal td, #informeModal th{color:#111 !important;}
+    #informeModal .eq-meta, #informeModal .gen-meta, #informeModal .imc-fecha, #informeModal .hint{color:#555 !important;}
+    #informeModal .informe-mod-card, #informeModal table{background:#fafafa !important; border-color:#ccc !important;}
+    #informeModal th{border-color:#ccc !important;}
+    #informeModal td{border-color:#e2e2e2 !important;}
+  }
 </style>
 </head>
 <body>
@@ -259,7 +292,7 @@
         <option value="tablero_pro">Tablero Pro</option>
         <option value="vibra_pro">Vibra Pro</option>
         <option value="thermovision">ThermoVision</option>
-        <option value="lubricacion">Lubricación</option>
+        <option value="refrigeracion">Refrigeración</option>
         <option value="alineacion">Alineación</option>
       </select>
       <input id="anBusqueda" type="search" placeholder="Buscar en resumen o TAG…">
@@ -341,7 +374,29 @@
   <div class="modal wide">
     <h3 id="detalleTitle">Historial del equipo</h3>
     <div id="detalleBody"></div>
-    <div class="row"><button class="ghost" id="btnDetalleClose">Cerrar</button></div>
+    <div class="row">
+      <button class="ghost" id="btnDetalleInforme">Generar informe</button>
+      <button class="ghost" id="btnDetalleClose">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal informe de equipo -->
+<div class="modal-bg" id="informeModal">
+  <div class="modal xwide">
+    <div class="informe-toolbar no-print">
+      <label for="informeRango">Rango del informe:</label>
+      <select id="informeRango">
+        <option value="30">Últimos 30 días</option>
+        <option value="90" selected>Últimos 90 días</option>
+        <option value="180">Últimos 180 días</option>
+        <option value="all">Todo el historial</option>
+      </select>
+      <div class="spacer"></div>
+      <button class="ghost" id="btnInformePrint">🖨️ Exportar PDF</button>
+      <button class="ghost" id="btnInformeClose">Cerrar</button>
+    </div>
+    <div id="informeContent"></div>
   </div>
 </div>
 
@@ -353,7 +408,7 @@ const MODULOS = [
   {key:'tablero_pro',  icon:'🧯', name:'Tablero Pro',     short:'TAB', desc:'Análisis predictivo de tableros eléctricos.', color:'#f0b429', href:'./tablero_pro.html'},
   {key:'vibra_pro',    icon:'📈', name:'Vibra Pro',       short:'VIB', desc:'Análisis de vibración con IA.', color:'#10c98a', href:'./vibra_pro.html'},
   {key:'thermovision', icon:'🌡️', name:'ThermoVision',    short:'TER', desc:'Termografía con IA.', color:'#ef4444', href:'./thermovision.html'},
-  {key:'lubricacion',  icon:'🛢️', name:'Lubricación en Campo', short:'LUB', desc:'Seguimiento de lubricación en terreno.', color:'#f97316', href:'./lubricacion_campo.html'},
+  {key:'refrigeracion', icon:'🧊', name:'Refrigeración Pro', short:'REF', desc:'Análisis predictivo de climatización industrial.', color:'#06b6d4', href:'./refrigeracion_pro.html'},
   {key:'alineacion',   icon:'🎯', name:'Alineación Láser', short:'ALI', desc:'Seguimiento de alineación láser (TKSA 41).', color:'#7c8ba3', href:'./alineacion_laser.html'},
 ];
 const SEV_ORDEN = {critico:3, atencion:2, ok:1};
@@ -532,6 +587,7 @@ function renderEquiposTable(){
         <td>${globalHtml}</td>
         <td class="actions-cell">
           <button class="ghost small" onclick="abrirDetalleEquipo('${e.id}')">Ver</button>
+          <button class="ghost small" onclick="abrirInforme('${e.id}')">Informe</button>
           <button class="ghost small" onclick="abrirEditarEquipo('${e.id}')">Editar</button>
           <button class="ghost small ${e.activo ? 'danger' : ''}" onclick="confirmarArchivar('${e.id}', ${e.activo})">${e.activo ? 'Archivar' : 'Reactivar'}</button>
         </td>
@@ -543,6 +599,7 @@ function renderEquiposTable(){
 function abrirDetalleEquipo(id){
   const eq = equiposCache.find(e => e.id === id);
   if (!eq) return;
+  window._detalleEquipoId = id;
   document.getElementById('detalleTitle').textContent = `${eq.tag} — ${eq.nombre || ''}`;
   const rows = analisisCache.filter(r => r.equipo_id === id);
   const body = document.getElementById('detalleBody');
@@ -568,6 +625,100 @@ function verPayloadDetalle(i){
   document.getElementById('payloadTitle').textContent = `${r.equipos?.tag || 'equipo'} · ${r.modulo}`;
   document.getElementById('payloadBody').textContent = JSON.stringify(r.datos, null, 2);
   document.getElementById('payloadModal').classList.add('show');
+}
+
+// ---------------- informe de equipo ----------------
+const SEV_VAL = {critico:0, atencion:1, ok:2};
+
+function sparklineSVG(rowsAsc){
+  const w = 230, h = 44, pad = 6;
+  if (rowsAsc.length < 2){
+    return `<div style="font-size:11px; color:var(--muted); margin-top:8px;">tendencia: datos insuficientes (mínimo 2 registros en el rango)</div>`;
+  }
+  const n = rowsAsc.length;
+  const stepX = (w - pad*2) / (n - 1);
+  const yFor = v => pad + (2 - v) / 2 * (h - pad*2);
+  const colorFor = sev => ({ok:'#10c98a', atencion:'#f0b429', critico:'#ef4444'}[sev] || '#7c8ba3');
+  const pts = rowsAsc.map((r,i) => ({x: pad + i*stepX, y: yFor(SEV_VAL[r.severidad] ?? 1), sev: r.severidad}));
+  const line = pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3" fill="${colorFor(p.sev)}"/>`).join('');
+  return `<svg class="imc-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <polyline points="${line}" fill="none" stroke="var(--muted)" stroke-width="1.2" opacity=".5"/>
+    ${dots}
+  </svg>`;
+}
+
+function abrirInforme(id){
+  const eq = equiposCache.find(e => e.id === id);
+  if (!eq) return;
+  window._informeEquipoId = id;
+  document.getElementById('detalleModal').classList.remove('show');
+  renderInforme();
+  document.getElementById('informeModal').classList.add('show');
+}
+
+function renderInforme(){
+  const id = window._informeEquipoId;
+  const eq = equiposCache.find(e => e.id === id);
+  if (!eq) return;
+  const rango = document.getElementById('informeRango').value;
+  const todas = analisisCache.filter(r => r.equipo_id === id); // viene ordenado desc por fecha
+  const rows = filtrarPorRango(todas, rango);
+  const rowsAsc = [...rows].reverse();
+
+  const ultimoPorModulo = {};
+  for (const r of rows){ if (!ultimoPorModulo[r.modulo]) ultimoPorModulo[r.modulo] = r; } // rows es desc -> primero = más reciente
+
+  const filaGlobal = {}; MODULOS.forEach(m => { filaGlobal[m.key] = ultimoPorModulo[m.key]; });
+  const global = estadoGlobalEquipo(filaGlobal);
+  const globalHtml = global
+    ? `<span class="global-pill ${global}">${({ok:'OK',atencion:'ATENCIÓN',critico:'CRÍTICO'})[global]}</span>`
+    : `<span class="global-pill na">sin datos</span>`;
+
+  const rangoLabel = {'30':'últimos 30 días','90':'últimos 90 días','180':'últimos 180 días','all':'todo el historial'}[rango];
+
+  const modCards = MODULOS.map(m => {
+    const ultimo = ultimoPorModulo[m.key];
+    if (!ultimo){
+      return `<div class="informe-mod-card informe-empty-mod">
+        <div class="imc-head"><span class="imc-name">${m.icon} ${m.name}</span><span class="global-pill na">sin datos</span></div>
+      </div>`;
+    }
+    const historialModulo = rowsAsc.filter(r => r.modulo === m.key);
+    return `<div class="informe-mod-card">
+      <div class="imc-head"><span class="imc-name">${m.icon} ${m.name}</span>${badgeSeveridad(ultimo.severidad)}</div>
+      <div class="imc-fecha">${fmtFecha(ultimo.fecha)}</div>
+      <div class="imc-resumen">${ultimo.resumen || '—'}</div>
+      ${sparklineSVG(historialModulo)}
+    </div>`;
+  }).join('');
+
+  const historialTabla = rows.length ? `
+    <div class="table-scroll"><table>
+      <thead><tr><th>Fecha</th><th>Módulo</th><th>Estado</th><th class="wrap-cell">Resumen</th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td>${fmtFecha(r.fecha)}</td>
+        <td>${nombreModulo(r.modulo)}</td>
+        <td>${badgeSeveridad(r.severidad)}</td>
+        <td class="wrap-cell">${r.resumen || '—'}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>` : `<div class="empty">Sin registros en el rango seleccionado.</div>`;
+
+  document.getElementById('informeContent').innerHTML = `
+    <div class="informe-header">
+      <div class="tag" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--muted);">MANTEC · SATÉLITES — INFORME DE EQUIPO</div>
+      <div class="eq-tag">${eq.tag} ${globalHtml}</div>
+      <div class="eq-meta">${eq.nombre || '—'} · ${eq.tipo || '—'} · ${eq.ubicacion || '—'}</div>
+      <div class="gen-meta">generado ${fmtFecha(new Date().toISOString())} · rango: ${rangoLabel} · ${rows.length} registro(s) en el período</div>
+    </div>
+    <div class="informe-section">
+      <h4>Estado actual por módulo</h4>
+      <div class="informe-mod-grid">${modCards}</div>
+    </div>
+    <div class="informe-section">
+      <h4>Historial de análisis</h4>
+      ${historialTabla}
+    </div>`;
 }
 
 function abrirEditarEquipo(id){
@@ -771,6 +922,10 @@ document.getElementById('btnCfgSave').onclick = () => {
 // ---- eventos: payload / detalle / confirm ----
 document.getElementById('btnPayloadClose').onclick = () => document.getElementById('payloadModal').classList.remove('show');
 document.getElementById('btnDetalleClose').onclick = () => document.getElementById('detalleModal').classList.remove('show');
+document.getElementById('btnDetalleInforme').onclick = () => abrirInforme(window._detalleEquipoId);
+document.getElementById('informeRango').onchange = renderInforme;
+document.getElementById('btnInformeClose').onclick = () => document.getElementById('informeModal').classList.remove('show');
+document.getElementById('btnInformePrint').onclick = () => window.print();
 document.getElementById('btnConfirmCancel').onclick = () => document.getElementById('confirmModal').classList.remove('show');
 document.getElementById('btnConfirmOk').onclick = () => {
   document.getElementById('confirmModal').classList.remove('show');
