@@ -147,6 +147,16 @@
   .flag.danger{background:var(--red-soft); color:var(--red);}
   .flag.ok{background:var(--green-soft); color:var(--green);}
   .empty{color:var(--muted); font-size:13.5px; padding:20px; text-align:center;}
+  .hidden{display:none !important;}
+  .count-pill{
+    display:inline-block; min-width:18px; padding:1px 6px; margin-left:6px;
+    border-radius:20px; background:var(--red); color:#fff; font-size:11px;
+    font-weight:700; text-align:center; line-height:1.5;
+  }
+  .capturas-item{
+    border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px;
+    display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;
+  }
   .modal-overlay{
     position:fixed; inset:0; background:rgba(0,0,0,0.6);
     display:flex; align-items:center; justify-content:center; z-index:50; padding:20px;
@@ -214,6 +224,9 @@
     <button data-tab="equipos" class="active">Equipos</button>
     <button data-tab="nueva">Registrar alineación</button>
   </nav>
+  <div class="row" style="padding:0 0 12px;">
+    <button class="btn secondary" onclick="abrirCapturasPendientes()">📥 Capturas de campo<span id="capturasBadge" class="count-pill hidden">0</span></button>
+  </div>
 </header>
 
 <main id="mainArea"></main>
@@ -229,6 +242,9 @@ const STORAGE_KEY = 'alineacion_laser_data_v1';
 let equiposRegistry = new Map();   // id -> {tag, planta, tipoAcople, rpm, tempTrabajo}
 let alineaciones = new Map();      // equipoId -> [ {id, fecha, tecnico, motivo, asFound, asLeft, semaforo, pataBlanda, observaciones, proximaRevision} ]
 let equiposHub = new Map();        // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
+let _capturasPendientes = [];      // capturas crudas desde el Hub de Campo, sin procesar
+let _capturaActual = null;         // captura en edición dentro del form "Registrar alineación"
+let _avisoCaptura = null;          // TAG mostrado en el aviso "copiado desde el hub"
 
 function genId(){ return 'id_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
@@ -346,6 +362,7 @@ let currentTab = 'equipos';
 
 function switchTab(tab){
   currentTab = tab;
+  if(tab !== 'nueva'){ _avisoCaptura = null; _capturaActual = null; }
   document.querySelectorAll('#tabNav button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   render();
 }
@@ -403,6 +420,7 @@ function renderNuevaAlineacionTab(){
       .map(([tag, eq]) => `<option value="__hub:${escapeHtml(tag)}">☁ ${escapeHtml(tag)} — ${escapeHtml(eq.nombre||'')} (del hub)</option>`).join('');
   return `<div class="panel">
     <h2>Registrar alineación</h2>
+    ${_avisoCaptura ? `<div class="flag ok">📋<div>Datos de <strong>${escapeHtml(_avisoCaptura)}</strong> copiados desde el Hub de Campo — revisá y confirmá con "Guardar alineación".</div></div>` : ''}
     <form id="formAlineacion">
       <div class="grid2">
         <div class="field">
@@ -754,6 +772,15 @@ function wireEvents(){
     saveData();
     guardarEnLaNube(registro, equiposRegistry.get(equipoId)); // asíncrono, no bloquea el registro local
 
+    if(_capturaActual){
+      const capId = _capturaActual.id;
+      _capturaActual = null;
+      if(typeof SatSync !== 'undefined' && SatSync.estaConfigurado()){
+        SatSync.marcarCapturaProcesada(capId).catch(err=>console.warn('[SatSync] no se pudo marcar la captura como procesada', err));
+      }
+    }
+    _avisoCaptura = null;
+
     window._detalleEquipoId = equipoId;
     currentTab = 'detalle';
     render();
@@ -765,6 +792,106 @@ document.getElementById('tabNav').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-tab]');
   if(btn) switchTab(btn.dataset.tab);
 });
+
+// ═══════════════════════════════════════════════════════════
+//  CAPTURAS DE CAMPO (Hub de Campo → copiar a formulario → guardar)
+// ═══════════════════════════════════════════════════════════
+async function abrirCapturasPendientes(){
+  openModal(`
+    <h3>📥 Capturas pendientes de campo</h3>
+    <div style="color:var(--muted); font-size:13px; margin-bottom:14px;">Cargadas desde el Hub de Campo — sin guardar todavía</div>
+    <div id="capturasLista"><div class="empty">📡 Buscando capturas pendientes…</div></div>
+    <div class="close-row"><button class="btn ghost" id="mCloseCapturas">Cerrar</button></div>
+  `);
+  document.getElementById('mCloseCapturas').onclick = closeModal;
+
+  const lista = document.getElementById('capturasLista');
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    lista.innerHTML = `<div class="empty">⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.</div>`;
+    return;
+  }
+  try{
+    _capturasPendientes = await SatSync.listarCapturasPendientes({ modulo: 'alineacion' });
+  }catch(err){
+    lista.innerHTML = `<div class="empty">⚠️ No se pudo leer capturas_campo: ${escapeHtml(err.message)}</div>`;
+    return;
+  }
+  renderCapturasBadge();
+  if(!_capturasPendientes.length){
+    lista.innerHTML = `<div class="empty">✅ No hay capturas pendientes desde el Hub de Campo.</div>`;
+    return;
+  }
+  lista.innerHTML = _capturasPendientes.map((c,i)=>{
+    const d = c.datos || {};
+    const tag = c.equipos?.tag || '(sin tag)';
+    return `<div class="capturas-item">
+      <div>
+        <div style="font-weight:600;">${escapeHtml(tag)}</div>
+        <div style="font-size:.75rem;color:var(--muted);">${escapeHtml(d.fecha||'')}${d.semaforo ? ' · ' + semaforoBadge(d.semaforo) : ''}${d.tecnico ? ' · '+escapeHtml(d.tecnico) : ''}</div>
+      </div>
+      <button class="btn secondary" onclick="copiarCapturaAFormulario(${i})">📋 Copiar a formulario</button>
+    </div>`;
+  }).join('');
+}
+
+function renderCapturasBadge(){
+  const b = document.getElementById('capturasBadge');
+  if(!b) return;
+  b.textContent = _capturasPendientes.length;
+  b.classList.toggle('hidden', _capturasPendientes.length===0);
+}
+
+function copiarCapturaAFormulario(i){
+  const captura = _capturasPendientes[i];
+  if(!captura) return;
+  const d = captura.datos || {};
+  const tag = captura.equipos?.tag || '';
+  closeModal();
+
+  let equipoId = null;
+  if(tag){
+    for(const [id, eq] of equiposRegistry.entries()) if((eq.tag||'').toUpperCase() === tag.toUpperCase()){ equipoId = id; break; }
+    if(!equipoId){
+      equipoId = genId();
+      equiposRegistry.set(equipoId, { tag, planta: captura.equipos?.ubicacion || '', rpm:'', tipoAcople:'', tempTrabajo:'' });
+      publicarEquipoEnHub(tag, '');
+      saveData();
+    }
+  }
+
+  _avisoCaptura = tag || '(equipo sin tag)';
+  currentTab = 'nueva';
+  render();
+
+  const fEquipo = document.getElementById('fEquipo');
+  if(fEquipo && equipoId) fEquipo.value = equipoId;
+  if(d.fecha) document.getElementById('fFecha').value = d.fecha;
+  if(d.tecnico) document.getElementById('fTecnico').value = d.tecnico;
+  if(d.motivo) document.getElementById('fMotivo').value = d.motivo;
+
+  const af = d.asFound || {};
+  if(af.offV!=null && af.offV!=='') document.getElementById('afOffV').value = af.offV;
+  if(af.offH!=null && af.offH!=='') document.getElementById('afOffH').value = af.offH;
+  if(af.angV!=null && af.angV!=='') document.getElementById('afAngV').value = af.angV;
+  if(af.angH!=null && af.angH!=='') document.getElementById('afAngH').value = af.angH;
+
+  const al = d.asLeft || {};
+  if(al.offV!=null && al.offV!=='') document.getElementById('alOffV').value = al.offV;
+  if(al.offH!=null && al.offH!=='') document.getElementById('alOffH').value = al.offH;
+  if(al.angV!=null && al.angV!=='') document.getElementById('alAngV').value = al.angV;
+  if(al.angH!=null && al.angH!=='') document.getElementById('alAngH').value = al.angH;
+
+  if(d.semaforo) document.getElementById('fSemaforo').value = d.semaforo;
+
+  const pb = d.pataBlanda || {};
+  document.getElementById('fPataDetectada').value = pb.detectada || 'no';
+  if(pb.detalle) document.getElementById('fPataDetalle').value = pb.detalle;
+
+  if(d.observaciones) document.getElementById('fObs').value = d.observaciones;
+  if(d.proximaRevision) document.getElementById('fProxima').value = d.proximaRevision;
+
+  _capturaActual = captura; // se marca como procesada recién al confirmar "Guardar alineación"
+}
 
 // ═══════════════════════════════════════════════════════════
 //  SINCRONIZACIÓN CON EL HUB (SatSync)

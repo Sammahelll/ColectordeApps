@@ -330,6 +330,7 @@ header{
 <div class="upload-bar">
   <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
   <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar ensayo manual</button>
+  <button class="btn-small" style="border-color:var(--good);color:var(--good);" onclick="abrirCapturasPendientes()">📥 Capturas de campo <span id="capturasBadge" class="hidden" style="margin-left:4px;">0</span></button>
   <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
   <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
   <span class="load-status" id="loadStatus"></span>
@@ -421,6 +422,22 @@ header{
   </div>
   <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
   <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de motores.</div></div>
+</div>
+
+<!-- ═══ MODAL CAPTURAS DE CAMPO ═══ -->
+<div class="modal-overlay" id="capturasOverlay" onclick="if(event.target===this)cerrarCapturasPendientes()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">📥 Capturas pendientes de campo</div>
+        <div class="modal-sub">Cargadas desde el Hub de Campo — sin diagnóstico todavía</div>
+      </div>
+      <button class="modal-close" onclick="cerrarCapturasPendientes()">✕</button>
+    </div>
+    <div class="modal-body" id="capturasLista">
+      <div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ MODAL CARGA MANUAL ═══ -->
@@ -1032,6 +1049,96 @@ function numOrUndef(id){
   return isNaN(n) ? NaN : n;
 }
 
+// ═══════════════════════════════════════════════════════════
+//  CAPTURAS DE CAMPO (Hub de Campo → copiar a formulario → analizar)
+// ═══════════════════════════════════════════════════════════
+let _capturasPendientes = [];
+let _capturaActual = null; // captura en edición dentro del modal manual
+
+async function abrirCapturasPendientes(){
+  const overlay = document.getElementById('capturasOverlay');
+  const lista = document.getElementById('capturasLista');
+  overlay.classList.add('open');
+  lista.innerHTML = `<div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>`;
+  if (typeof SatSync === 'undefined' || !SatSync.init()){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.</div>`;
+    return;
+  }
+  try{
+    _capturasPendientes = await SatSync.listarCapturasPendientes({ modulo: 'motor_pro' });
+  }catch(err){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>No se pudo leer capturas_campo: ${escHtml(err.message)}</div>`;
+    return;
+  }
+  renderCapturasBadge();
+  if (!_capturasPendientes.length){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">✅</div>No hay capturas pendientes desde el Hub de Campo.</div>`;
+    return;
+  }
+  lista.innerHTML = _capturasPendientes.map((c,i)=>{
+    const d = c.datos || {};
+    const tag = c.equipos?.tag || '(sin tag)';
+    const ipTxt = (d.r1>0 && d.r10) ? `IP ${(d.r10/d.r1).toFixed(2)} · ` : '';
+    return `<div class="fld" style="border:1px solid var(--border,#26374f);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:600;">${escHtml(tag)}</div>
+        <div style="font-size:.75rem;color:var(--muted);">${escHtml(d.fecha||'')} · ${ipTxt}R1 ${d.r1??d.r1u??'—'} MΩ${d.autor?(' · '+escHtml(c.autor||'')):''}</div>
+      </div>
+      <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="copiarCapturaAFormulario(${i})">📋 Copiar a formulario</button>
+    </div>`;
+  }).join('');
+}
+function cerrarCapturasPendientes(){ document.getElementById('capturasOverlay').classList.remove('open'); }
+function renderCapturasBadge(){
+  const b = document.getElementById('capturasBadge');
+  b.textContent = _capturasPendientes.length;
+  b.classList.toggle('hidden', _capturasPendientes.length===0);
+}
+
+function copiarCapturaAFormulario(i){
+  const captura = _capturasPendientes[i];
+  if (!captura) return;
+  const d = captura.datos || {};
+  const tag = captura.equipos?.tag || '';
+
+  cerrarCapturasPendientes();
+  openManualEntry(); // resetea el form, arma el select de motores y lo abre
+
+  const sel = document.getElementById('me_motorSel');
+  let motorId = null;
+  for (const [id, m] of motorsRegistry.entries()) if (m.name.toLowerCase() === tag.toLowerCase()) { motorId = id; break; }
+  if (motorId){
+    sel.value = motorId;
+  } else {
+    sel.value = '__new';
+    document.getElementById('me_newMotorName').value = tag;
+    // 6 hilos si vinieron mediciones por fase (U/V/W a GND), si no 3 hilos simples
+    const seisHilos = [d.r1u,d.r1v,d.r1w].some(v=>v!==undefined && v!==null && v!=='');
+    document.getElementById('me_newMotorHilos').value = seisHilos ? '6' : '3';
+  }
+  onManualMotorChange();
+
+  if (d.fecha) document.getElementById('me_fecha').value = d.fecha;
+  if (d.vEnsayo!=null) document.getElementById('me_vEnsayo').value = d.vEnsayo;
+  if (d.tempAmb!=null) document.getElementById('me_tempAmb').value = d.tempAmb;
+  const campos = ['r1','r10','r1_u','r10_u','r1_v','r10_v','r1_w','r10_w',
+    'r1_uv','r10_uv','r1_vw','r10_vw','r1_wu','r10_wu','rUV','rVW','rWU','iR','iS','iT'];
+  campos.forEach(f=>{
+    const key = f.replace('_',''); // me_r1_u -> r1u en datos
+    if (d[key]!=null) document.getElementById('me_'+f).value = d[key];
+  });
+  if (d.obs) document.getElementById('me_obs').value = d.obs;
+
+  toggleAislacionMode();
+  if (typeof updateIPPreview === 'function') updateIPPreview();
+  if (typeof updateIPPreviewExt === 'function') updateIPPreviewExt();
+
+  _capturaActual = captura; // se marca como procesada recién al confirmar "Guardar ensayo"
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `📋 Datos de ${tag} copiados — revisá y confirmá con "Guardar ensayo".`;
+}
+
 function saveManualReading(){
   const motorSel = document.getElementById('me_motorSel').value;
   const fechaStr = document.getElementById('me_fecha').value;
@@ -1088,6 +1195,13 @@ function saveManualReading(){
   saveState();
   closeManualEntry();
   renderAll();
+  if (_capturaActual){
+    const capId = _capturaActual.id;
+    _capturaActual = null;
+    if (typeof SatSync !== 'undefined' && SatSync.estaConfigurado()){
+      SatSync.marcarCapturaProcesada(capId).catch(err=>console.warn('[SatSync] no se pudo marcar la captura como procesada', err));
+    }
+  }
   const status = document.getElementById('loadStatus');
   status.className = 'load-status ok';
   status.textContent = `✅ Ensayo guardado: ${getDisplayName(key)}` + (governingWinding ? ` (devanado ${governingWinding} gobierna el diagnóstico)` : '');

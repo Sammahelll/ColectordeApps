@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MANTEC – Tablero Pro V1.0 · Análisis Predictivo de Tableros Eléctricos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./sat-sync.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -292,9 +294,9 @@ header{
 
   /* modales a pantalla completa, más fáciles de usar con el dedo */
   .modal-overlay{padding:0;align-items:stretch;}
-  .modal-box{max-width:100%;width:100%;height:100vh;height:100dvh;border-radius:0;display:flex;flex-direction:column;}
-  .modal-head{padding:14px 16px;flex-shrink:0;}
-  .modal-body{padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;flex:1 1 auto;min-height:0;}
+  .modal-box{max-width:100%;width:100%;min-height:100vh;border-radius:0;}
+  .modal-head{padding:14px 16px;}
+  .modal-body{padding:16px;}
   .form-grid{grid-template-columns:1fr;}
   .th-grid{grid-template-columns:1fr;}
   .mgrid{grid-template-columns:repeat(2,1fr);}
@@ -336,6 +338,7 @@ header{
 <div class="upload-bar">
   <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
   <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar medición manual</button>
+  <button class="btn-small" style="border-color:var(--good);color:var(--good);" onclick="abrirCapturasPendientes()">📥 Capturas de campo <span id="capturasBadge" class="hidden" style="margin-left:4px;">0</span></button>
   <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
   <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
   <span class="load-status" id="loadStatus"></span>
@@ -375,8 +378,13 @@ header{
 <div class="tab-content" id="tab-tableros">
   <div class="panel-box">
     <div class="panel-box-title">➕ Registrar tablero</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+      <button class="btn-small" onclick="sincronizarEquiposHub().then(()=>{renderPanelsList();alert('Catálogo del hub actualizado ('+equiposHub.size+' equipos).');})">🔄 Sincronizar equipos del hub</button>
+      <span style="font-size:.8rem;color:var(--muted);">trae el catálogo compartido para reusar el mismo TAG entre módulos</span>
+    </div>
+    <datalist id="hubTagsDatalist"></datalist>
     <div class="form-grid">
-      <div class="fld"><label>Nombre del tablero</label><input id="newPanelName" placeholder="Ej: TAB-GENERAL-PLANTA"></div>
+      <div class="fld"><label>Nombre del tablero</label><input id="newPanelName" list="hubTagsDatalist" placeholder="Ej: TAB-GENERAL-PLANTA"></div>
       <div class="fld"><label>Tipo</label>
         <select id="newPanelType"></select>
       </div>
@@ -406,7 +414,9 @@ header{
   <div class="action-bar">
     <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="generateOfflineReport()">🔄 Generar informe</button>
     <button class="btn-small" onclick="copyReport()">📋 Copiar como texto</button>
+    <button class="btn-small" id="btnGuardarNube" onclick="guardarEnLaNube()">☁️ Guardar en la nube</button>
   </div>
+  <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
   <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de tableros.</div></div>
 </div>
 
@@ -494,6 +504,22 @@ header{
   </div>
 </div>
 
+<!-- ═══ MODAL CAPTURAS DE CAMPO ═══ -->
+<div class="modal-overlay" id="capturasOverlay" onclick="if(event.target===this)cerrarCapturasPendientes()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">📥 Capturas pendientes de campo</div>
+        <div class="modal-sub">Cargadas desde el Hub de Campo — sin diagnóstico todavía</div>
+      </div>
+      <button class="modal-close" onclick="cerrarCapturasPendientes()">✕</button>
+    </div>
+    <div class="modal-body" id="capturasLista">
+      <div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL DETALLE ═══ -->
 <div class="modal-overlay" id="detailOverlay" onclick="if(event.target===this)closeDetail()">
   <div class="modal-box">
@@ -547,6 +573,9 @@ const THRESHOLD_META = {
 let panelsRegistry = new Map();   // panelId -> {name, type, location, ampNominal}
 let circuitsMeta    = new Map();  // key(panelId/circuitId) -> {name, type}
 let readingsData    = new Map();  // key -> {dates:[], params:{...}, obs:[]}
+let equiposHub       = new Map(); // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
+let _capturasPendientes = [];     // capturas crudas desde el Hub de Campo
+let _capturaActual = null;        // captura en edición dentro del modal manual
 let thresholds      = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
 let statusFilter    = 'all';
 let currentKey      = null;
@@ -925,6 +954,13 @@ function saveManualReading(){
   saveState();
   closeManualEntry();
   renderAll();
+  if (_capturaActual){
+    const capId = _capturaActual.id;
+    _capturaActual = null;
+    if (typeof SatSync !== 'undefined' && SatSync.estaConfigurado()){
+      SatSync.marcarCapturaProcesada(capId).catch(err=>console.warn('[SatSync] no se pudo marcar la captura como procesada', err));
+    }
+  }
   const status = document.getElementById('loadStatus');
   status.className = 'load-status ok';
   status.textContent = `✅ Medición guardada: ${getDisplayName(key)}`;
@@ -1215,6 +1251,7 @@ function createPanel(){
   const amp  = parseFloat(document.getElementById('newPanelAmp').value) || 0;
   const id = genId();
   panelsRegistry.set(id, {name, type, location:loc, ampNominal:amp});
+  publicarEquipoEnHub(name, type);
   document.getElementById('newPanelName').value='';
   document.getElementById('newPanelLoc').value='';
   document.getElementById('newPanelAmp').value='';
@@ -1423,11 +1460,203 @@ function clearAllData(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  Sincronización con el hub (SatSync)
+// ═══════════════════════════════════════════════════════════
+async function sincronizarEquiposHub(silencioso){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    if(!silencioso) alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return false;
+  }
+  try{
+    const rows = await SatSync.listarEquipos();
+    equiposHub = new Map(rows.map(e => [e.tag, e]));
+    const dl = document.getElementById('hubTagsDatalist');
+    if(dl) dl.innerHTML = rows.map(e => `<option value="${escHtml(e.tag)}">${escHtml(e.nombre||'')}</option>`).join('');
+    return true;
+  }catch(err){
+    console.error('[SatSync] error sincronizando equipos', err);
+    if(!silencioso) alert('No se pudo leer el catálogo de equipos del hub: ' + err.message);
+    return false;
+  }
+}
+
+async function publicarEquipoEnHub(name, tipo){
+  if(typeof SatSync === 'undefined' || !SatSync.init()) return;
+  try{
+    await SatSync.buscarOCrearEquipo(name, {tipo});
+    equiposHub.set(name, {tag:name, nombre:name, tipo});
+  }catch(err){
+    console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
+  }
+}
+
+function mapNivelASeveridad(nivel){
+  if(nivel === 'critical') return 'critico';
+  if(nivel === 'warning' || nivel === 'elevated') return 'atencion';
+  return 'ok';
+}
+
+async function guardarEnLaNube(){
+  if(!readingsData.size){ alert('Generá el informe primero.'); return; }
+  const statusEl = document.getElementById('nubeStatus');
+  const btn = document.getElementById('btnGuardarNube');
+
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    statusEl.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero — la config se comparte entre este módulo y el hub.';
+    statusEl.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+
+  btn.disabled = true;
+  let ok = 0, fail = 0;
+  for (const k of readingsData.keys()){
+    const diag = diagnoseCircuit(k);
+    if(!diag || diag.overall < 0) continue;
+    const tag = getPanelName(getPanelId(k));
+    if(!tag){ fail++; continue; }
+    const health = healthScoreFromLevel(diag.overall, diag.subs);
+    const nivel  = STATUS[diag.overall];
+    const msgs   = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const resumen = `${getCircuitName(k)}: ` + (msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Sin hallazgos relevantes');
+    try{
+      await SatSync.guardarAnalisis({
+        modulo: 'tablero_pro',
+        equipo_tag: tag,
+        severidad: mapNivelASeveridad(nivel),
+        resumen,
+        datos: {
+          tablero: tag, circuito: getCircuitName(k), health, nivel,
+          deltaT: diag.deltaT, desbV: diag.desbV, desbI: diag.desbI,
+          fp: diag.fp, thdV: diag.thdV, rAisl: diag.rAisl,
+          fecha: diag.date, hallazgos: msgs
+        }
+      });
+      ok++;
+    }catch(err){
+      console.error('[SatSync] error guardando', tag, err);
+      fail++;
+    }
+  }
+  btn.disabled = false;
+  statusEl.style.color = fail ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  statusEl.textContent = fail
+    ? `☁️ Guardados ${ok} circuito(s) (${fail} con error — ver consola).`
+    : `☁️ ${ok} circuito(s) guardados en la nube correctamente.`;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CAPTURAS DE CAMPO (Hub de Campo → copiar a formulario → analizar)
+// ═══════════════════════════════════════════════════════════
+async function abrirCapturasPendientes(){
+  const overlay = document.getElementById('capturasOverlay');
+  const lista = document.getElementById('capturasLista');
+  overlay.classList.add('open');
+  lista.innerHTML = `<div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>`;
+  if (typeof SatSync === 'undefined' || !SatSync.init()){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.</div>`;
+    return;
+  }
+  try{
+    _capturasPendientes = await SatSync.listarCapturasPendientes({ modulo: 'tablero_pro' });
+  }catch(err){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>No se pudo leer capturas_campo: ${escHtml(err.message)}</div>`;
+    return;
+  }
+  renderCapturasBadge();
+  if (!_capturasPendientes.length){
+    lista.innerHTML = `<div class="empty-state"><div class="ei">✅</div>No hay capturas pendientes desde el Hub de Campo.</div>`;
+    return;
+  }
+  lista.innerHTML = _capturasPendientes.map((c,i)=>{
+    const d = c.datos || {};
+    const tag = c.equipos?.tag || '(sin tag)';
+    const deltaT = (d.tempMax!=null && d.tempAmb!=null) ? `ΔT ${(d.tempMax-d.tempAmb).toFixed(1)}°C · ` : '';
+    return `<div class="fld" style="border:1px solid var(--border,#26374f);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:600;">${escHtml(tag)}</div>
+        <div style="font-size:.75rem;color:var(--muted);">${escHtml(d.fecha||'')} · ${deltaT}Temp.máx ${d.tempMax??'—'}°C</div>
+      </div>
+      <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="copiarCapturaAFormulario(${i})">📋 Copiar a formulario</button>
+    </div>`;
+  }).join('');
+}
+function cerrarCapturasPendientes(){ document.getElementById('capturasOverlay').classList.remove('open'); }
+function renderCapturasBadge(){
+  const b = document.getElementById('capturasBadge');
+  b.textContent = _capturasPendientes.length;
+  b.classList.toggle('hidden', _capturasPendientes.length===0);
+}
+
+// Busca un circuito existente cuyo nombre coincida con el TAG plano que
+// manda el Hub de Campo; si no existe, crea un tablero + circuito "General"
+// con ese TAG (el hub no distingue tablero/circuito, solo un TAG por punto).
+function buscarOCrearCircuitoPorTag(tag){
+  for (const [key, c] of circuitsMeta.entries()){
+    if ((c.name||'').toLowerCase() === tag.toLowerCase()) return key;
+  }
+  let panelId = null;
+  for (const [id, p] of panelsRegistry.entries()) if ((p.name||'').toLowerCase() === tag.toLowerCase()) { panelId = id; break; }
+  if (!panelId){
+    panelId = genId();
+    panelsRegistry.set(panelId, {name:tag, type:'Alimentador Principal', location:'', ampNominal:0});
+    publicarEquipoEnHub(tag, 'Alimentador Principal');
+  }
+  const circuitId = 'C_GENERAL';
+  const key = `${panelId}/${circuitId}`;
+  if (!circuitsMeta.has(key)) circuitsMeta.set(key, {name:'General', type:'Alimentador Principal', sistema:'Trifásico'});
+  return key;
+}
+
+function copiarCapturaAFormulario(i){
+  const captura = _capturasPendientes[i];
+  if (!captura) return;
+  const d = captura.datos || {};
+  const tag = captura.equipos?.tag || '';
+  if (!tag) return;
+
+  cerrarCapturasPendientes();
+  openManualEntry(); // resetea el form, arma los selects y lo abre
+
+  const key = buscarOCrearCircuitoPorTag(tag);
+  saveState();
+  const panelId = getPanelId(key);
+
+  const panelSel = document.getElementById('me_panelSel');
+  panelSel.innerHTML = `<option value="__new">➕ Crear nuevo tablero…</option>` +
+    Array.from(panelsRegistry.entries()).map(([id,p])=>`<option value="${id}">${escHtml(p.name)}</option>`).join('');
+  panelSel.value = panelId;
+  onManualPanelChange();
+  document.getElementById('me_circuitSel').value = key;
+  onManualCircuitChange();
+
+  if (d.fecha) document.getElementById('me_fecha').value = d.fecha;
+  if (d.tempAmb!=null) document.getElementById('me_tempAmb').value = d.tempAmb;
+  if (d.tempMax!=null) document.getElementById('me_tempMax').value = d.tempMax;
+  if (d.faseMax) document.getElementById('me_faseMax').value = d.faseMax;
+  if (d.iR!=null) document.getElementById('me_iR').value = d.iR;
+  if (d.iS!=null) document.getElementById('me_iS').value = d.iS;
+  if (d.iT!=null) document.getElementById('me_iT').value = d.iT;
+  if (d.vR!=null) document.getElementById('me_vR').value = d.vR;
+  if (d.vS!=null) document.getElementById('me_vS').value = d.vS;
+  if (d.vT!=null) document.getElementById('me_vT').value = d.vT;
+  if (d.fp!=null) document.getElementById('me_fp').value = d.fp;
+  if (d.thdV!=null) document.getElementById('me_thdV').value = d.thdV;
+  if (d.rAisl!=null) document.getElementById('me_rAisl').value = d.rAisl;
+  if (d.obs) document.getElementById('me_obs').value = d.obs;
+
+  _capturaActual = captura; // se marca como procesada recién al confirmar "Guardar medición"
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = `📋 Datos de ${tag} copiados — revisá y confirmá con "Guardar medición".`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  13. INIT
 // ═══════════════════════════════════════════════════════════
 loadState();
 populatePanelTypeSelect();
 renderAll();
+sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
 
 </script>
 </body>
