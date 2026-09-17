@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MANTEC – Motor Pro V1.0 · Análisis Predictivo de Motores Eléctricos</title>
+<title>MANTEC – Motor Pro v7 · Análisis Predictivo de Motores Eléctricos</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="./sat-sync.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -220,8 +220,6 @@ header{
 
 /* ── FORMS / CONFIG ── */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
-.form-grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:18px;}
-.form-grid-5 .span2{grid-column:span 2;}
 .fld{display:flex;flex-direction:column;gap:4px;}
 .fld label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
 .fld input,.fld select{
@@ -287,8 +285,7 @@ header{
   .modal-box{max-width:100%;width:100%;min-height:100vh;border-radius:0;}
   .modal-body{padding:16px 16px 32px;}
 
-  .form-grid,.th-grid,.form-grid-5{grid-template-columns:1fr;}
-  .form-grid-5 .span2{grid-column:auto;}
+  .form-grid,.th-grid{grid-template-columns:1fr;}
   .mgrid{grid-template-columns:repeat(2,1fr);}
 
   /* Tablas -> tarjetas */
@@ -317,7 +314,7 @@ header{
     <div class="logo-icon">🔩</div>
     <div>
       <div class="logo-title">MOTOR PRO</div>
-      <div class="logo-sub">MANTEC · Análisis Predictivo de Motores</div>
+      <div class="logo-sub">MANTEC · Análisis Predictivo de Motores · v7</div>
     </div>
   </div>
   <div class="header-right">
@@ -330,7 +327,7 @@ header{
 <div class="upload-bar">
   <label class="file-label">📂 Importar Excel/CSV<input type="file" id="fileInput" accept=".xlsx,.xls,.csv" onchange="handleFileUpload(event)"></label>
   <button class="btn-small" style="border-color:var(--accent);color:var(--accent2);" onclick="openManualEntry()">✍️ Cargar ensayo manual</button>
-  <button class="btn-small" style="border-color:var(--good);color:var(--good);" onclick="abrirCapturasPendientes()">📥 Capturas de campo <span id="capturasBadge" class="hidden" style="margin-left:4px;">0</span></button>
+  <button class="btn-small" style="border-color:var(--good);color:var(--good);" onclick="abrirCapturasPendientes()">📥 Capturas de campo <span id="capturasBadge" class="hidden">0</span></button>
   <button class="btn-small" onclick="downloadTemplate()">⬇️ Descargar plantilla</button>
   <button class="btn-small" onclick="exportCSV()">⬇️ Exportar historial CSV</button>
   <span class="load-status" id="loadStatus"></span>
@@ -341,6 +338,7 @@ header{
 <div class="tabs">
   <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</button>
   <button class="tab-btn" data-tab="motores" onclick="switchTab('motores')">🔩 Motores</button>
+  <button class="tab-btn" data-tab="intervenciones" onclick="switchTab('intervenciones')">🛠️ Intervenciones</button>
   <button class="tab-btn" data-tab="config" onclick="switchTab('config')">⚙️ Umbrales</button>
   <button class="tab-btn" data-tab="informe" onclick="switchTab('informe')">📋 Informe</button>
 </div>
@@ -390,14 +388,59 @@ header{
         </select>
       </div>
       <div class="fld"><label>Ubicación</label><input id="newMotorLoc" placeholder="Ej: Sala de bombas 2"></div>
-      <div class="fld"><label>Potencia (kW)</label><input id="newMotorKW" type="number" step="0.1" placeholder="Ej: 15"></div>
-      <div class="fld"><label>Tensión nominal (V)</label><input id="newMotorVnom" type="number" placeholder="Ej: 380"></div>
-      <div class="fld"><label>Corriente nominal (A)</label><input id="newMotorInom" type="number" step="0.1" placeholder="Ej: 28"></div>
-      <div class="fld"><label>RPM nominal</label><input id="newMotorRPM" type="number" placeholder="Ej: 1450"></div>
+      <div class="fld"><label>Potencia (kW)</label><input id="newMotorKW" type="number" inputmode="decimal" step="0.1" placeholder="Ej: 15"></div>
+      <div class="fld"><label>Tensión nominal (V)</label><input id="newMotorVnom" type="number" inputmode="decimal" placeholder="Ej: 380"></div>
+      <div class="fld"><label>Corriente nominal (A)</label><input id="newMotorInom" type="number" inputmode="decimal" step="0.1" placeholder="Ej: 28"></div>
+      <div class="fld"><label>RPM nominal</label><input id="newMotorRPM" type="number" inputmode="decimal" placeholder="Ej: 1450"></div>
     </div>
     <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="createMotor()">Crear motor</button>
   </div>
   <div id="motorsRegistryList"></div>
+</div>
+
+<!-- ═══ INTERVENCIONES TAB ═══ -->
+<div class="tab-content" id="tab-intervenciones">
+  <div class="panel-box">
+    <div class="panel-box-title">➕ Registrar intervención</div>
+    <div class="form-grid">
+      <div class="fld"><label>Motor</label>
+        <select id="ivMotor"></select>
+      </div>
+      <div class="fld"><label>Fecha</label><input type="date" id="ivFecha"></div>
+      <div class="fld"><label>Tipo de intervención</label>
+        <select id="ivTipo"></select>
+      </div>
+    </div>
+    <div class="fld" style="margin-bottom:14px;">
+      <label>Descripción</label>
+      <textarea id="ivDescripcion" rows="3" placeholder="Ej: Barnizado y secado con lámparas 8hs. Cambio de rodamientos LA/LOA. Reapriete de bornera."
+        style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:.92rem;outline:none;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+    <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="crearIntervencion()">Guardar intervención</button>
+    <span id="ivStatus" style="font-size:.8rem;color:var(--muted);margin-left:10px;"></span>
+  </div>
+
+  <div class="panel-box">
+    <div class="panel-box-title">🛠️ Historial de intervenciones
+      <button class="btn-small" onclick="sincronizarIntervencionesNube()">☁️ Sincronizar con la nube</button>
+    </div>
+    <div class="toolbar" style="margin-bottom:14px;">
+      <select class="sort-sel" id="ivFiltroMotor" onchange="renderIntervenciones()">
+        <option value="">Todos los motores</option>
+      </select>
+      <select class="sort-sel" id="ivFiltroTipo" onchange="renderIntervenciones()">
+        <option value="">Todos los tipos</option>
+      </select>
+      <input class="search-box" id="ivBuscar" placeholder="🔎 Buscar en descripción…" oninput="renderIntervenciones()">
+      <select class="sort-sel" id="ivOrden" onchange="renderIntervenciones()">
+        <option value="fecha_desc">Fecha (más reciente primero)</option>
+        <option value="fecha_asc">Fecha (más antigua primero)</option>
+        <option value="motor_asc">Motor A-Z</option>
+      </select>
+    </div>
+    <div id="ivListWrap"></div>
+    <div id="ivSyncNote" style="font-size:.78rem;color:var(--muted);margin-top:10px;"></div>
+  </div>
 </div>
 
 <!-- ═══ CONFIG TAB ═══ -->
@@ -405,7 +448,7 @@ header{
   <div class="panel-box">
     <div class="panel-box-title">⚙️ Umbrales de diagnóstico (editables)</div>
     <p style="font-size:.8rem;color:var(--muted);margin-bottom:14px;">
-      Valores orientativos basados en el Índice de Polarización según IEEE 43 (R10min/R1min), resistencia de aislación absoluta a 1 minuto (corregida a 40°C con K<sub>T</sub>=0.5^((40−T)/10) cuando se carga la temperatura ambiente del ensayo — si no se carga, se evalúa con el valor crudo), desbalance de resistencia óhmica de bobinado (criterio general de taller, sin norma única) y desbalance de corriente de línea según NEMA MG-1. Ajustalos a tu norma o política interna. El IP no se corrige por temperatura: al tomarse R1 y R10 en el mismo ensayo, la relación ya es comparable entre mediciones.
+      Valores orientativos según IEEE 43-2013: Índice de Polarización (R10min/R1min) y Relación de Absorción Dieléctrica o DAR (R1min/R30seg, alternativa al IP en bobinados recién limpiados/instalados), resistencia de aislación absoluta a 1 minuto (corregida a 40°C con K<sub>T</sub>=0.5^((40−T)/10), priorizando la temperatura de bobinado sobre la ambiente cuando se carga — si no se carga ninguna, se evalúa con el valor crudo), desbalance de resistencia óhmica de bobinado (criterio general de taller, sin norma única) y desbalance de corriente de línea según NEMA MG-1. Ajustalos a tu norma o política interna. El IP y el DAR no se corrigen por temperatura: al tomarse las lecturas en el mismo ensayo, la relación ya es comparable entre mediciones.
     </p>
     <div class="th-grid" id="thresholdGrid"></div>
     <button class="btn-small" style="margin-top:14px;background:var(--accent);color:#fff;border:none;" onclick="saveThresholdsFromUI()">💾 Guardar umbrales</button>
@@ -422,22 +465,6 @@ header{
   </div>
   <div id="nubeStatus" style="font-size:.78rem;color:var(--muted);margin:-6px 0 10px;"></div>
   <div id="reportSections"><div class="empty-state"><div class="ei">📋</div>Generá el informe para ver el diagnóstico consolidado de la flota de motores.</div></div>
-</div>
-
-<!-- ═══ MODAL CAPTURAS DE CAMPO ═══ -->
-<div class="modal-overlay" id="capturasOverlay" onclick="if(event.target===this)cerrarCapturasPendientes()">
-  <div class="modal-box">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title">📥 Capturas pendientes de campo</div>
-        <div class="modal-sub">Cargadas desde el Hub de Campo — sin diagnóstico todavía</div>
-      </div>
-      <button class="modal-close" onclick="cerrarCapturasPendientes()">✕</button>
-    </div>
-    <div class="modal-body" id="capturasLista">
-      <div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>
-    </div>
-  </div>
 </div>
 
 <!-- ═══ MODAL CARGA MANUAL ═══ -->
@@ -467,7 +494,7 @@ header{
         </div>
         <div class="fld hidden" id="me_newMotorSystemWrap">
           <label>Sistema eléctrico</label>
-          <select id="me_newMotorSystem"></select>
+          <select id="me_newMotorSystem" onchange="toggleWindingFields()"></select>
         </div>
         <div class="fld hidden" id="me_newMotorHilosWrap">
           <label>Conexionado de bornes</label>
@@ -482,76 +509,84 @@ header{
         </div>
         <div class="fld">
           <label>Tensión de ensayo megóhmetro (V)</label>
-          <select id="me_vEnsayo">
+          <select id="me_vEnsayo" onchange="onVEnsayoManualChange()">
             <option value="250">250 V</option>
             <option value="500" selected>500 V</option>
             <option value="1000">1000 V</option>
             <option value="2500">2500 V</option>
             <option value="5000">5000 V</option>
           </select>
+          <div id="me_vEnsayoHint" style="font-size:.72rem;color:var(--muted);margin-top:2px;"></div>
         </div>
-        <div class="fld"><label>Temp. ambiente al ensayo (°C)</label><input type="number" step="0.1" id="me_tempAmb" oninput="updateIPPreview()"></div>
+        <div class="fld"><label>Temp. ambiente al ensayo (°C)</label><input type="number" step="0.1" inputmode="decimal" id="me_tempAmb" oninput="updateIPPreview()"></div>
+        <div class="fld"><label>Temp. de bobinado al ensayo (°C, opcional)</label><input type="number" step="0.1" inputmode="decimal" id="me_tempBob" oninput="updateIPPreview()">
+          <div class="hint">Si el motor estuvo detenido poco tiempo, priorizá esta sobre la ambiente para corregir a 40°C.</div>
+        </div>
       </div>
 
       <div class="modal-section-title">🧪 Aislación (Megóhmetro)</div>
       <div id="me_aislacionSimple">
         <div class="form-grid">
-          <div class="fld"><label>Resistencia de aislación 1 min (MΩ)</label><input type="number" step="0.01" id="me_r1" oninput="updateIPPreview()"></div>
-          <div class="fld"><label>Resistencia de aislación 10 min (MΩ)</label><input type="number" step="0.01" id="me_r10" oninput="updateIPPreview()"></div>
+          <div class="fld"><label>Resistencia a 30 seg (MΩ, opcional — para DAR)</label><input type="number" step="0.01" inputmode="decimal" id="me_r30" oninput="updateIPPreview()"></div>
+          <div class="fld"><label>Resistencia de aislación 1 min (MΩ)</label><input type="number" step="0.01" inputmode="decimal" id="me_r1" oninput="updateIPPreview()"></div>
+          <div class="fld"><label>Resistencia de aislación 10 min (MΩ)</label><input type="number" step="0.01" inputmode="decimal" id="me_r10" oninput="updateIPPreview()"></div>
           <div class="fld"><label>IP calculado (R10/R1)</label><input type="text" id="me_ipPreview" disabled placeholder="—"></div>
+          <div class="fld"><label>DAR calculado (R1min/R30seg)</label><input type="text" id="me_darPreview" disabled placeholder="—"></div>
           <div class="fld"><label>R1 corregido a 40°C (vista previa)</label><input type="text" id="me_r1CorrPreview" disabled placeholder="Cargá R1 y temp. ambiente"></div>
         </div>
         <div class="note-box" style="margin-top:6px;">Motor de 3 hilos: el punto estrella está cerrado dentro de la carcasa, así que los tres devanados quedan en paralelo entre sí. Solo es posible medir el bobinado completo contra tierra — no hay forma de aislar un devanado del otro sin desarmar el motor.</div>
       </div>
       <div id="me_aislacionExtendida" class="hidden">
         <div style="font-size:.85rem;color:var(--muted);margin-bottom:8px;">Motor de 6 hilos: cada devanado se mide aislado del resto (los otros dos a tierra). Con estrella accesible, también se puede medir devanado contra devanado.</div>
-        <div class="form-grid-5">
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);">
           <div class="fld"><label>Devanado</label></div>
-          <div class="fld span2"><label>R1 (1 min, MΩ)</label></div>
-          <div class="fld span2"><label>R10 (10 min, MΩ)</label></div>
+          <div class="fld" style="grid-column:span 2;"><label>R1 (1 min, MΩ)</label></div>
+          <div class="fld" style="grid-column:span 2;"><label>R10 (10 min, MΩ)</label></div>
         </div>
-        <div class="form-grid-5" style="align-items:center;">
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
           <div class="fld"><label style="margin:0;">U — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_u" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_u" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_u" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
           <div class="fld"><label style="margin:0;">V — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_v" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_v" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_v" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
           <div class="fld"><label style="margin:0;">W — GND</label></div>
-          <input type="number" step="0.01" id="me_r1_w" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_w" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_w" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
         </div>
         <div style="font-size:.8rem;color:var(--muted);margin:10px 0 4px;">Devanado contra devanado (opcional, con estrella abierta):</div>
-        <div class="form-grid-5" style="align-items:center;">
+        <div class="form-grid" style="grid-template-columns:repeat(5,1fr);align-items:center;">
           <div class="fld"><label style="margin:0;">U — V</label></div>
-          <input type="number" step="0.01" id="me_r1_uv" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_uv" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_uv" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
           <div class="fld"><label style="margin:0;">V — W</label></div>
-          <input type="number" step="0.01" id="me_r1_vw" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_vw" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_vw" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
           <div class="fld"><label style="margin:0;">W — U</label></div>
-          <input type="number" step="0.01" id="me_r1_wu" oninput="updateIPPreviewExt()" class="span2">
-          <input type="number" step="0.01" id="me_r10_wu" oninput="updateIPPreviewExt()" class="span2">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r1_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
+          <input type="number" step="0.01" inputmode="decimal" id="me_r10_wu" oninput="updateIPPreviewExt()" style="grid-column:span 2;">
         </div>
         <div class="form-grid" style="margin-top:8px;">
           <div class="fld"><label>Devanado más débil (gobierna el diagnóstico)</label><input type="text" id="me_governingPreview" disabled placeholder="—"></div>
           <div class="fld"><label>IP de ese devanado (R10/R1)</label><input type="text" id="me_ipPreviewExt" disabled placeholder="—"></div>
           <div class="fld"><label>R1 corregido a 40°C (vista previa)</label><input type="text" id="me_r1CorrPreviewExt" disabled placeholder="Cargá datos y temp. ambiente"></div>
+          <div class="fld"><label>R a 30 seg del devanado gobernante (MΩ, opcional — para DAR)</label><input type="number" step="0.01" inputmode="decimal" id="me_r30_gov" oninput="updateIPPreviewExt()"></div>
+          <div class="fld"><label>DAR de ese devanado (R1min/R30seg)</label><input type="text" id="me_darPreviewExt" disabled placeholder="—"></div>
         </div>
       </div>
 
       <div class="modal-section-title">🔧 Resistencia óhmica de bobinado</div>
       <div class="form-grid">
-        <div class="fld"><label>R U-V (Ω)</label><input type="number" step="0.001" id="me_rUV"></div>
-        <div class="fld"><label>R V-W (Ω)</label><input type="number" step="0.001" id="me_rVW"></div>
-        <div class="fld"><label>R W-U (Ω)</label><input type="number" step="0.001" id="me_rWU"></div>
+        <div class="fld"><label>R U-V (Ω)</label><input type="number" inputmode="decimal" step="0.001" id="me_rUV"></div>
+        <div class="fld" id="me_rVWWrap"><label>R V-W (Ω)</label><input type="number" inputmode="decimal" step="0.001" id="me_rVW"></div>
+        <div class="fld" id="me_rWUWrap"><label>R W-U (Ω)</label><input type="number" inputmode="decimal" step="0.001" id="me_rWU"></div>
       </div>
 
       <div class="modal-section-title">⚡ Corriente de línea (opcional)</div>
       <div class="form-grid">
-        <div class="fld"><label>Corriente R (A)</label><input type="number" step="0.1" id="me_iR"></div>
-        <div class="fld"><label>Corriente S (A)</label><input type="number" step="0.1" id="me_iS"></div>
-        <div class="fld"><label>Corriente T (A)</label><input type="number" step="0.1" id="me_iT"></div>
+        <div class="fld"><label>Corriente R (A)</label><input type="number" inputmode="decimal" step="0.1" id="me_iR"></div>
+        <div class="fld"><label>Corriente S (A)</label><input type="number" inputmode="decimal" step="0.1" id="me_iS"></div>
+        <div class="fld"><label>Corriente T (A)</label><input type="number" inputmode="decimal" step="0.1" id="me_iT"></div>
       </div>
 
       <div class="modal-section-title">Observaciones</div>
@@ -585,22 +620,28 @@ header{
 // ═══════════════════════════════════════════════════════════
 const MOTOR_TYPES = ['Inducción Jaula de Ardilla','Inducción Rotor Bobinado','Sincrónico','Corriente Continua (CC)','Otro'];
 const MOTOR_SYSTEMS = ['Trifásico','Monofásico'];
+const TIPOS_INTERVENCION = ['Barnizado/Secado','Cambio de rodamientos','Reapriete de bornera','Rebobinado','Limpieza','Alineación','Balanceo','Reparación eléctrica','Otro'];
 
 const STATUS        = ['good','elevated','warning','critical'];
 const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
-const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
 const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
 
 // Umbrales por defecto (editables desde la pestaña Umbrales)
-// ip, rAisl: menor = peor (se evalúan invertidos). desbR, desbI: mayor = peor.
+// ip, dar, rAisl: menor = peor (se evalúan invertidos). desbR, desbI: mayor = peor.
+// Recalibrado a IEEE 43-2013 (edición vigente): IP ≥4 bueno / 2.5–4 vigilancia / 2–2.5
+// límite / <2 malo; R1 (bobinados random-wound) ≥100MΩ bueno / 25–100 vigilancia /
+// 5–25 límite / <5 crítico. Los valores previos ([2.0,1.5,1.0] e [100,10,1]) eran de
+// una edición anterior de la norma y subestimaban motores en zona de sospecha.
 const DEFAULT_THRESHOLDS = {
-  ip:     [2.0, 1.5, 1.0],   // inverso — IEEE 43 (bueno ≥2, dudoso 1–2, malo <1)
-  rAisl:  [100, 10, 1],      // inverso (MΩ, R a 1 min)
+  ip:     [4.0, 2.5, 2.0],   // inverso — IEEE 43-2013 (Índice de Polarización)
+  dar:    [1.6, 1.4, 1.2],   // inverso — IEEE 43-2013 (Relación de Absorción Dieléctrica, R60/R30)
+  rAisl:  [100, 25, 5],      // inverso (MΩ, R a 1 min, bobinado random-wound)
   desbR:  [1, 2, 5],         // % desbalance de resistencia de bobinado
   desbI:  [5, 10, 15]        // % desbalance de corriente de línea (NEMA MG-1)
 };
 const THRESHOLD_META = {
   ip:    {label:'Índice de Polarización (R10min/R1min)', unit:'', inverse:true},
+  dar:   {label:'Relación de Absorción Dieléctrica (R1min/R30seg — DAR)', unit:'', inverse:true},
   rAisl: {label:'Resistencia de Aislación (1 min)', unit:'MΩ', inverse:true},
   desbR: {label:'Desbalance de Resistencia de Bobinado', unit:'%', inverse:false},
   desbI: {label:'Desbalance de Corriente de Línea', unit:'%', inverse:false}
@@ -614,22 +655,46 @@ let readingsData   = new Map();   // motorId -> {dates:[], params:{...}, obs:[]}
 let equiposHub      = new Map();  // tag -> {nombre, tipo, ubicacion} — catálogo compartido del hub
 let thresholds     = JSON.parse(JSON.stringify(DEFAULT_THRESHOLDS));
 let statusFilter   = 'all';
+let editingMotorId = null;
+let vEnsayoTouched = false; // true si el técnico ya ajustó la tensión de ensayo a mano en esta carga
 let currentKey     = null;
 let detailChart    = null;
+let intervenciones = [];          // [{id, motorName, fecha, tipo, descripcion, ts, synced}] — historial de intervenciones (todos los motores)
 
 // ═══════════════════════════════════════════════════════════
 //  3. PERSISTENCE
 // ═══════════════════════════════════════════════════════════
+// v6 (histórico) = esquema 1 · v7 (actual) = esquema 2: umbrales recalibrados a
+// IEEE 43-2013 + DAR. Subir este número cada vez que cambien DEFAULT_THRESHOLDS
+// o se agregue/quite un parámetro de diagnóstico.
+const SCHEMA_VERSION = 2;
+let thresholdsMigrated = false; // true si se descartaron umbrales de localStorage por ser de un esquema viejo
+
 function loadState() {
   try {
     const c = JSON.parse(localStorage.getItem('motor_pro_cfg') || '{}');
-    if (c.thresholds) thresholds = {...DEFAULT_THRESHOLDS, ...c.thresholds};
+    const storedVersion = c.schemaVersion || 1;
+    // Umbrales de un esquema anterior (p. ej. la versión previa de IEEE 43 con
+    // ip:[2,1.5,1]) se descartan a propósito en vez de mezclarse con los defaults
+    // nuevos: aplicar el spread encima dejaría un híbrido inconsistente y el fix
+    // de recalibración quedaría en el código pero sin efecto real para ese técnico.
+    if (c.thresholds && storedVersion >= SCHEMA_VERSION) {
+      thresholds = {...DEFAULT_THRESHOLDS, ...c.thresholds};
+    } else if (c.thresholds) {
+      thresholdsMigrated = true; // se usan los DEFAULT_THRESHOLDS ya asignados arriba
+    }
     if (c.motorsRegistry) for (const [k,v] of Object.entries(c.motorsRegistry)) motorsRegistry.set(k,v);
     if (c.readingsData) {
       for (const [k,v] of Object.entries(c.readingsData)) {
         readingsData.set(k, { dates: v.dates.map(d => new Date(d)), params: v.params, obs: v.obs || [] });
       }
     }
+    if (Array.isArray(c.intervenciones)) intervenciones = c.intervenciones;
+    // Los datos crudos de cada ensayo no se tocan — lo único que cambia es la
+    // EVALUACIÓN: evalReading() lee `thresholds` en runtime, así que los mismos
+    // valores se reevalúan solos con los umbrales nuevos en el próximo render.
+    // Es lo correcto — un motor que estaba "Normal" con IP 2.3 debe pasar a "Alerta".
+    if (thresholdsMigrated) saveState(); // persiste ya con el esquema vigente
   } catch(e){ console.warn('loadState error', e); }
 }
 function saveState() {
@@ -638,9 +703,11 @@ function saveState() {
     rdSerial[k] = { dates: v.dates.map(d=>d.toISOString()), params: v.params, obs: v.obs || [] };
   }
   localStorage.setItem('motor_pro_cfg', JSON.stringify({
+    schemaVersion: SCHEMA_VERSION,
     thresholds,
     motorsRegistry: Object.fromEntries(motorsRegistry),
-    readingsData: rdSerial
+    readingsData: rdSerial,
+    intervenciones
   }));
 }
 
@@ -654,7 +721,6 @@ function fmt(v,d=1){ return (v===undefined||v===null||isNaN(v)) ? '—' : Number
 function fmtDate(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleDateString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric'}); }
 function fmtDateTime(d){ if(!(d instanceof Date)||isNaN(d)) return '—'; return d.toLocaleString('es-PY',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
 function getMotorName(id){ return motorsRegistry.get(id)?.name || id; }
-function getDisplayName(k){ return getMotorName(k); }
 function isTrifasico(key){
   const m = motorsRegistry.get(key);
   return !m || !m.sistema || m.sistema === 'Trifásico';
@@ -694,28 +760,69 @@ function evalReading(params, n){
   const p = params;
   const r1  = p.R1?.[n];
   const r10 = p.R10?.[n];
+  const r30 = p.R30?.[n];
   const ip  = (!isNaN(r1) && !isNaN(r10) && r1 > 0) ? (r10/r1) : NaN;
+  // DAR (Relación de Absorción Dieléctrica) = R1min/R30seg. La lectura de 1 minuto
+  // que ya se carga para el IP (R1) cumple el rol de "R60" — solo hace falta la
+  // lectura adicional a 30 segundos (R30) para no duplicar campos en el formulario.
+  const dar = (!isNaN(r1) && !isNaN(r30) && r30 > 0) ? (r1/r30) : NaN;
   const rAisl = r1; // valor medido, sin corregir (se conserva para trazabilidad)
   const desbR = p.DesbR?.[n];
   const desbI = p.DesbI?.[n];
   const vEnsayo = p.VEnsayo?.[n];
   const tempAmb = p.TempAmb?.[n];
+  const tempBob = p.TempBob?.[n];
 
-  // Corregido a 40°C para el diagnóstico. Si no hay temperatura ambiente cargada,
-  // se evalúa con el valor crudo (sin corrección) — no se puede corregir sin ese dato.
-  const rAislCorr = !isNaN(tempAmb) ? correctInsulationTo40C(rAisl, tempAmb) : NaN;
+  // IEEE 43 pide corregir con la temperatura del bobinado cuando el motor estuvo
+  // detenido poco tiempo (el aire ambiente puede estar bastante más frío que el
+  // bobinado recién parado y subestimar el R corregido). Si se cargó, se prioriza
+  // sobre la temperatura ambiente; si no, se usa ambiente como aproximación.
+  const usingWindingTemp = !isNaN(tempBob);
+  const correctionTemp = usingWindingTemp ? tempBob : tempAmb;
+  const tempDeltaWarn = (!isNaN(tempBob) && !isNaN(tempAmb) && Math.abs(tempBob-tempAmb) > 10);
+  const rAislCorr = !isNaN(correctionTemp) ? correctInsulationTo40C(rAisl, correctionTemp) : NaN;
   const rAislEval = !isNaN(rAislCorr) ? rAislCorr : rAisl;
   const rAislCorregida = !isNaN(rAislCorr); // flag: ¿se pudo corregir este dato?
 
   const subs = {
     ip:     levelOf(ip,       thresholds.ip,    true),
+    dar:    levelOf(dar,      thresholds.dar,   true),
     rAisl:  levelOf(rAislEval, thresholds.rAisl, true),
     desbR:  levelOf(desbR,    thresholds.desbR, false),
     desbI:  levelOf(desbI,    thresholds.desbI, false)
   };
   let overall = 0;
   for (const k in subs) if (subs[k] > overall) overall = subs[k];
-  return { subs, overall, ip, rAisl, rAislCorr, rAislEval, rAislCorregida, r1, r10, desbR, desbI, vEnsayo, tempAmb };
+  return { subs, overall, ip, dar, r30, rAisl, rAislCorr, rAislEval, rAislCorregida,
+    usingWindingTemp, tempDeltaWarn, r1, r10, desbR, desbI, vEnsayo, tempAmb, tempBob };
+}
+
+// Devuelve la evaluación del ensayo inmediatamente anterior al último cargado
+// (o null si no hay al menos dos ensayos), para comparar variación y detectar
+// caídas abruptas entre rondas de medición.
+function prevEvaluation(key){
+  const d = readingsData.get(key);
+  if (!d) return null;
+  const n = lastValidIdx(d);
+  return n > 0 ? evalReading(d.params, n-1) : null;
+}
+
+// Caída abrupta en una sola ronda (vs. una tendencia gradual): amerita repetir el
+// ensayo y revisar condiciones (humedad, limpieza) antes de decidir una intervención
+// mayor, porque puede deberse a contaminación puntual y no a degradación real.
+const URGENT_DROP_PCT = { ip: 25, dar: 15, rAisl: 40 };
+function abruptDropWarning(curr, prev){
+  if (!prev) return null;
+  const drops = [];
+  for (const [k, label] of [['ip','IP'],['dar','DAR'],['rAisl','R. Aislación']]){
+    const c = k==='rAisl' ? curr.rAislEval : curr[k];
+    const p = k==='rAisl' ? prev.rAislEval : prev[k];
+    if (isNaN(c) || isNaN(p) || p<=0) continue;
+    const dropPct = ((p - c) / p) * 100;
+    if (dropPct >= URGENT_DROP_PCT[k]) drops.push(`${label} cayó ${dropPct.toFixed(0)}% respecto al ensayo anterior`);
+  }
+  if (!drops.length) return null;
+  return `🔴 Caída abrupta detectada: ${drops.join('; ')}. Antes de decidir una intervención mayor, repetí el ensayo y verificá condiciones puntuales (humedad, suciedad superficial, temperatura) — una caída de una sola ronda no siempre indica una tendencia degradante real.`;
 }
 
 function computeDesbalance(a,b,c){
@@ -736,6 +843,22 @@ function healthScoreFromLevel(overall, subs){
 
 function lastValidIdx(d){ return d.dates.length - 1; }
 
+// Delta porcentual entre el valor actual y el del ensayo anterior, con indicador
+// visual de si la variación es una mejora o un empeoramiento según el sentido
+// físico de la magnitud (para R1/IP, más alto es mejor; para desbalances, más bajo).
+function computeDeltaPct(curr, prev){
+  if (isNaN(curr) || isNaN(prev) || prev === 0) return null;
+  return ((curr - prev) / Math.abs(prev)) * 100;
+}
+function deltaBadgeHtml(curr, prev, higherIsBetter=true){
+  const delta = computeDeltaPct(curr, prev);
+  if (delta === null) return '';
+  const arrow = delta > 0.05 ? '▲' : delta < -0.05 ? '▼' : '≈';
+  const improved = higherIsBetter ? delta > 0 : delta < 0;
+  const color = Math.abs(delta) < 3 ? 'var(--muted)' : (improved ? 'var(--good)' : 'var(--critical)');
+  return `<div style="font-size:.68rem;color:${color};margin-top:2px;">${arrow} ${Math.abs(delta).toFixed(1)}% vs ensayo anterior</div>`;
+}
+
 function diagnoseMotor(k){
   const d = readingsData.get(k);
   if (!d || !d.dates.length) return null;
@@ -747,8 +870,8 @@ function diagnoseMotor(k){
 // ═══════════════════════════════════════════════════════════
 //  5. IMPORT (Excel / CSV)
 // ═══════════════════════════════════════════════════════════
-const TEMPLATE_HEADERS = ['Motor','Tipo','Sistema','Hilos','Potencia_kW','Tension_Nominal_V','Corriente_Nominal_A','RPM','Fecha','Tension_Ensayo_V','Temp_Ambiente_C',
-  'R1min_MOhm','R10min_MOhm',
+const TEMPLATE_HEADERS = ['Motor','Tipo','Sistema','Hilos','Potencia_kW','Tension_Nominal_V','Corriente_Nominal_A','RPM','Fecha','Tension_Ensayo_V','Temp_Ambiente_C','Temp_Bobinado_C',
+  'R1min_MOhm','R10min_MOhm','R30seg_MOhm',
   'R1_U_MOhm','R10_U_MOhm','R1_V_MOhm','R10_V_MOhm','R1_W_MOhm','R10_W_MOhm',
   'R1_UV_MOhm','R10_UV_MOhm','R1_VW_MOhm','R10_VW_MOhm','R1_WU_MOhm','R10_WU_MOhm',
   'R_UV_Ohm','R_VW_Ohm','R_WU_Ohm','I_R_A','I_S_A','I_T_A','Observaciones'];
@@ -869,8 +992,10 @@ function importRows(rows){
 
     const vEnsayo = numOrNaN(findCol(row,['Tension_Ensayo_V']));
     const tempAmb = numOrNaN(findCol(row,['Temp_Ambiente_C']));
+    const tempBob = numOrNaN(findCol(row,['Temp_Bobinado_C']));
     const r1min = numOrNaN(findCol(row,['R1min_MOhm']));
     const r10min = numOrNaN(findCol(row,['R10min_MOhm']));
+    const r30seg = numOrNaN(findCol(row,['R30seg_MOhm']));
     const r1u = numOrNaN(findCol(row,['R1_U_MOhm'])), r10u = numOrNaN(findCol(row,['R10_U_MOhm']));
     const r1v = numOrNaN(findCol(row,['R1_V_MOhm'])), r10v = numOrNaN(findCol(row,['R10_V_MOhm']));
     const r1w = numOrNaN(findCol(row,['R1_W_MOhm'])), r10w = numOrNaN(findCol(row,['R10_W_MOhm']));
@@ -881,7 +1006,8 @@ function importRows(rows){
     // Para motores de 6 hilos, el R1/R10 que gobierna el diagnóstico es el del
     // devanado más débil (mismo criterio que saveManualReading/pickGoverning).
     // Si la fila no trae mediciones por devanado (planilla vieja o parcial),
-    // se usa R1min/R10min como respaldo.
+    // se usa R1min/R10min como respaldo. R30seg_MOhm se asume del mismo devanado
+    // gobernante (no hay columnas separadas por devanado para el DAR).
     let r1 = r1min, r10 = r10min;
     if (hilosMotor === '6'){
       const gov = pickGoverning([{name:'U',r1:r1u,r10:r10u},{name:'V',r1:r1v,r10:r10v},{name:'W',r1:r1w,r10:r10w}]);
@@ -896,16 +1022,16 @@ function importRows(rows){
     const iT = numOrNaN(findCol(row,['I_T_A']));
     const obs = String(findCol(row,['Observaciones']) || '');
 
-    const desbR = computeDesbalance(rUV, rVW, rWU);
+    const desbR = isTrifasico(key) ? computeDesbalance(rUV, rVW, rWU) : NaN;
     const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
 
-    if (!touched.has(key)) touched.set(key, {dates:[], params:{VEnsayo:[],TempAmb:[],R1:[],R10:[],
+    if (!touched.has(key)) touched.set(key, {dates:[], params:{VEnsayo:[],TempAmb:[],TempBob:[],R1:[],R10:[],R30:[],
       R1_U:[],R10_U:[],R1_V:[],R10_V:[],R1_W:[],R10_W:[],R1_UV:[],R10_UV:[],R1_VW:[],R10_VW:[],R1_WU:[],R10_WU:[],
       R_UV:[],R_VW:[],R_WU:[],DesbR:[],I_R:[],I_S:[],I_T:[],DesbI:[]}, obs:[]});
     const t = touched.get(key);
     t.dates.push(fecha);
-    t.params.VEnsayo.push(vEnsayo); t.params.TempAmb.push(tempAmb);
-    t.params.R1.push(r1); t.params.R10.push(r10);
+    t.params.VEnsayo.push(vEnsayo); t.params.TempAmb.push(tempAmb); t.params.TempBob.push(tempBob);
+    t.params.R1.push(r1); t.params.R10.push(r10); t.params.R30.push(r30seg);
     t.params.R1_U.push(r1u); t.params.R10_U.push(r10u);
     t.params.R1_V.push(r1v); t.params.R10_V.push(r10v);
     t.params.R1_W.push(r1w); t.params.R10_W.push(r10w);
@@ -956,14 +1082,21 @@ function mergeReadings(existing, incoming){
 function updateIPPreview(){
   const r1 = parseFloat(document.getElementById('me_r1').value);
   const r10 = parseFloat(document.getElementById('me_r10').value);
+  const r30 = parseFloat(document.getElementById('me_r30').value);
   const tempAmb = parseFloat(document.getElementById('me_tempAmb').value);
+  const tempBob = parseFloat(document.getElementById('me_tempBob').value);
   const out = document.getElementById('me_ipPreview');
   if (!isNaN(r1) && !isNaN(r10) && r1 > 0) out.value = (r10/r1).toFixed(2);
   else out.value = '';
 
+  const outDar = document.getElementById('me_darPreview');
+  if (!isNaN(r1) && !isNaN(r30) && r30 > 0) outDar.value = (r1/r30).toFixed(2);
+  else outDar.value = '';
+
+  const correctionTemp = !isNaN(tempBob) ? tempBob : tempAmb;
   const outCorr = document.getElementById('me_r1CorrPreview');
-  if (!isNaN(r1) && !isNaN(tempAmb)){
-    outCorr.value = correctInsulationTo40C(r1, tempAmb).toFixed(1) + ' MΩ';
+  if (!isNaN(r1) && !isNaN(correctionTemp)){
+    outCorr.value = correctInsulationTo40C(r1, correctionTemp).toFixed(1) + ' MΩ' + (!isNaN(tempBob)?' (desde temp. bobinado)':'');
   } else {
     outCorr.value = '';
   }
@@ -984,14 +1117,19 @@ function updateIPPreviewExt(){
   const r1u=numOrUndef('me_r1_u'), r10u=numOrUndef('me_r10_u');
   const r1v=numOrUndef('me_r1_v'), r10v=numOrUndef('me_r10_v');
   const r1w=numOrUndef('me_r1_w'), r10w=numOrUndef('me_r10_w');
+  const r30gov = numOrUndef('me_r30_gov');
   const tempAmb = parseFloat(document.getElementById('me_tempAmb').value);
+  const tempBob = parseFloat(document.getElementById('me_tempBob').value);
   const gov = pickGoverning([
     {name:'U', r1:r1u, r10:r10u}, {name:'V', r1:r1v, r10:r10v}, {name:'W', r1:r1w, r10:r10w}
   ]);
   document.getElementById('me_governingPreview').value = gov.winding ? `Devanado ${gov.winding} (R1 = ${fmt(gov.r1,1)} MΩ)` : '';
   document.getElementById('me_ipPreviewExt').value = !isNaN(gov.ip) ? gov.ip.toFixed(2) : '';
+  const outDarExt = document.getElementById('me_darPreviewExt');
+  outDarExt.value = (!isNaN(gov.r1) && !isNaN(r30gov) && r30gov>0) ? (gov.r1/r30gov).toFixed(2) : '';
+  const correctionTemp = !isNaN(tempBob) ? tempBob : tempAmb;
   const outCorr = document.getElementById('me_r1CorrPreviewExt');
-  if (!isNaN(gov.r1) && !isNaN(tempAmb)) outCorr.value = correctInsulationTo40C(gov.r1, tempAmb).toFixed(1) + ' MΩ';
+  if (!isNaN(gov.r1) && !isNaN(correctionTemp)) outCorr.value = correctInsulationTo40C(gov.r1, correctionTemp).toFixed(1) + ' MΩ' + (!isNaN(tempBob)?' (desde temp. bobinado)':'');
   else outCorr.value = '';
 }
 
@@ -1000,6 +1138,65 @@ function getEffectiveHilos(){
   if (!sel) return '3';
   if (sel.value === '__new') return document.getElementById('me_newMotorHilos').value;
   return motorsRegistry.get(sel.value)?.hilos || '3';
+}
+
+function getEffectiveSistema(){
+  const sel = document.getElementById('me_motorSel');
+  if (!sel) return 'Trifásico';
+  if (sel.value === '__new') return document.getElementById('me_newMotorSystem').value;
+  return motorsRegistry.get(sel.value)?.sistema || 'Trifásico';
+}
+
+// Un motor monofásico no tiene devanados V-W / W-U (solo bobinado principal, U-V).
+// Ocultar esos campos evita que se cargue un "desbalance" sin sentido físico.
+function toggleWindingFields(){
+  const esTrifasico = getEffectiveSistema() !== 'Monofásico';
+  document.getElementById('me_rVWWrap').classList.toggle('hidden', !esTrifasico);
+  document.getElementById('me_rWUWrap').classList.toggle('hidden', !esTrifasico);
+}
+
+// Tensión de ensayo sugerida por IEEE 43 (orientativo): V ≈ 2×Vnom + 1000, tope 5000 V.
+function suggestedVEnsayo(vNom){
+  if (!vNom) return null;
+  return Math.min(2*vNom + 1000, 5000);
+}
+function nearestVEnsayoOption(v){
+  const opts = [250,500,1000,2500,5000];
+  return opts.reduce((best,o)=>Math.abs(o-v)<Math.abs(best-v)?o:best, opts[0]);
+}
+function suggestVEnsayo(){
+  const sel = document.getElementById('me_motorSel');
+  const hint = document.getElementById('me_vEnsayoHint');
+  if (!sel || !hint) return;
+  if (sel.value==='__new'){ hint.textContent=''; return; }
+  const vNom = motorsRegistry.get(sel.value)?.vNom;
+  if (!vNom){ hint.textContent=''; return; }
+  const nearest = nearestVEnsayoOption(suggestedVEnsayo(vNom));
+  // Si el técnico ya ajustó la tensión a mano en esta carga, no se la pisamos al
+  // cambiar de motor (p.ej. si tocó el select por error) — solo se actualiza el hint.
+  if (!vEnsayoTouched) document.getElementById('me_vEnsayo').value = String(nearest);
+  hint.style.color = 'var(--muted)';
+  hint.textContent = `Sugerido para ${vNom} V nominal: ${nearest} V (IEEE 43 ≈ 2×Vnom+1000, tope 5000 V).`;
+}
+function onVEnsayoManualChange(){
+  vEnsayoTouched = true;
+  checkVEnsayo();
+}
+function checkVEnsayo(){
+  const sel = document.getElementById('me_motorSel');
+  const hint = document.getElementById('me_vEnsayoHint');
+  if (!sel || !hint || sel.value==='__new') return;
+  const vNom = motorsRegistry.get(sel.value)?.vNom;
+  if (!vNom) return;
+  const chosen = parseFloat(document.getElementById('me_vEnsayo').value);
+  const sug = suggestedVEnsayo(vNom);
+  if (chosen > sug*1.5){
+    hint.innerHTML = `⚠️ Vas a ensayar con ${chosen} V un motor de ${vNom} V nominal (sugerido ≈${nearestVEnsayoOption(sug)} V) — riesgo de dañar aislación debilitada.`;
+    hint.style.color = 'var(--warning, #f0b429)';
+  } else {
+    hint.style.color = 'var(--muted)';
+    hint.textContent = `Sugerido para ${vNom} V nominal: ${nearestVEnsayoOption(sug)} V (IEEE 43 ≈ 2×Vnom+1000, tope 5000 V).`;
+  }
 }
 
 function openManualEntry(){
@@ -1011,12 +1208,14 @@ function openManualEntry(){
   const newMotorSystem = document.getElementById('me_newMotorSystem');
   if (!newMotorSystem.dataset.filled){ newMotorSystem.innerHTML = MOTOR_SYSTEMS.map(t=>`<option value="${t}">${t}</option>`).join(''); newMotorSystem.dataset.filled='1'; }
 
-  ['me_tempAmb','me_r1','me_r10','me_r1_u','me_r10_u','me_r1_v','me_r10_v','me_r1_w','me_r10_w',
-   'me_r1_uv','me_r10_uv','me_r1_vw','me_r10_vw','me_r1_wu','me_r10_wu',
+  ['me_tempAmb','me_tempBob','me_r1','me_r10','me_r30','me_r1_u','me_r10_u','me_r1_v','me_r10_v','me_r1_w','me_r10_w',
+   'me_r1_uv','me_r10_uv','me_r1_vw','me_r10_vw','me_r1_wu','me_r10_wu','me_r30_gov',
    'me_rUV','me_rVW','me_rWU','me_iR','me_iS','me_iT','me_newMotorName','me_obs'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('me_ipPreview').value = '';
+  document.getElementById('me_darPreview').value = '';
   document.getElementById('me_newMotorHilos').value = '6';
   document.getElementById('me_vEnsayo').value = '500';
+  vEnsayoTouched = false; // cada carga nueva empieza "sin tocar" — se vuelve a sugerir la tensión
   document.getElementById('me_fecha').value = new Date().toISOString().slice(0,10);
 
   onManualMotorChange();
@@ -1040,6 +1239,8 @@ function onManualMotorChange(){
   document.getElementById('me_newMotorSystemWrap').classList.toggle('hidden', !isNew);
   document.getElementById('me_newMotorHilosWrap').classList.toggle('hidden', !isNew);
   toggleAislacionMode();
+  toggleWindingFields();
+  suggestVEnsayo();
 }
 
 function numOrUndef(id){
@@ -1047,96 +1248,6 @@ function numOrUndef(id){
   if (v==='') return NaN;
   const n = parseFloat(v);
   return isNaN(n) ? NaN : n;
-}
-
-// ═══════════════════════════════════════════════════════════
-//  CAPTURAS DE CAMPO (Hub de Campo → copiar a formulario → analizar)
-// ═══════════════════════════════════════════════════════════
-let _capturasPendientes = [];
-let _capturaActual = null; // captura en edición dentro del modal manual
-
-async function abrirCapturasPendientes(){
-  const overlay = document.getElementById('capturasOverlay');
-  const lista = document.getElementById('capturasLista');
-  overlay.classList.add('open');
-  lista.innerHTML = `<div class="empty-state"><div class="ei">📡</div>Buscando capturas pendientes…</div>`;
-  if (typeof SatSync === 'undefined' || !SatSync.init()){
-    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.</div>`;
-    return;
-  }
-  try{
-    _capturasPendientes = await SatSync.listarCapturasPendientes({ modulo: 'motor_pro' });
-  }catch(err){
-    lista.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div>No se pudo leer capturas_campo: ${escHtml(err.message)}</div>`;
-    return;
-  }
-  renderCapturasBadge();
-  if (!_capturasPendientes.length){
-    lista.innerHTML = `<div class="empty-state"><div class="ei">✅</div>No hay capturas pendientes desde el Hub de Campo.</div>`;
-    return;
-  }
-  lista.innerHTML = _capturasPendientes.map((c,i)=>{
-    const d = c.datos || {};
-    const tag = c.equipos?.tag || '(sin tag)';
-    const ipTxt = (d.r1>0 && d.r10) ? `IP ${(d.r10/d.r1).toFixed(2)} · ` : '';
-    return `<div class="fld" style="border:1px solid var(--border,#26374f);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <div>
-        <div style="font-weight:600;">${escHtml(tag)}</div>
-        <div style="font-size:.75rem;color:var(--muted);">${escHtml(d.fecha||'')} · ${ipTxt}R1 ${d.r1??d.r1u??'—'} MΩ${d.autor?(' · '+escHtml(c.autor||'')):''}</div>
-      </div>
-      <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="copiarCapturaAFormulario(${i})">📋 Copiar a formulario</button>
-    </div>`;
-  }).join('');
-}
-function cerrarCapturasPendientes(){ document.getElementById('capturasOverlay').classList.remove('open'); }
-function renderCapturasBadge(){
-  const b = document.getElementById('capturasBadge');
-  b.textContent = _capturasPendientes.length;
-  b.classList.toggle('hidden', _capturasPendientes.length===0);
-}
-
-function copiarCapturaAFormulario(i){
-  const captura = _capturasPendientes[i];
-  if (!captura) return;
-  const d = captura.datos || {};
-  const tag = captura.equipos?.tag || '';
-
-  cerrarCapturasPendientes();
-  openManualEntry(); // resetea el form, arma el select de motores y lo abre
-
-  const sel = document.getElementById('me_motorSel');
-  let motorId = null;
-  for (const [id, m] of motorsRegistry.entries()) if (m.name.toLowerCase() === tag.toLowerCase()) { motorId = id; break; }
-  if (motorId){
-    sel.value = motorId;
-  } else {
-    sel.value = '__new';
-    document.getElementById('me_newMotorName').value = tag;
-    // 6 hilos si vinieron mediciones por fase (U/V/W a GND), si no 3 hilos simples
-    const seisHilos = [d.r1u,d.r1v,d.r1w].some(v=>v!==undefined && v!==null && v!=='');
-    document.getElementById('me_newMotorHilos').value = seisHilos ? '6' : '3';
-  }
-  onManualMotorChange();
-
-  if (d.fecha) document.getElementById('me_fecha').value = d.fecha;
-  if (d.vEnsayo!=null) document.getElementById('me_vEnsayo').value = d.vEnsayo;
-  if (d.tempAmb!=null) document.getElementById('me_tempAmb').value = d.tempAmb;
-  const campos = ['r1','r10','r1_u','r10_u','r1_v','r10_v','r1_w','r10_w',
-    'r1_uv','r10_uv','r1_vw','r10_vw','r1_wu','r10_wu','rUV','rVW','rWU','iR','iS','iT'];
-  campos.forEach(f=>{
-    const key = f.replace('_',''); // me_r1_u -> r1u en datos
-    if (d[key]!=null) document.getElementById('me_'+f).value = d[key];
-  });
-  if (d.obs) document.getElementById('me_obs').value = d.obs;
-
-  toggleAislacionMode();
-  if (typeof updateIPPreview === 'function') updateIPPreview();
-  if (typeof updateIPPreviewExt === 'function') updateIPPreviewExt();
-
-  _capturaActual = captura; // se marca como procesada recién al confirmar "Guardar ensayo"
-  const status = document.getElementById('loadStatus');
-  status.className = 'load-status ok';
-  status.textContent = `📋 Datos de ${tag} copiados — revisá y confirmá con "Guardar ensayo".`;
 }
 
 function saveManualReading(){
@@ -1162,7 +1273,8 @@ function saveManualReading(){
 
   const vEnsayo = numOrUndef('me_vEnsayo');
   const tempAmb = numOrUndef('me_tempAmb');
-  let r1, r10, r1u=NaN,r10u=NaN,r1v=NaN,r10v=NaN,r1w=NaN,r10w=NaN,r1uv=NaN,r10uv=NaN,r1vw=NaN,r10vw=NaN,r1wu=NaN,r10wu=NaN, governingWinding=null;
+  const tempBob = numOrUndef('me_tempBob');
+  let r1, r10, r30=NaN, r1u=NaN,r10u=NaN,r1v=NaN,r10v=NaN,r1w=NaN,r10w=NaN,r1uv=NaN,r10uv=NaN,r1vw=NaN,r10vw=NaN,r1wu=NaN,r10wu=NaN, governingWinding=null;
   if (hilosMotor === '6'){
     r1u=numOrUndef('me_r1_u'); r10u=numOrUndef('me_r10_u');
     r1v=numOrUndef('me_r1_v'); r10v=numOrUndef('me_r10_v');
@@ -1172,18 +1284,19 @@ function saveManualReading(){
     r1wu=numOrUndef('me_r1_wu'); r10wu=numOrUndef('me_r10_wu');
     const gov = pickGoverning([{name:'U',r1:r1u,r10:r10u},{name:'V',r1:r1v,r10:r10v},{name:'W',r1:r1w,r10:r10w}]);
     r1 = gov.r1; r10 = gov.r10; governingWinding = gov.winding;
+    r30 = numOrUndef('me_r30_gov'); // corresponde al devanado gobernante (r1/r10 de arriba)
   } else {
-    r1 = numOrUndef('me_r1'); r10 = numOrUndef('me_r10');
+    r1 = numOrUndef('me_r1'); r10 = numOrUndef('me_r10'); r30 = numOrUndef('me_r30');
   }
   const rUV = numOrUndef('me_rUV'), rVW = numOrUndef('me_rVW'), rWU = numOrUndef('me_rWU');
   const iR = numOrUndef('me_iR'), iS = numOrUndef('me_iS'), iT = numOrUndef('me_iT');
   const obs = document.getElementById('me_obs').value.trim();
-  const desbR = computeDesbalance(rUV, rVW, rWU);
+  const desbR = isTrifasico(key) ? computeDesbalance(rUV, rVW, rWU) : NaN;
   const desbI = isTrifasico(key) ? computeDesbalance(iR,iS,iT) : NaN;
 
   const incoming = {
     dates:[fecha],
-    params:{ VEnsayo:[vEnsayo], TempAmb:[tempAmb], R1:[r1], R10:[r10],
+    params:{ VEnsayo:[vEnsayo], TempAmb:[tempAmb], TempBob:[tempBob], R1:[r1], R10:[r10], R30:[r30],
       R1_U:[r1u], R10_U:[r10u], R1_V:[r1v], R10_V:[r10v], R1_W:[r1w], R10_W:[r10w],
       R1_UV:[r1uv], R10_UV:[r10uv], R1_VW:[r1vw], R10_VW:[r10vw], R1_WU:[r1wu], R10_WU:[r10wu],
       R_UV:[rUV], R_VW:[rVW], R_WU:[rWU], DesbR:[desbR], I_R:[iR], I_S:[iS], I_T:[iT], DesbI:[desbI] },
@@ -1195,16 +1308,9 @@ function saveManualReading(){
   saveState();
   closeManualEntry();
   renderAll();
-  if (_capturaActual){
-    const capId = _capturaActual.id;
-    _capturaActual = null;
-    if (typeof SatSync !== 'undefined' && SatSync.estaConfigurado()){
-      SatSync.marcarCapturaProcesada(capId).catch(err=>console.warn('[SatSync] no se pudo marcar la captura como procesada', err));
-    }
-  }
   const status = document.getElementById('loadStatus');
   status.className = 'load-status ok';
-  status.textContent = `✅ Ensayo guardado: ${getDisplayName(key)}` + (governingWinding ? ` (devanado ${governingWinding} gobierna el diagnóstico)` : '');
+  status.textContent = `✅ Ensayo guardado: ${getMotorName(key)}` + (governingWinding ? ` (devanado ${governingWinding} gobierna el diagnóstico)` : '');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1291,14 +1397,14 @@ function renderGrid(){
     if (!diag) continue;
     const level = diag.overall;
     if (statusFilter !== 'all' && (level<0 || STATUS[level] !== statusFilter)) continue;
-    const displayName = getDisplayName(k).toLowerCase();
+    const displayName = getMotorName(k).toLowerCase();
     if (search && !displayName.includes(search)) continue;
     const health = healthScoreFromLevel(diag.overall, diag.subs);
     items.push({k, diag, level, health});
   }
 
   if (sortMode==='health_asc') items.sort((a,b)=>(a.health??999)-(b.health??999));
-  else if (sortMode==='name_asc') items.sort((a,b)=>getDisplayName(a.k).localeCompare(getDisplayName(b.k)));
+  else if (sortMode==='name_asc') items.sort((a,b)=>getMotorName(a.k).localeCompare(getMotorName(b.k)));
   else if (sortMode==='ip_asc') items.sort((a,b)=>(isNaN(a.diag.ip)?999:a.diag.ip)-(isNaN(b.diag.ip)?999:b.diag.ip));
   else if (sortMode==='date_desc') items.sort((a,b)=>b.diag.date-a.diag.date);
 
@@ -1327,10 +1433,10 @@ function renderGrid(){
       </div>
       <div class="mcard-body">
         <div class="health-ring-wrap">${healthRingSVG(health, level)}</div>
-        <div class="mmetrics">
+        <div class="mmetrics" style="${isTrifasico(k)?'':'grid-template-columns:1fr 1fr 1fr;'}">
           <div class="mm-item"><div class="mm-lbl">IP</div><div class="mm-val ${subIpClass}">${diag.ip!==undefined&&!isNaN(diag.ip)?fmt(diag.ip,2):'—'}</div></div>
           <div class="mm-item"><div class="mm-lbl">R. Aisl.</div><div class="mm-val ${subRAislClass}">${diag.rAisl!==undefined&&!isNaN(diag.rAisl)?fmt(diag.rAisl,0)+'MΩ':'—'}</div></div>
-          <div class="mm-item"><div class="mm-lbl">Desb. Bobinado</div><div class="mm-val ${subDesbRClass}">${diag.desbR!==undefined&&!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div></div>
+          ${isTrifasico(k)?`<div class="mm-item"><div class="mm-lbl">Desb. Bobinado</div><div class="mm-val ${subDesbRClass}">${diag.desbR!==undefined&&!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div></div>`:''}
           <div class="mm-item"><div class="mm-lbl">Desb. Corriente</div><div class="mm-val ${subDesbIClass}">${diag.desbI!==undefined&&!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
         </div>
       </div>
@@ -1342,20 +1448,29 @@ function renderGrid(){
 // ═══════════════════════════════════════════════════════════
 //  7. DETAIL MODAL
 // ═══════════════════════════════════════════════════════════
-function diagnosisMessages(diag){
+function diagnosisMessages(diag, prevEv){
   const msgs = [];
   const push = (sev, title, action) => msgs.push({sev, title, action});
 
   if (diag.subs.ip >= 1){
     push(diag.subs.ip===3?'critical':diag.subs.ip===2?'warning':'elevated', '🧪 Índice de Polarización bajo',
-      `IP de ${fmt(diag.ip,2)} (R10/R1). Según guía IEEE 43, valores por debajo de 2 son cuestionables y por debajo de 1 indican aislamiento en riesgo de falla. Sugiere contaminación superficial, humedad o suciedad conductiva sobre el bobinado, más que un deterioro uniforme del dieléctrico. Limpiar/secar el motor y repetir el ensayo antes de decidir una intervención mayor.`);
+      `IP de ${fmt(diag.ip,2)} (R10/R1). Según IEEE 43-2013, ≥4 es bueno, 2.5–4 zona de vigilancia, 2–2.5 zona límite y <2 malo (aislamiento en riesgo de falla). Sugiere contaminación superficial, humedad o suciedad conductiva sobre el bobinado, más que un deterioro uniforme del dieléctrico. Limpiar/secar el motor y repetir el ensayo antes de decidir una intervención mayor.`);
+  }
+  if (diag.subs.dar >= 1){
+    push(diag.subs.dar===3?'critical':diag.subs.dar===2?'warning':'elevated', '🧪 Relación de Absorción Dieléctrica (DAR) baja',
+      `DAR de ${fmt(diag.dar,2)} (R1min/R30seg). Según IEEE 43-2013, ≥1.6 es bueno y <1.4 (algunos criterios <1.25) es malo. El DAR es más confiable que el IP en bobinados recién limpiados/instalados o con poco tiempo de servicio, donde aún no se estabilizó la absorción dieléctrica.`);
   }
   if (diag.subs.rAisl >= 2){
+    const tempTxt = diag.usingWindingTemp ? `${fmt(diag.tempBob,1)}°C de bobinado` : `${fmt(diag.tempAmb,1)}°C ambiente`;
     const valTxt = diag.rAislCorregida
-      ? `${fmt(diag.rAislCorr,0)} MΩ corregidos a 40°C (medido: ${fmt(diag.rAisl,0)} MΩ a ${fmt(diag.tempAmb,1)}°C)`
-      : `${fmt(diag.rAisl,0)} MΩ medidos a 1 minuto, sin corregir por temperatura (no se cargó temp. ambiente del ensayo)`;
+      ? `${fmt(diag.rAislCorr,0)} MΩ corregidos a 40°C (medido: ${fmt(diag.rAisl,0)} MΩ a ${tempTxt})`
+      : `${fmt(diag.rAisl,0)} MΩ medidos a 1 minuto, sin corregir por temperatura (no se cargó temperatura del ensayo)`;
     push(diag.subs.rAisl===3?'critical':'warning', '🧯 Resistencia de aislación absoluta baja',
-      `${valTxt}${diag.vEnsayo?` (ensayo a ${fmt(diag.vEnsayo,0)}V)`:''}. A diferencia de un IP bajo con R1 aceptable, este valor sugiere degradación distribuida del aislamiento (envejecimiento térmico, humedad absorbida en el bobinado), no solo suciedad superficial. Evaluar según tensión nominal del motor y programar barniz/secado o reemplazo si persiste.`);
+      `${valTxt}${diag.vEnsayo?` (ensayo a ${fmt(diag.vEnsayo,0)}V)`:''}. Según IEEE 43-2013, ≥100MΩ es bueno, 25–100MΩ zona de vigilancia y <25MΩ (bobinados random-wound) cuestionable. A diferencia de un IP bajo con R1 aceptable, este valor sugiere degradación distribuida del aislamiento (envejecimiento térmico, humedad absorbida en el bobinado), no solo suciedad superficial. Evaluar según tensión nominal del motor y programar barniz/secado o reemplazo si persiste.`);
+  }
+  if (diag.tempDeltaWarn){
+    push('elevated', '🌡️ Diferencia entre temperatura de bobinado y ambiente',
+      `Se cargaron ${fmt(diag.tempBob,1)}°C de bobinado y ${fmt(diag.tempAmb,1)}°C ambiente (diferencia >10°C). Se usó la temperatura de bobinado para corregir, por ser más representativa cuando el motor estuvo detenido poco tiempo — usar solo la ambiente en este caso podría sub o sobreestimar la resistencia corregida.`);
   }
   if (diag.subs.desbR >= 2){
     push(diag.subs.desbR===3?'critical':'warning', '⚖️ Desbalance de resistencia de bobinado',
@@ -1367,6 +1482,9 @@ function diagnosisMessages(diag){
     push(diag.subs.desbI===3?'critical':'warning', '⚡ Desbalance de corriente de línea',
       `${fmt(diag.desbI,1)}% de desbalance entre fases. Según NEMA MG-1, revisar alimentación aguas arriba (tensión desbalanceada), rodamientos, entrehierro no uniforme o alineación mecánica del acoplamiento. El desbalance de corriente eleva el calentamiento del bobinado y acorta su vida útil.`);
   }
+
+  const abrupt = abruptDropWarning(diag, prevEv);
+  if (abrupt) push('critical', '🔻 Caída abrupta vs. ensayo anterior', abrupt.replace(/^🔴 /,''));
 
   if (!msgs.length){
     push('good', '✅ Sin hallazgos relevantes', 'Aislamiento y bobinado dentro de rango normal. Continuar con el plan de ensayos establecido.');
@@ -1388,23 +1506,44 @@ function openDetail(k){
   const badgeClass = level<0?'':`badge-${STATUS[level]}`;
   const health = healthScoreFromLevel(diag.overall, diag.subs);
 
+  // evalReading una sola vez por ensayo — se reusa en el gráfico y el historial
+  // en vez de recalcularse dos y tres veces respectivamente.
+  const n = lastValidIdx(d);
+  const evs = d.dates.map((_,i)=>evalReading(d.params, i));
+  const prevEv = n > 0 ? evs[n-1] : null;
+  const deltaRAisl = prevEv ? deltaBadgeHtml(diag.rAislEval, prevEv.rAislEval, true) : '';
+  const deltaIP    = prevEv ? deltaBadgeHtml(diag.ip, prevEv.ip, true) : '';
+  const deltaDAR   = prevEv ? deltaBadgeHtml(diag.dar, prevEv.dar, true) : '';
+  const deltaDesbR = prevEv ? deltaBadgeHtml(diag.desbR, prevEv.desbR, false) : '';
+  const deltaDesbI = prevEv ? deltaBadgeHtml(diag.desbI, prevEv.desbI, false) : '';
+  const esTrifasico = isTrifasico(k);
+  const governingWinding = (motor.hilos||'3')==='6'
+    ? pickGoverning([{name:'U',r1:d.params.R1_U?.[n]},{name:'V',r1:d.params.R1_V?.[n]},{name:'W',r1:d.params.R1_W?.[n]}]).winding
+    : null;
+  const darNote = (motor.hilos||'3')==='6'
+    ? `<div style="font-size:.68rem;color:var(--muted);margin-top:2px;">${governingWinding?`Calculado sobre devanado ${governingWinding} (el de menor R1)`:'Solo del devanado gobernante'}</div>`
+    : '';
+
   let html = `
   <div class="modal-section-title">Estado actual</div>
   <div class="mgrid">
     <div class="mstat"><div class="mstat-lbl">Estado</div><div class="mstat-val"><span class="mbadge ${badgeClass}">${level<0?'Sin datos':STATUS_LABELS[level]}</span></div></div>
     <div class="mstat"><div class="mstat-lbl">Salud</div><div class="mstat-val">${health===null?'—':health+'%'}</div></div>
     <div class="mstat"><div class="mstat-lbl">R1 min (medido)</div><div class="mstat-val">${!isNaN(diag.r1)?fmt(diag.r1,0)+' MΩ':'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">R1 corregido a 40°C</div><div class="mstat-val">${diag.rAislCorregida?fmt(diag.rAislCorr,0)+' MΩ':'— (sin temp.)'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">R1 corregido a 40°C</div><div class="mstat-val">${diag.rAislCorregida?fmt(diag.rAislCorr,0)+' MΩ':'— (sin temp.)'}</div>${deltaRAisl}</div>
     <div class="mstat"><div class="mstat-lbl">R10 min</div><div class="mstat-val">${!isNaN(diag.r10)?fmt(diag.r10,0)+' MΩ':'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">Índice Polarización</div><div class="mstat-val">${!isNaN(diag.ip)?fmt(diag.ip,2):'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">Desb. Bobinado</div><div class="mstat-val">${!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div></div>
-    <div class="mstat"><div class="mstat-lbl">Temp. ensayo</div><div class="mstat-val">${!isNaN(diag.tempAmb)?fmt(diag.tempAmb,1)+'°C':'—'}</div></div>
+    <div class="mstat"><div class="mstat-lbl">Índice Polarización</div><div class="mstat-val">${!isNaN(diag.ip)?fmt(diag.ip,2):'—'}</div>${deltaIP}</div>
+    <div class="mstat"><div class="mstat-lbl">DAR (R1min/R30seg)</div><div class="mstat-val">${!isNaN(diag.dar)?fmt(diag.dar,2):'—'}</div>${deltaDAR}${darNote}</div>
+    ${esTrifasico?`<div class="mstat"><div class="mstat-lbl">Desb. Bobinado</div><div class="mstat-val">${!isNaN(diag.desbR)?fmt(diag.desbR,1)+'%':'—'}</div>${deltaDesbR}</div>`:''}
+    <div class="mstat"><div class="mstat-lbl">Desb. Corriente</div><div class="mstat-val">${!isNaN(diag.desbI)?fmt(diag.desbI,1)+'%':'—'}</div>${deltaDesbI}</div>
+    <div class="mstat"><div class="mstat-lbl">Temp. ensayo</div><div class="mstat-val">${diag.usingWindingTemp?fmt(diag.tempBob,1)+'°C bobinado':!isNaN(diag.tempAmb)?fmt(diag.tempAmb,1)+'°C ambiente':'—'}</div></div>
   </div>
-  ${!diag.rAislCorregida?`<div class="note-box" style="margin-top:10px;">⚠️ No se cargó temperatura ambiente en este ensayo: el diagnóstico de aislación se está evaluando con el valor <strong>medido, sin corregir</strong>. Cargá la temperatura para normalizar a 40°C y evitar falsos positivos/negativos por clima.</div>`:''}
+  ${!diag.rAislCorregida?`<div class="note-box" style="margin-top:10px;">⚠️ No se cargó temperatura en este ensayo: el diagnóstico de aislación se está evaluando con el valor <strong>medido, sin corregir</strong>. Cargá la temperatura ambiente (o de bobinado) para normalizar a 40°C y evitar falsos positivos/negativos por clima.</div>`:''}
 
   <div class="modal-section-title">Diagnóstico</div>
   <div id="modalDiagBox"></div>
+
+  ${windingBreakdownHtml(motor, d.params, n)}
 
   <div class="modal-section-title">Tendencia (IP y Resistencia de Aislación)</div>
   <div class="chart-wrap"><canvas id="modalChart"></canvas></div>
@@ -1412,18 +1551,35 @@ function openDetail(k){
   <div class="modal-section-title">Historial reciente</div>
   <div style="overflow-x:auto;">
     <table class="rtable">
-      <thead><tr><th>Fecha</th><th>R1 (MΩ)</th><th>R1 @40°C</th><th>R10 (MΩ)</th><th>IP</th><th>Desb.Bob (%)</th><th>Desb.I (%)</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Temp (°C)</th><th>V ensayo</th><th>R1 (MΩ)</th><th>R1 @40°C</th><th>R10 (MΩ)</th><th>IP</th><th>DAR</th>${esTrifasico?'<th>Desb.Bob (%)</th>':''}<th>Desb.I (%)</th></tr></thead>
       <tbody>${d.dates.map((dt,i)=>{
-        const ev = evalReading(d.params, i);
-        return `<tr><td data-label="Fecha">${fmtDate(dt)}</td><td data-label="R1 (MΩ)">${!isNaN(ev.r1)?fmt(ev.r1,0):'—'}</td><td data-label="R1 @40°C">${ev.rAislCorregida?fmt(ev.rAislCorr,0):'—'}</td><td data-label="R10 (MΩ)">${!isNaN(ev.r10)?fmt(ev.r10,0):'—'}</td><td data-label="IP">${!isNaN(ev.ip)?fmt(ev.ip,2):'—'}</td><td data-label="Desb.Bob (%)">${!isNaN(ev.desbR)?fmt(ev.desbR,1):'—'}</td><td data-label="Desb.I (%)">${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td></tr>`;
+        const ev = evs[i];
+        return `<tr><td data-label="Fecha">${fmtDate(dt)}</td><td data-label="Temp (°C)">${ev.usingWindingTemp?fmt(ev.tempBob,1)+' (bob.)':!isNaN(ev.tempAmb)?fmt(ev.tempAmb,1):'—'}</td><td data-label="V ensayo">${!isNaN(ev.vEnsayo)?fmt(ev.vEnsayo,0)+'V':'—'}</td><td data-label="R1 (MΩ)">${!isNaN(ev.r1)?fmt(ev.r1,0):'—'}</td><td data-label="R1 @40°C">${ev.rAislCorregida?fmt(ev.rAislCorr,0):'—'}</td><td data-label="R10 (MΩ)">${!isNaN(ev.r10)?fmt(ev.r10,0):'—'}</td><td data-label="IP">${!isNaN(ev.ip)?fmt(ev.ip,2):'—'}</td><td data-label="DAR">${!isNaN(ev.dar)?fmt(ev.dar,2):'—'}</td>${esTrifasico?`<td data-label="Desb.Bob (%)">${!isNaN(ev.desbR)?fmt(ev.desbR,1):'—'}</td>`:''}<td data-label="Desb.I (%)">${!isNaN(ev.desbI)?fmt(ev.desbI,1):'—'}</td></tr>`;
       }).reverse().slice(0,15).join('')}</tbody>
     </table>
-  </div>`;
+  </div>
+
+  <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>🛠️ Últimas intervenciones</span>
+    <button class="btn-small" onclick="closeDetail();switchTab('intervenciones');document.getElementById('ivFiltroMotor').value='${escJs(motor.name||'')}';renderIntervenciones();">Ver todas / cargar nueva</button>
+  </div>
+  ${(()=>{
+    const ivs = intervenciones.filter(r=>r.motorName===motor.name).sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5);
+    if (!ivs.length) return `<div class="empty-state"><div class="ei">🛠️</div>Sin intervenciones registradas para este motor.</div>`;
+    return `<div style="overflow-x:auto;"><table class="rtable">
+      <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th></tr></thead>
+      <tbody>${ivs.map(r=>`<tr>
+        <td data-label="Fecha">${escHtml(r.fecha)}</td>
+        <td data-label="Tipo">${escHtml(r.tipo)}</td>
+        <td data-label="Descripción" style="white-space:normal;">${escHtml(r.descripcion)}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+  })()}`;
 
   document.getElementById('modalBody').innerHTML = html;
 
   const diagBox = document.getElementById('modalDiagBox');
-  diagBox.innerHTML = diagnosisMessages(diag).map(m=>`
+  diagBox.innerHTML = diagnosisMessages(diag, prevEv).map(m=>`
     <div class="diag-box ${m.sev==='good'?'':m.sev}">
       <div class="diag-title">${m.title}</div>
       <div class="diag-action">${m.action}</div>
@@ -1436,20 +1592,28 @@ function openDetail(k){
     if (!ctx) return;
     if (detailChart) detailChart.destroy();
     const labels = d.dates.map(fmtDate);
-    const ipSeries = d.dates.map((_,i)=>{ const ev = evalReading(d.params,i); return ev.ip; });
-    const r1CorrSeries = d.dates.map((_,i)=>{ const ev = evalReading(d.params,i); return ev.rAislEval; });
+    // Se usa un eje X numérico (índice del ensayo) en vez de categorías de texto:
+    // es lo que exige el plugin de decimation (necesita parsing:false + datos {x,y}),
+    // sin depender de un adapter de fechas que este proyecto no carga.
+    const ipSeries = evs.map((ev,i)=>({x:i, y:ev.ip}));
+    const r1CorrSeries = evs.map((ev,i)=>({x:i, y:ev.rAislEval}));
     detailChart = new Chart(ctx, {
       type:'line',
-      data:{ labels, datasets:[
+      data:{ datasets:[
         { label:'IP (R10/R1)', data:ipSeries, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', yAxisID:'y', tension:.3 },
         { label:'R1 @40°C (MΩ)', data:r1CorrSeries, borderColor:'#f0b429', backgroundColor:'rgba(240,180,41,.1)', yAxisID:'y1', tension:.3 }
       ]},
       options:{
         responsive:true, maintainAspectRatio:false,
+        parsing:false,
         interaction:{mode:'index', intersect:false},
-        plugins:{legend:{labels:{color:'#cdd9f0'}}},
+        plugins:{
+          legend:{labels:{color:'#cdd9f0'}},
+          tooltip:{locale:'es-PY', callbacks:{title:(items)=>labels[items[0]?.parsed?.x] ?? ''}},
+          decimation:{enabled:true, algorithm:'lttb', samples:200}
+        },
         scales:{
-          x:{ticks:{color:'#5e7a9a'}, grid:{color:'#1e2d45'}},
+          x:{type:'linear', ticks:{color:'#5e7a9a', maxTicksLimit:8, callback:v=>labels[Math.round(v)] ?? ''}, grid:{color:'#1e2d45'}},
           y:{position:'left', ticks:{color:'#3b82f6'}, grid:{color:'#1e2d45'}},
           y1:{position:'right', ticks:{color:'#f0b429'}, grid:{display:false}}
         }
@@ -1457,6 +1621,45 @@ function openDetail(k){
     });
   }, 30);
 }
+// Para motores de 6 hilos, muestra la aislación medida por devanado (a tierra y,
+// si se cargó, devanado-contra-devanado) del último ensayo, en vez de solo el
+// valor "gobernante" que se usa para el diagnóstico general.
+function windingBreakdownHtml(motor, params, n){
+  if ((motor.hilos||'3') !== '6') return '';
+  const toGnd = [
+    {name:'U', r1:params.R1_U?.[n], r10:params.R10_U?.[n]},
+    {name:'V', r1:params.R1_V?.[n], r10:params.R10_V?.[n]},
+    {name:'W', r1:params.R1_W?.[n], r10:params.R10_W?.[n]}
+  ];
+  const crossWinding = [
+    {name:'U — V', r1:params.R1_UV?.[n], r10:params.R10_UV?.[n]},
+    {name:'V — W', r1:params.R1_VW?.[n], r10:params.R10_VW?.[n]},
+    {name:'W — U', r1:params.R1_WU?.[n], r10:params.R10_WU?.[n]}
+  ];
+  if (!toGnd.some(w=>!isNaN(w.r1)) && !crossWinding.some(w=>!isNaN(w.r1))) return '';
+  const governing = pickGoverning(toGnd).winding;
+  const rows = (arr, markGoverning) => arr.map(w=>{
+    const ip = (!isNaN(w.r1) && !isNaN(w.r10) && w.r1>0) ? (w.r10/w.r1) : NaN;
+    const flag = (markGoverning && w.name===governing) ? ' ⚑' : '';
+    return `<tr><td data-label="Devanado">${w.name}${flag}</td><td data-label="R1 (MΩ)">${!isNaN(w.r1)?fmt(w.r1,0):'—'}</td><td data-label="R10 (MΩ)">${!isNaN(w.r10)?fmt(w.r10,0):'—'}</td><td data-label="IP">${!isNaN(ip)?fmt(ip,2):'—'}</td></tr>`;
+  }).join('');
+  return `
+  <div class="modal-section-title">Mediciones por devanado (último ensayo)</div>
+  <div style="overflow-x:auto;">
+    <table class="rtable">
+      <thead><tr><th>Devanado — tierra</th><th>R1 (MΩ)</th><th>R10 (MΩ)</th><th>IP</th></tr></thead>
+      <tbody>${rows(toGnd, true)}</tbody>
+    </table>
+  </div>
+  ${crossWinding.some(w=>!isNaN(w.r1)) ? `<div style="overflow-x:auto;margin-top:8px;">
+    <table class="rtable">
+      <thead><tr><th>Devanado — devanado</th><th>R1 (MΩ)</th><th>R10 (MΩ)</th><th>IP</th></tr></thead>
+      <tbody>${rows(crossWinding, false)}</tbody>
+    </table>
+  </div>` : ''}
+  <div class="note-box" style="margin-top:8px;">⚑ Devanado con menor R1: es el que gobierna el IP y la resistencia de aislación mostrados como valor general del motor.</div>`;
+}
+
 function closeDetail(){ document.getElementById('detailOverlay').classList.remove('open'); }
 
 // ═══════════════════════════════════════════════════════════
@@ -1492,19 +1695,75 @@ function createMotor(){
   saveState();
   renderAll();
 }
-function updateMotorHilos(id, val){
-  const m = motorsRegistry.get(id);
-  if (!m) return;
-  m.hilos = val;
-  saveState();
-  renderAll();
-}
 function deleteMotor(id){
   if (!confirm('¿Eliminar este motor y todos sus ensayos asociados?')) return;
   motorsRegistry.delete(id);
   readingsData.delete(id);
+  if (editingMotorId===id) editingMotorId = null;
   saveState();
   renderAll();
+}
+function startEditMotor(id){
+  editingMotorId = id;
+  renderMotorsList();
+}
+function cancelEditMotor(){
+  editingMotorId = null;
+  renderMotorsList();
+}
+function saveMotorEdit(id){
+  const m = motorsRegistry.get(id);
+  if (!m) return;
+  const name = document.getElementById(`edit_name_${id}`).value.trim();
+  if (!name){ alert('El TAG del motor no puede quedar vacío.'); return; }
+  // Si cambia de trifásico a monofásico, los desbalances de bobinado/corriente
+  // ya guardados quedan sin efecto para el diagnóstico (isTrifasico() decide
+  // en el momento de cada ensayo, no hace falta recalcular el historial).
+  const oldName = m.name;
+  m.name = name;
+  m.type = document.getElementById(`edit_type_${id}`).value;
+  m.sistema = document.getElementById(`edit_sistema_${id}`).value;
+  m.hilos = document.getElementById(`edit_hilos_${id}`).value;
+  m.location = document.getElementById(`edit_loc_${id}`).value.trim();
+  m.kw = parseFloat(document.getElementById(`edit_kw_${id}`).value) || 0;
+  m.vNom = parseFloat(document.getElementById(`edit_vNom_${id}`).value) || 0;
+  m.iNom = parseFloat(document.getElementById(`edit_iNom_${id}`).value) || 0;
+  m.rpm = parseFloat(document.getElementById(`edit_rpm_${id}`).value) || 0;
+  // El hub identifica el equipo por TAG: si cambió, el catálogo compartido queda
+  // con el nombre viejo hasta que se publique el nuevo.
+  if (oldName.toLowerCase() !== m.name.toLowerCase()) publicarEquipoEnHub(m.name, m.type);
+  editingMotorId = null;
+  saveState();
+  renderAll();
+}
+function renderMotorEditForm(id, m){
+  return `<div class="panel-box">
+    <div class="panel-box-title"><span>✏️ Editando: ${escHtml(m.name)}</span></div>
+    <div class="form-grid">
+      <div class="fld"><label>TAG / Nombre del motor</label><input id="edit_name_${id}" value="${escHtml(m.name)}"></div>
+      <div class="fld"><label>Tipo</label>
+        <select id="edit_type_${id}">${MOTOR_TYPES.map(t=>`<option value="${t}" ${m.type===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="fld"><label>Sistema eléctrico</label>
+        <select id="edit_sistema_${id}">${MOTOR_SYSTEMS.map(t=>`<option value="${t}" ${(m.sistema||'Trifásico')===t?'selected':''}>${t}</option>`).join('')}</select>
+      </div>
+      <div class="fld"><label>Conexionado de bornes</label>
+        <select id="edit_hilos_${id}">
+          <option value="6" ${(m.hilos||'3')==='6'?'selected':''}>6 hilos (estrella accesible)</option>
+          <option value="3" ${(m.hilos||'3')==='3'?'selected':''}>3 hilos (U,V,W)</option>
+        </select>
+      </div>
+      <div class="fld"><label>Ubicación</label><input id="edit_loc_${id}" value="${escHtml(m.location||'')}"></div>
+      <div class="fld"><label>Potencia (kW)</label><input id="edit_kw_${id}" type="number" inputmode="decimal" step="0.1" value="${m.kw||''}"></div>
+      <div class="fld"><label>Tensión nominal (V)</label><input id="edit_vNom_${id}" type="number" inputmode="decimal" value="${m.vNom||''}"></div>
+      <div class="fld"><label>Corriente nominal (A)</label><input id="edit_iNom_${id}" type="number" inputmode="decimal" step="0.1" value="${m.iNom||''}"></div>
+      <div class="fld"><label>RPM nominal</label><input id="edit_rpm_${id}" type="number" inputmode="decimal" value="${m.rpm||''}"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:6px;">
+      <button class="btn-small" style="background:var(--accent);color:#fff;border:none;" onclick="saveMotorEdit('${escJs(id)}')">💾 Guardar cambios</button>
+      <button class="btn-small" onclick="cancelEditMotor()">Cancelar</button>
+    </div>
+  </div>`;
 }
 function renderMotorsList(){
   const el = document.getElementById('motorsRegistryList');
@@ -1514,11 +1773,15 @@ function renderMotorsList(){
     return;
   }
   el.innerHTML = Array.from(motorsRegistry.entries()).map(([id, m])=>{
+    if (editingMotorId === id) return renderMotorEditForm(id, m);
     const ensayos = readingsData.get(id)?.dates.length || 0;
     const hilos = m.hilos || '3';
     return `<div class="panel-box">
       <div class="panel-box-title"><span>🔩 ${escHtml(m.name)} <span style="color:var(--muted);font-weight:400;font-size:.8rem;">— ${escHtml(m.type||'')}${m.location?' · '+escHtml(m.location):''}</span></span>
-        <button class="btn-small danger" onclick="deleteMotor('${escJs(id)}')">Eliminar</button>
+        <span style="display:flex;gap:6px;">
+          <button class="btn-small" onclick="startEditMotor('${escJs(id)}')">✏️ Editar</button>
+          <button class="btn-small danger" onclick="deleteMotor('${escJs(id)}')">Eliminar</button>
+        </span>
       </div>
       <div style="font-size:.82rem;color:var(--muted);display:flex;align-items:center;flex-wrap:wrap;gap:4px;">
         ${m.kw?`<span class="mpoint-badge" style="display:inline-block;">${m.kw} kW</span>`:''}
@@ -1526,11 +1789,7 @@ function renderMotorsList(){
         ${m.iNom?`<span class="mpoint-badge" style="display:inline-block;">${m.iNom} A</span>`:''}
         ${m.rpm?`<span class="mpoint-badge" style="display:inline-block;">${m.rpm} RPM</span>`:''}
         <span class="mpoint-badge" style="display:inline-block;">${escHtml(m.sistema||'Trifásico')}</span>
-        <label style="margin-left:6px;">Bornes:</label>
-        <select style="font-size:.8rem;padding:2px 6px;" onchange="updateMotorHilos('${escJs(id)}', this.value)">
-          <option value="6" ${hilos==='6'?'selected':''}>6 hilos</option>
-          <option value="3" ${hilos==='3'?'selected':''}>3 hilos</option>
-        </select>
+        <span class="mpoint-badge" style="display:inline-block;">${hilos} hilos</span>
         <span style="margin-left:6px;">${ensayos} ensayo(s) registrado(s)</span>
       </div>
     </div>`;
@@ -1549,7 +1808,7 @@ function renderThresholdGrid(){
     const labels = meta.inverse ? ['Normal (≥)','Elevado (≥)','Alerta (≥)'] : ['Normal (≤)','Elevado (≤)','Alerta (≤)'];
     return `<div class="th-item">
       <div class="th-item-lbl">${meta.label}${meta.unit?' ('+meta.unit+')':''}</div>
-      ${band.map((v,i)=>`<div class="th-row"><label>${labels[i]}</label><input type="number" step="0.01" id="th_${key}_${i}" value="${v}"></div>`).join('')}
+      ${band.map((v,i)=>`<div class="th-row"><label>${labels[i]}</label><input type="number" inputmode="decimal" step="0.01" id="th_${key}_${i}" value="${v}"></div>`).join('')}
     </div>`;
   }).join('');
 }
@@ -1577,6 +1836,7 @@ function resetThresholds(){
 function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.toggle('active', c.id==='tab-'+tab));
+  if (tab === 'intervenciones') renderIntervenciones();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1608,7 +1868,7 @@ function generateOfflineReport(){
     const diag = diagnoseMotor(k);
     if (!diag || diag.overall < 1) continue;
     const health = healthScoreFromLevel(diag.overall, diag.subs);
-    const msgs = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const msgs = diagnosisMessages(diag, prevEvaluation(k)).filter(m=>m.sev!=='good');
     const accion = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Revisar parámetros fuera de rango';
     const plazo = diag.overall===3?'Inmediato':diag.overall===2?'7 días':'30 días';
     actionItems.push({
@@ -1654,7 +1914,7 @@ function generateOfflineReport(){
     <div class="fleet-text">${conc}</div>
   </div>
   <div class="note-box">
-    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Motor Pro</strong>, basado en el Índice de Polarización según IEEE 43, resistencia de aislación absoluta corregida a 40°C (IEEE 43, K<sub>T</sub>=0.5^((40−T)/10); si un ensayo no tiene temperatura ambiente cargada, se evaluó con el valor crudo, sin corregir), desbalance de resistencia de bobinado (criterio general de taller) y desbalance de corriente de línea según NEMA MG-1. Los umbrales son orientativos y ajustables en la pestaña Umbrales; validá contra tu norma o política interna antes de usar el informe para decisiones críticas.
+    ⚠️ Informe generado por el motor de diagnóstico offline de <strong>MANTEC – Motor Pro</strong>, basado en el Índice de Polarización y la Relación de Absorción Dieléctrica (DAR) según IEEE 43-2013, resistencia de aislación absoluta corregida a 40°C (IEEE 43-2013, K<sub>T</sub>=0.5^((40−T)/10), priorizando temperatura de bobinado sobre ambiente cuando se cargó; si un ensayo no tiene ninguna cargada, se evaluó con el valor crudo, sin corregir), desbalance de resistencia de bobinado (criterio general de taller) y desbalance de corriente de línea según NEMA MG-1. Los umbrales son orientativos y ajustables en la pestaña Umbrales; validá contra tu norma o política interna antes de usar el informe para decisiones críticas.
   </div>`;
 
   document.getElementById('reportSections').innerHTML = html;
@@ -1673,7 +1933,7 @@ function copyReport(){
 // ═══════════════════════════════════════════════════════════
 function exportCSV(){
   if (!readingsData.size){ alert('Sin datos.'); return; }
-  let rows = ['Motor,Tipo,Sistema,Fecha,Estado,Temp_Ambiente_C,Tension_Ensayo_V,R1_MOhm,R1_Corregido_40C_MOhm,R10_MOhm,IP,Desb_Bobinado_%,Desb_Corriente_%,Observaciones'];
+  let rows = ['Motor,Tipo,Sistema,Fecha,Estado,Temp_Ambiente_C,Temp_Bobinado_C,Tension_Ensayo_V,R1_MOhm,R1_Corregido_40C_MOhm,R10_MOhm,IP,DAR,Desb_Bobinado_%,Desb_Corriente_%,Observaciones'];
   for (const [k, d] of readingsData.entries()){
     const motor = motorsRegistry.get(k) || {};
     for (let n=0;n<d.dates.length;n++){
@@ -1683,8 +1943,8 @@ function exportCSV(){
       const fecha = (dt instanceof Date && !isNaN(dt)) ? dt.toISOString().slice(0,10) : '';
       rows.push([
         `"${motor.name||''}"`, `"${motor.type||''}"`, `"${motor.sistema||''}"`,
-        fecha, estado, !isNaN(ev.tempAmb)?fmt(ev.tempAmb,1):'', !isNaN(ev.vEnsayo)?fmt(ev.vEnsayo,0):'',
-        !isNaN(ev.r1)?fmt(ev.r1,2):'', ev.rAislCorregida?fmt(ev.rAislCorr,2):'', !isNaN(ev.r10)?fmt(ev.r10,2):'', !isNaN(ev.ip)?fmt(ev.ip,2):'',
+        fecha, estado, !isNaN(ev.tempAmb)?fmt(ev.tempAmb,1):'', !isNaN(ev.tempBob)?fmt(ev.tempBob,1):'', !isNaN(ev.vEnsayo)?fmt(ev.vEnsayo,0):'',
+        !isNaN(ev.r1)?fmt(ev.r1,2):'', ev.rAislCorregida?fmt(ev.rAislCorr,2):'', !isNaN(ev.r10)?fmt(ev.r10,2):'', !isNaN(ev.ip)?fmt(ev.ip,2):'', !isNaN(ev.dar)?fmt(ev.dar,2):'',
         !isNaN(ev.desbR)?fmt(ev.desbR,2):'', !isNaN(ev.desbI)?fmt(ev.desbI,2):'',
         `"${(d.obs&&d.obs[n])||''}"`
       ].join(','));
@@ -1698,8 +1958,11 @@ function exportCSV(){
 }
 
 function clearAllData(){
-  if (!confirm('¿Borrar TODOS los motores y ensayos? Esta acción no se puede deshacer.')) return;
-  motorsRegistry.clear(); readingsData.clear();
+  if (!confirm('¿Borrar TODOS los motores, ensayos e intervenciones? Esta acción no se puede deshacer.')) return;
+  motorsRegistry.clear(); readingsData.clear(); intervenciones = [];
+  editingMotorId = null;
+  const status = document.getElementById('loadStatus');
+  if (status){ status.className = 'load-status'; status.textContent = ''; }
   saveState();
   renderAll();
 }
@@ -1735,6 +1998,143 @@ async function publicarEquipoEnHub(name, tipo){
   }
 }
 
+// ─── Capturas de campo (hub → Motor Pro) ───
+async function actualizarBadgeCapturas(){
+  const badge = document.getElementById('capturasBadge');
+  if(!badge) return;
+  if(typeof SatSync === 'undefined' || !SatSync.init() || typeof SatSync.listarCapturasPendientes !== 'function'){
+    badge.classList.add('hidden');
+    return;
+  }
+  try{
+    const capturas = await SatSync.listarCapturasPendientes({ modulo: 'motor_pro' });
+    if(capturas.length){
+      badge.textContent = String(capturas.length);
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  }catch(err){
+    console.warn('[SatSync] no se pudo chequear capturas pendientes', err);
+    badge.classList.add('hidden');
+  }
+}
+
+async function abrirCapturasPendientes(){
+  if(typeof SatSync === 'undefined' || !SatSync.init()){
+    alert('Conectá Supabase primero (configuralo desde el hub — index.html).');
+    return;
+  }
+  if(typeof SatSync.listarCapturasPendientes !== 'function'){
+    alert('Esta versión de sat-sync.js no tiene listarCapturasPendientes(). Actualizá sat-sync.js primero.');
+    return;
+  }
+  const status = document.getElementById('loadStatus');
+  let capturas;
+  try{
+    capturas = await SatSync.listarCapturasPendientes({ modulo: 'motor_pro' });
+  }catch(err){
+    console.error('[SatSync] error listando capturas pendientes', err);
+    alert('No se pudieron leer las capturas del hub: ' + err.message);
+    return;
+  }
+  if(!capturas.length){
+    alert('No hay capturas pendientes desde el hub de campo.');
+    await actualizarBadgeCapturas();
+    return;
+  }
+  if(!confirm(`Hay ${capturas.length} captura(s) pendiente(s) del hub de campo. ¿Importarlas todas a Motor Pro?`)) return;
+
+  let ok = 0, fail = 0;
+  const errores = [];
+  for(const cap of capturas){
+    try{
+      importarCapturaHub(cap);
+      await SatSync.marcarCapturaProcesada(cap.id);
+      ok++;
+    }catch(err){
+      console.error('[MotorPro] error importando captura', cap, err);
+      errores.push((cap.equipos?.tag || cap.datos?.tag || cap.id) + ': ' + err.message);
+      fail++;
+    }
+  }
+  saveState();
+  renderAll();
+  await actualizarBadgeCapturas();
+  if(status){
+    status.className = 'load-status' + (fail ? ' err' : ' ok');
+    status.textContent = fail
+      ? `📥 ${ok} captura(s) importada(s) · ${fail} con error (ver consola).`
+      : `📥 ${ok} captura(s) importada(s) desde el hub de campo.`;
+  }
+  if(fail) console.warn('[MotorPro] capturas con error:', errores);
+}
+
+// Convierte una captura del hub (tabla capturas_campo) en un ensayo de Motor Pro.
+// Mapeo directo: la captura ya viene validada desde el hub, no hace falta revisión manual.
+function importarCapturaHub(cap){
+  const d = cap.datos || {};
+  const tag = cap.equipos?.tag || d.tag;
+  if(!tag || !d.fecha) throw new Error('captura sin TAG o fecha');
+
+  // Localizar motor existente por nombre, o crearlo con los datos de la captura
+  let motorId = null;
+  for(const [id, m] of motorsRegistry.entries()){
+    if(m.name.toLowerCase() === tag.toLowerCase()){ motorId = id; break; }
+  }
+  if(!motorId){
+    motorId = genId();
+    motorsRegistry.set(motorId, {
+      name: tag, type: 'Inducción Jaula de Ardilla',
+      sistema: d.sistema || 'Trifásico',
+      hilos: d.hilos || '3',
+      location: '', kw: d.kw || 0, vNom: d.vNom || 0,
+      iNom: d.iNom || 0, rpm: d.rpm || 0
+    });
+  } else {
+    // El motor ya existe: sólo rellenamos metadata que quedó vacía (0/undefined),
+    // nunca pisamos un valor que el usuario ya haya cargado en Motor Pro.
+    const m = motorsRegistry.get(motorId);
+    if(!m.kw && d.kw) m.kw = d.kw;
+    if(!m.vNom && d.vNom) m.vNom = d.vNom;
+    if(!m.iNom && d.iNom) m.iNom = d.iNom;
+    if(!m.rpm && d.rpm) m.rpm = d.rpm;
+  }
+
+  const seis = (d.hilos || '3') === '6';
+  const fecha = new Date(d.fecha + 'T12:00:00');
+  const desbR = isTrifasico(motorId) && d.rUV != null && d.rVW != null && d.rWU != null
+    ? computeDesbalance(d.rUV, d.rVW, d.rWU) : NaN;
+  const desbI = isTrifasico(motorId) && d.iR != null && d.iS != null && d.iT != null
+    ? computeDesbalance(d.iR, d.iS, d.iT) : NaN;
+
+  // Para 6 hilos, calcular el devanado gobernante (mismo criterio que en la captura del hub)
+  let r1 = seis ? NaN : d.r1, r10 = seis ? NaN : d.r10, r30 = seis ? NaN : d.r30;
+  if(seis){
+    const gov = pickGoverning([
+      {name:'U', r1:d.r1u, r10:d.r10u},
+      {name:'V', r1:d.r1v, r10:d.r10v},
+      {name:'W', r1:d.r1w, r10:d.r10w}
+    ]);
+    r1 = gov.r1; r10 = gov.r10; r30 = d.r30gov;
+  }
+
+  const incoming = {
+    dates:[fecha],
+    params:{ VEnsayo:[d.vEnsayo], TempAmb:[d.tempAmb], TempBob:[d.tempBob],
+      R1:[r1], R10:[r10], R30:[r30],
+      R1_U:[d.r1u], R10_U:[d.r10u], R1_V:[d.r1v], R10_V:[d.r10v],
+      R1_W:[d.r1w], R10_W:[d.r10w],
+      R1_UV:[d.r1uv], R10_UV:[d.r10uv], R1_VW:[d.r1vw], R10_VW:[d.r10vw],
+      R1_WU:[d.r1wu], R10_WU:[d.r10wu],
+      R_UV:[d.rUV], R_VW:[d.rVW], R_WU:[d.rWU], DesbR:[desbR],
+      I_R:[d.iR], I_S:[d.iS], I_T:[d.iT], DesbI:[desbI] },
+    obs:[d.obs || '']
+  };
+  const existing = readingsData.get(motorId);
+  readingsData.set(motorId, existing ? mergeReadings(existing, incoming) : incoming);
+}
+
 function mapNivelASeveridad(nivel){
   if(nivel === 'critical') return 'critico';
   if(nivel === 'warning' || nivel === 'elevated') return 'atencion';
@@ -1761,7 +2161,7 @@ async function guardarEnLaNube(){
     if(!tag){ fail++; continue; }
     const health = healthScoreFromLevel(diag.overall, diag.subs);
     const nivel  = STATUS[diag.overall];
-    const msgs   = diagnosisMessages(diag).filter(m=>m.sev!=='good');
+    const msgs   = diagnosisMessages(diag, prevEvaluation(k)).filter(m=>m.sev!=='good');
     const resumen = msgs.length ? msgs[0].title.replace(/^[^\w]+/,'') : 'Sin hallazgos relevantes';
     const m = motorsRegistry.get(k) || {};
     try{
@@ -1790,12 +2190,198 @@ async function guardarEnLaNube(){
 }
 
 // ═══════════════════════════════════════════════════════════
+//  HISTORIAL DE INTERVENCIONES
+// ═══════════════════════════════════════════════════════════
+// Un barnizado/secado explica una subida de IP en el próximo ensayo, un cambio de
+// rodamientos explica una mejora del desbalance de corriente, un reapriete de bornera
+// explica una mejora del desbalance de resistencia. Sin este registro, el informe dice
+// "el motor mejoró" sin poder atribuirlo a nada.
+function populateIntervencionSelects(){
+  const motorSel = document.getElementById('ivMotor');
+  const tipoSel = document.getElementById('ivTipo');
+  const filtroMotorSel = document.getElementById('ivFiltroMotor');
+  const filtroTipoSel = document.getElementById('ivFiltroTipo');
+  if (!motorSel) return;
+
+  const names = Array.from(motorsRegistry.values()).map(m=>m.name).filter(Boolean).sort((a,b)=>a.localeCompare(b));
+
+  motorSel.innerHTML = names.length
+    ? names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('')
+    : `<option value="">— Registrá un motor primero —</option>`;
+
+  if (!tipoSel.dataset.filled){
+    tipoSel.innerHTML = TIPOS_INTERVENCION.map(t=>`<option value="${t}">${t}</option>`).join('');
+    tipoSel.dataset.filled = '1';
+  }
+
+  const prevMotor = filtroMotorSel.value;
+  filtroMotorSel.innerHTML = `<option value="">Todos los motores</option>` + names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join('');
+  if (names.includes(prevMotor)) filtroMotorSel.value = prevMotor;
+
+  const prevTipo = filtroTipoSel.value;
+  filtroTipoSel.innerHTML = `<option value="">Todos los tipos</option>` + TIPOS_INTERVENCION.map(t=>`<option value="${t}">${t}</option>`).join('');
+  if (TIPOS_INTERVENCION.includes(prevTipo)) filtroTipoSel.value = prevTipo;
+
+  const fechaEl = document.getElementById('ivFecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = new Date().toISOString().slice(0,10);
+}
+
+function crearIntervencion(){
+  const motorName = document.getElementById('ivMotor').value;
+  const fecha = document.getElementById('ivFecha').value || new Date().toISOString().slice(0,10);
+  const tipo = document.getElementById('ivTipo').value;
+  const descripcion = document.getElementById('ivDescripcion').value.trim();
+  const statusEl = document.getElementById('ivStatus');
+
+  if (!motorName){ alert('Registrá al menos un motor antes de cargar una intervención.'); return; }
+  if (!descripcion){ alert('Ingresá una descripción de la intervención.'); return; }
+
+  const rec = { id: genId(), motorName, fecha, tipo, descripcion, ts: new Date().toISOString(), synced: false };
+  intervenciones.push(rec);
+  saveState();
+  document.getElementById('ivDescripcion').value = '';
+  statusEl.textContent = '✅ Guardada localmente.';
+  statusEl.style.color = 'var(--good, #10c98a)';
+  renderIntervenciones();
+
+  // Best-effort: subir a la nube si hay conexión configurada (no bloquea el guardado local).
+  guardarIntervencionEnNube(rec).then(ok=>{
+    if (ok){
+      statusEl.textContent = '☁️ Guardada localmente y sincronizada con la nube.';
+      renderIntervenciones();
+    }
+  });
+}
+
+function eliminarIntervencion(id){
+  if (!confirm('¿Eliminar esta intervención del historial?')) return;
+  intervenciones = intervenciones.filter(r=>r.id!==id);
+  saveState();
+  renderIntervenciones();
+}
+
+function renderIntervenciones(){
+  const wrap = document.getElementById('ivListWrap');
+  if (!wrap) return;
+  populateIntervencionSelects();
+
+  const fMotor = document.getElementById('ivFiltroMotor')?.value || '';
+  const fTipo = document.getElementById('ivFiltroTipo')?.value || '';
+  const q = (document.getElementById('ivBuscar')?.value || '').toLowerCase().trim();
+  const orden = document.getElementById('ivOrden')?.value || 'fecha_desc';
+
+  let rows = intervenciones.filter(r=>{
+    if (fMotor && r.motorName !== fMotor) return false;
+    if (fTipo && r.tipo !== fTipo) return false;
+    if (q && !(`${r.descripcion} ${r.motorName}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+
+  rows.sort((a,b)=>{
+    if (orden==='fecha_asc') return a.fecha.localeCompare(b.fecha);
+    if (orden==='motor_asc') return a.motorName.localeCompare(b.motorName) || b.fecha.localeCompare(a.fecha);
+    return b.fecha.localeCompare(a.fecha); // fecha_desc (default)
+  });
+
+  if (!rows.length){
+    wrap.innerHTML = `<div class="empty-state"><div class="ei">🛠️</div>Sin intervenciones registradas todavía.</div>`;
+    return;
+  }
+
+  wrap.innerHTML = `<div style="overflow-x:auto;"><table class="rtable">
+    <thead><tr><th>Fecha</th><th>Motor</th><th>Tipo</th><th>Descripción</th><th>Origen</th><th></th></tr></thead>
+    <tbody>
+    ${rows.map(r=>`<tr>
+      <td data-label="Fecha">${escHtml(r.fecha)}</td>
+      <td data-label="Motor">${escHtml(r.motorName)}</td>
+      <td data-label="Tipo">${escHtml(r.tipo)}</td>
+      <td data-label="Descripción" style="white-space:normal;">${escHtml(r.descripcion)}</td>
+      <td data-label="Origen">${r.synced ? '☁️ Nube' : '💾 Local'}</td>
+      <td data-label=""><button class="btn-small danger" onclick="eliminarIntervencion('${escJs(r.id)}')">Eliminar</button></td>
+    </tr>`).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+// Sube una intervención puntual al hub (SatSync), reusando el canal genérico de análisis
+// del módulo. severidad: 'intervencion' (no 'ok') — es un evento histórico, no un resultado
+// de ensayo; si se guardara como 'ok' aparecería en verde en cualquier vista por severidad
+// del hub, lo cual sería engañoso incluso para una intervención correctiva sobre un hallazgo crítico.
+async function guardarIntervencionEnNube(rec){
+  if (typeof SatSync === 'undefined' || !SatSync.init()) return false;
+  try{
+    await SatSync.guardarAnalisis({
+      modulo: 'motor_pro_intervencion',
+      equipo_tag: rec.motorName,
+      severidad: 'intervencion',
+      resumen: `${rec.tipo}: ${rec.descripcion.slice(0,140)}`,
+      datos: { id: rec.id, fecha: rec.fecha, tipo: rec.tipo, descripcion: rec.descripcion }
+    });
+    rec.synced = true;
+    saveState();
+    return true;
+  }catch(err){
+    console.warn('[SatSync] no se pudo sincronizar la intervención', err);
+    return false;
+  }
+}
+
+// Sincroniza el historial completo: sube las pendientes y, si el hub expone
+// listarAnalisis (sat-sync.js sí lo hace), trae las cargadas desde otros dispositivos.
+async function sincronizarIntervencionesNube(){
+  const note = document.getElementById('ivSyncNote');
+  if (typeof SatSync === 'undefined' || !SatSync.init()){
+    note.textContent = '⚠️ Sin conexión configurada. Abrí el hub (index.html) y conectá Supabase primero.';
+    note.style.color = 'var(--warning, #f0b429)';
+    return;
+  }
+  let subidas = 0, fallos = 0;
+  for (const rec of intervenciones){
+    if (rec.synced) continue;
+    const ok = await guardarIntervencionEnNube(rec);
+    ok ? subidas++ : fallos++;
+  }
+  let bajadas = 0;
+  if (typeof SatSync.listarAnalisis === 'function'){
+    try{
+      const rows = await SatSync.listarAnalisis({ modulo: 'motor_pro_intervencion', limite: 500 });
+      const idsLocales = new Set(intervenciones.map(r=>r.id));
+      for (const row of (rows||[])){
+        const d = row.datos || {};
+        if (d.id && !idsLocales.has(d.id)){
+          intervenciones.push({ id: d.id, motorName: row.equipos?.tag || d.motorName || '(motor desconocido)', fecha: d.fecha, tipo: d.tipo, descripcion: d.descripcion, ts: row.fecha || new Date().toISOString(), synced: true });
+          bajadas++;
+        }
+      }
+      if (bajadas) saveState();
+    }catch(err){
+      console.warn('[SatSync] no se pudo listar intervenciones del hub', err);
+    }
+  }
+  renderIntervenciones();
+  note.style.color = fallos ? 'var(--warning, #f0b429)' : 'var(--good, #10c98a)';
+  note.textContent = typeof SatSync.listarAnalisis === 'function'
+    ? `☁️ ${subidas} subida(s), ${bajadas} traída(s) del hub${fallos ? `, ${fallos} con error` : ''}.`
+    : `☁️ ${subidas} subida(s) al hub${fallos ? `, ${fallos} con error` : ''}.`;
+}
+
+// ═══════════════════════════════════════════════════════════
 //  13. INIT
 // ═══════════════════════════════════════════════════════════
+// v7 (2026-09): umbrales recalibrados a IEEE 43-2013, DAR (R1min/R30seg), corrección
+// por temperatura de bobinado, alerta de caída abrupta, edición completa de motores,
+// desglose de mediciones por devanado en el modal.
 loadState();
 populateMotorTypeSelect();
 renderAll();
+if (thresholdsMigrated){
+  const status = document.getElementById('loadStatus');
+  status.className = 'load-status ok';
+  status.textContent = '⚠️ Los umbrales de diagnóstico se actualizaron a IEEE 43-2013 (versión anterior descartada). Revisá la pestaña Umbrales.';
+  setTimeout(()=>{ if (status.textContent.startsWith('⚠️ Los umbrales')) status.textContent = ''; }, 12000);
+}
 sincronizarEquiposHub(true); // silencioso: si no hay conexión configurada, no molesta
+actualizarBadgeCapturas(); // avisa si hay capturas del hub sin importar
 
 </script>
 </body>

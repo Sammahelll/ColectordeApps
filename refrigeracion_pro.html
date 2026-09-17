@@ -757,6 +757,7 @@ function computeSubcooling(refrigerante, presAltaBar, tempLiquidoC){
 
 const STATUS        = ['good','elevated','warning','critical'];
 const STATUS_LABELS = ['Normal','Elevado','Alerta','Crítico'];
+const STATUS_ICONS  = ['🟢','🟡','🟠','🔴'];
 const STATUS_COLORS = ['#10c98a','#f0b429','#f97316','#ef4444'];
 
 // Umbrales por defecto (editables desde la pestaña Umbrales)
@@ -871,7 +872,7 @@ function levelOf(value, band, inverse){
 }
 // Presión: rango [min,max] normal. Fuera de rango, gravedad según % de desviación
 // respecto al ancho del rango (orientativo — no calcula presión-temp. de saturación).
-function evalRange(value, band){
+function evalPresion(value, band){
   if (value===undefined||value===null||isNaN(value)) return -1;
   const {min,max} = band;
   if (value>=min && value<=max) return 0;
@@ -940,11 +941,11 @@ function evalReading(params, n, fla, refrigerante, tipo){
     desbI:   levelOf(desbI,  thresholds.desbI,  false),
     cargaPct: levelOf(cargaPct, thresholds.cargaPct, false),
     velAire: levelOf(velAire, thresholds.velAire, true),
-    presAlta: ptSupported ? evalRange(tSatCond, thresholds.presionAltaTsat) : evalRange(presAlta, thresholds.presionAlta),
-    presBaja: ptSupported ? evalRange(tSatEvap, thresholds.presionBajaTsat) : evalRange(presBaja, thresholds.presionBaja),
+    presAlta: ptSupported ? evalPresion(tSatCond, thresholds.presionAltaTsat) : evalPresion(presAlta, thresholds.presionAlta),
+    presBaja: ptSupported ? evalPresion(tSatEvap, thresholds.presionBajaTsat) : evalPresion(presBaja, thresholds.presionBaja),
     filtro:  filtroLevel(filtro),
-    superheat: evalRange(superheat, thresholds.superheat),
-    subenfriamiento: evalRange(subcooling, thresholds.subenfriamiento),
+    superheat: evalPresion(superheat, thresholds.superheat),
+    subenfriamiento: evalPresion(subcooling, thresholds.subenfriamiento),
     deltaTAgua: esChiller ? levelOf(deltaTAgua, thresholds.deltaTAgua, true) : -1
   };
   let overall = 0;
@@ -1182,33 +1183,6 @@ function numOrUndef(id){
   return isNaN(n) ? NaN : n;
 }
 
-// Sanity check de rangos físicos plausibles antes de guardar — no bloquea (podría ser un
-// caso real extremo), pero avisa para atajar errores de tipeo (ej: 9999 en vez de 9.9).
-function sanityIssues(v){
-  const issues = [];
-  const chk = (label, val, min, max, unit) => {
-    if (Number.isFinite(val) && (val < min || val > max)) issues.push(`${label}: ${val}${unit} (esperado ${min} a ${max}${unit})`);
-  };
-  chk('Temp. entrada', v.tempEntrada, -30, 80, '°C');
-  chk('Temp. salida', v.tempSalida, -30, 80, '°C');
-  chk('Temp. ambiente', v.tempAmb, -30, 80, '°C');
-  chk('Temp. succión', v.tempSuccion, -30, 80, '°C');
-  chk('Temp. línea líquido', v.tempLiquido, -30, 80, '°C');
-  chk('Temp. agua retorno', v.tempAguaRetorno, -10, 60, '°C');
-  chk('Temp. agua suministro', v.tempAguaSuministro, -10, 60, '°C');
-  chk('Presión alta', v.presAlta, 0, 50, ' bar');
-  chk('Presión baja', v.presBaja, 0, 50, ' bar');
-  chk('Corriente I_R', v.iR, 0, 2000, ' A');
-  chk('Corriente I_S', v.iS, 0, 2000, ' A');
-  chk('Corriente I_T', v.iT, 0, 2000, ' A');
-  chk('Tensión V_R', v.vR, 0, 1000, ' V');
-  chk('Tensión V_S', v.vS, 0, 1000, ' V');
-  chk('Tensión V_T', v.vT, 0, 1000, ' V');
-  chk('Velocidad de aire', v.velAire, 0, 30, ' m/s');
-  chk('Caudal de agua', v.caudalAgua, 0, 500, ' m³/h');
-  return issues;
-}
-
 function saveManualReading(){
   const eqSelVal = document.getElementById('me_eqSel').value;
   const fechaStr = document.getElementById('me_fecha').value;
@@ -1243,9 +1217,6 @@ function saveManualReading(){
   const tempAguaRetorno = numOrUndef('me_tempAguaRetorno');
   const tempAguaSuministro = numOrUndef('me_tempAguaSuministro');
   const caudalAgua = numOrUndef('me_caudalAgua');
-
-  const issues = sanityIssues({tempEntrada, tempSalida, tempAmb, presAlta, presBaja, tempSuccion, tempLiquido, iR, iS, iT, vR, vS, vT, velAire, tempAguaRetorno, tempAguaSuministro, caudalAgua});
-  if (issues.length && !confirm(`⚠️ Valores fuera de rango físico esperado — puede ser un error de tipeo:\n\n${issues.join('\n')}\n\n¿Guardar de todas formas?`)) return;
 
   const incoming = {
     dates:[fecha],
@@ -1571,13 +1542,12 @@ function computeTrends(k, N){
   const start = Math.max(0, total - N);
   const results = [];
   const metrics = TREND_METRICS.filter(m => !m.onlyFor || m.onlyFor === eq.tipo);
-  const t0 = d.dates[start].getTime();
   for (const m of metrics){
     const xs=[], ys=[];
     for (let i=start;i<total;i++){
       const v = m.get(d.params, i, eq.fla);
       if (v===undefined || v===null || isNaN(v)) continue;
-      xs.push((d.dates[i].getTime() - t0) / 86400000); // días transcurridos desde la primera lectura de la ventana
+      xs.push(i-start);
       ys.push(v);
     }
     if (xs.length < 3){ results.push({ ...m, insufficient:true, nPoints:xs.length }); continue; }
@@ -1618,7 +1588,7 @@ function renderTrendPanel(){
     const arrow = Math.abs(t.slope) < eps ? '→' : (t.slope>0 ? '↑' : '↓');
     return `<div class="trend-card">
       <div class="trend-lbl">${t.label}</div>
-      <div class="trend-val ${v.cls}">${arrow} ${t.slope>=0?'+':''}${fmt(t.slope,3)} ${t.unit}/día</div>
+      <div class="trend-val ${v.cls}">${arrow} ${t.slope>=0?'+':''}${fmt(t.slope,3)} ${t.unit}/lectura</div>
       <div class="trend-sub">${v.label} · R²=${fmt(t.r2,2)} · ${t.nPoints} lecturas (${fmtDate(t.firstDate)}–${fmtDate(t.lastDate)})</div>
     </div>`;
   }).join('');
@@ -1674,7 +1644,7 @@ function openDetail(k){
   <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
     <span>Tendencia temporal simple (regresión)</span>
     <label style="font-size:.75rem;color:var(--muted);display:flex;align-items:center;gap:6px;">
-      Últimas N mediciones:
+      N puntos:
       <select id="trendNSel" class="trend-select" onchange="renderTrendPanel()">
         <option value="5">5</option>
         <option value="8" selected>8</option>
@@ -1709,24 +1679,7 @@ function openDetail(k){
         </tr>`;
       }).reverse().slice(0,15).join('')}</tbody>
     </table>
-  </div>
-
-  <div class="modal-section-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
-    <span>🛠️ Últimas intervenciones</span>
-    <button class="btn-small" onclick="closeDetail();switchTab('intervenciones');document.getElementById('ivFiltroEquipo').value='${escJs(eq.tag)}';renderIntervenciones();">Ver todas / cargar nueva</button>
-  </div>
-  ${(()=>{
-    const ivs = intervenciones.filter(r=>r.eqTag===eq.tag).sort((a,b)=>b.fecha.localeCompare(a.fecha)).slice(0,5);
-    if (!ivs.length) return `<div class="empty-state"><div class="ei">🛠️</div>Sin intervenciones registradas para este equipo.</div>`;
-    return `<div style="overflow-x:auto;"><table class="rtable">
-      <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th></tr></thead>
-      <tbody>${ivs.map(r=>`<tr>
-        <td data-label="Fecha">${escHtml(r.fecha)}</td>
-        <td data-label="Tipo">${escHtml(r.tipo)}</td>
-        <td data-label="Descripción" style="white-space:normal;">${escHtml(r.descripcion)}</td>
-      </tr>`).join('')}</tbody>
-    </table></div>`;
-  })()}`;
+  </div>`;
 
   document.getElementById('modalBody').innerHTML = html;
 
@@ -1792,7 +1745,7 @@ function createEquipo(){
   const fla = parseFloat(document.getElementById('newEqFLA').value) || 0;
   const id = genId();
   equiposRegistry.set(id, {tag, tipo, ambiente, ubicacion, capacidad, capUnidad, refrigerante, fla});
-  publicarEquipoEnHub(tag, tipo, {ubicacion});
+  publicarEquipoEnHub(tag, tipo);
   document.getElementById('newEqTag').value='';
   document.getElementById('newEqAmbiente').value='';
   document.getElementById('newEqUbicacion').value='';
@@ -2045,7 +1998,7 @@ function exportCSV(){
 }
 
 function clearAllData(){
-  if (!confirm('¿Borrar TODOS los equipos, lecturas e intervenciones? Esta acción no se puede deshacer.')) return;
+  if (!confirm('¿Borrar TODOS los equipos y lecturas? Esta acción no se puede deshacer.')) return;
   equiposRegistry.clear(); readingsData.clear(); intervenciones = [];
   saveState();
   renderAll();
@@ -2072,13 +2025,10 @@ async function sincronizarEquiposHub(silencioso){
   }
 }
 
-async function publicarEquipoEnHub(name, tipo, extra={}){
+async function publicarEquipoEnHub(name, tipo){
   if(typeof SatSync === 'undefined' || !SatSync.init()) return;
   try{
-    // Nota: la tabla "equipos" del hub (sat-sync.js) solo persiste tag/nombre/tipo/ubicacion.
-    // Capacidad, refrigerante y FLA son propios de este módulo y no viajan al hub hasta que
-    // se agreguen esas columnas al esquema compartido (afectaría a los 6 módulos satélite).
-    await SatSync.buscarOCrearEquipo(name, {tipo, ubicacion: extra.ubicacion || null});
+    await SatSync.buscarOCrearEquipo(name, {tipo});
     equiposHub.set(name, {tag:name, nombre:name, tipo});
   }catch(err){
     console.warn('[SatSync] no se pudo publicar el equipo en el hub', err);
